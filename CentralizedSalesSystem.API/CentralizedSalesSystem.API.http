@@ -1,0 +1,6 @@
+@CentralizedSalesSystem.API_HostAddress = http://localhost:5263
+
+GET {{CentralizedSalesSystem.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

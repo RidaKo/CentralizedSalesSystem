@@ -1,0 +1,5327 @@
+openapi: 3.0.4
+info:
+  title: Central sales system
+  version: 1.0.4
+tags:
+  - name: tables
+  - name: businesses
+  - name: reservations
+  - name: orders
+  - name: orderItems
+  - name: users
+  - name: payments
+  - name: discounts
+  - name: taxes
+  - name: items
+  - name: refunds
+  - name: roles
+  - name: userRoles
+  - name: permissions
+  - name: rolePermissions
+  - name: serviceCharges
+  - name: itemVariations
+  - name: itemVariationOptions
+  - name: authentication
+  - name: giftCards
+    
+paths:
+  /auth/login:
+    post:
+      tags:
+        - authentication
+      summary: Login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserLogin'
+      responses:
+        '200':
+          description: Token returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          description: Invalid input
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  
+  /giftCards:
+    get:
+      tags:
+        - giftCards
+      summary: Get all gift card
+      description: Get list of all gift card
+      operationId: get_collectionGiftCard
+      parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+          default: 1
+        description: Page number for pagination
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          default: 20
+        description: Number of items per page
+      - in: query
+        name: sortBy
+        schema:
+          type: string
+          enum: [initialValue, currentBalance, issuedAt, expiresAt, issuedTo, status]
+        description: Field to sort by
+      - in: query
+        name: sortDirection
+        schema:
+          type: string
+          enum: [asc, desc]
+        description: Sort direction
+      - in: query
+        name: filterByCode
+        schema:
+          type: string
+        description: Filter gift cards by code
+      - in: query
+        name: filterByCurrency
+        schema:
+          type: string
+        description: Filter gift cards by currency
+      - in: query
+        name: filterByIssuedBy
+        schema:
+          type: integer
+          format: int
+        description: Filter gift cards by issued by
+      - in: query
+        name: filterByIssuedTo
+        schema:
+          type: string
+        description: Filter gift cards by issued to
+      - in: query
+        name: filterByBusinessId
+        schema:
+          type: integer
+          format: int
+        description: Filter gift cards by business id
+      - in: query
+        name: filterByStatus
+        schema:
+          type: string
+          enum: [valid, expired, redeemed, void]
+        description: Filter gift cards by status
+      - in: query
+        name: filterByIssueDate
+        schema:
+          type: string
+          format: date-time
+        description: Filter gift cards by issue date
+      - in: query
+        name: filterByExpirationDate
+        schema:
+          type: string
+          format: date-time
+        description: Filter gift cards by expiration date
+
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/GiftCard.jsonId'
+                  page:
+                    type: integer
+                    example: 1
+                  limit:
+                    type: integer
+                    example: 20
+                  total:
+                    type: integer
+                    example: 240
+                  totalPages:
+                    type: integer
+                    example: 12
+        '404':
+          description: Gift cards not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      tags:
+        - giftCards
+      summary: Add gift card
+      description: Add gift card
+      operationId: createGiftCard
+      requestBody:
+        description: Create a new gift card
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GiftCard'
+        required: true
+      responses:
+        '201':
+          description: Successfully created new gift card
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GiftCard.jsonId'
+        '400':
+          description: Invalid input
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+                
+  /giftCards/{giftCardId}:
+    get:
+      tags:
+        - giftCards
+      summary: Get gift card by id
+      description: Returns a single gift card
+      operationId: getGiftCardById
+      parameters:
+        - name: giftCardId
+          in: path
+          description: ID of gift card to return
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GiftCard.jsonId'
+        '400':
+          description: Invalid input
+        '404':
+          description: Gift card not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"  
+    patch:
+      tags:
+        - giftCards
+      summary:  Modify gift card
+      description: Modify gift card
+      operationId: modifyGiftCard
+      parameters:
+        - name: giftCardId
+          in: path
+          description: ID of gift card to modify
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        description: Modify gift card
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/GiftCard'
+        required: true
+      responses:
+        '201':
+          description: Successfully modified gift card
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GiftCard.jsonId'
+        '400':
+          description: Invalid input
+        '404':
+          description: Gift card not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags:
+        - giftCards
+      summary:  Delete gift card
+      description: Delete gift card
+      operationId: deleteGiftCard
+      parameters:
+        - name: giftCardId
+          in: path
+          description: ID of gift card to delete
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successfully deleted gift card
+        '400':
+          description: Invalid input
+        '404':
+          description: Gift card not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /itemVariationOptions:
+    get:
+      tags:
+        - itemVariationOptions
+      summary: Get all item variation options
+      description: Get list of all item variation options
+      operationId: get_collectionItemVariationOptions
+      parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+          default: 1
+        description: Page number for pagination
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          default: 20
+        description: Number of items per page
+      - in: query
+        name: sortBy
+        schema:
+          type: string
+          enum: [name, priceAdjustment]
+        description: Field to sort by
+      - in: query
+        name: sortDirection
+        schema:
+          type: string
+          enum: [asc, desc]
+        description: Sort direction
+      - in: query
+        name: filterByName
+        schema:
+          type: string
+        description: Filter item variation options by name
+      - in: query
+        name: filterByVariationId
+        schema:
+          type: integer
+          format: int64
+        description: Filter item variation options by item variation id
+
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ItemVariationOption.jsonId'
+                  page:
+                    type: integer
+                    example: 1
+                  limit:
+                    type: integer
+                    example: 20
+                  total:
+                    type: integer
+                    example: 240
+                  totalPages:
+                    type: integer
+                    example: 12
+        '404':
+          description: Item variation option not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      tags:
+        - itemVariationOptions
+      summary: Add item variation option
+      description: Add new item variation option
+      operationId: createItemVariationOption
+      requestBody:
+        description: Create a new item variation option
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ItemVariationOption'
+        required: true
+      responses:
+        '201':
+          description: Successfully created new item variation option
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemVariationOption.jsonId'
+        '400':
+          description: Invalid input
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+                
+  /itemVariationOptions/{itemVariationOptionId}:
+    get:
+      tags:
+        - itemVariationOptions
+      summary: Get item variation option by id
+      description: Returns a single item variation option
+      operationId: getItemVariationOptionById
+      parameters:
+        - name: itemVariationOptionId
+          in: path
+          description: ID of item variation option to return
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemVariationOption.jsonId'
+        '400':
+          description: Invalid input
+        '404':
+          description: Item variation option not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"  
+    patch:
+      tags:
+        - itemVariationOptions
+      summary:  Modify item variation option
+      description: Modify item variation option
+      operationId: modifyItemVariationOption
+      parameters:
+        - name: itemVariationOptionId
+          in: path
+          description: ID of item variation option to modify
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        description: Modify item variation option
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/ItemVariationOption'
+        required: true
+      responses:
+        '201':
+          description: Successfully modified item variation option
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemVariationOption.jsonId'
+        '400':
+          description: Invalid input
+        '404':
+          description: Item variation option not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags:
+        - itemVariationOptions
+      summary:  Delete item variation option
+      description: Delete item variation option
+      operationId: deleteItemVariationOption
+      parameters:
+        - name: itemVariationOptionId
+          in: path
+          description: ID of item variation option to delete
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successfully deleted item variation option
+        '400':
+          description: Invalid input
+        '404':
+          description: Item variation option not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+                
+  /itemVariations:
+    get:
+      tags:
+        - itemVariations
+      summary: Get all item variations
+      description: Get list of all item variations
+      operationId: get_collectionItemVariations
+      parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+          default: 1
+        description: Page number for pagination
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          default: 20
+        description: Number of items per page
+      - in: query
+        name: sortBy
+        schema:
+          type: string
+          enum: [name, selection]
+        description: Field to sort by
+      - in: query
+        name: sortDirection
+        schema:
+          type: string
+          enum: [asc, desc]
+        description: Sort direction
+      - in: query
+        name: filterByName
+        schema:
+          type: string
+        description: Filter item variations by name
+      - in: query
+        name: filterByItemId
+        schema:
+          type: integer
+          format: int64
+        description: Filter item variations by item id
+      - in: query
+        name: filterBySelection
+        schema:
+          type: string
+          enum: [required, optional, multiSelection]
+        description: Filter item variations by selection
+
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ItemVariation.jsonId'
+                  page:
+                    type: integer
+                    example: 1
+                  limit:
+                    type: integer
+                    example: 20
+                  total:
+                    type: integer
+                    example: 240
+                  totalPages:
+                    type: integer
+                    example: 12
+        '404':
+          description: Item variation not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      tags:
+        - itemVariations
+      summary: Add item variation
+      description: Add new itemVariation
+      operationId: createItemVariation
+      requestBody:
+        description: Create a new item variation
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ItemVariation'
+        required: true
+      responses:
+        '201':
+          description: Successfully created new item variation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemVariation.jsonId'
+        '400':
+          description: Invalid input
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+                
+  /itemVariations/{itemVariationId}:
+    get:
+      tags:
+        - itemVariations
+      summary: Get item variation by id
+      description: Returns a single item variation
+      operationId: getItemVariationById
+      parameters:
+        - name: itemVariationId
+          in: path
+          description: ID of item variation to return
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemVariation.jsonId'
+        '400':
+          description: Invalid input
+        '404':
+          description: Item variation not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"  
+    patch:
+      tags:
+        - itemVariations
+      summary:  Modify item variation
+      description: Modify item variation
+      operationId: modifyItemVariation
+      parameters:
+        - name: itemVariationId
+          in: path
+          description: ID of item variation to modify
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        description: Modify item variation
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/ItemVariation'
+        required: true
+      responses:
+        '201':
+          description: Successfully modified item variation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemVariation.jsonId'
+        '400':
+          description: Invalid input
+        '404':
+          description: Item variation not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags:
+        - itemVariations
+      summary:  Delete item variation
+      description: Delete item variation
+      operationId: deleteItemVariation
+      parameters:
+        - name: itemVariationId
+          in: path
+          description: ID of item variation to delete
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successfully deleted item variation
+        '400':
+          description: Invalid input
+        '404':
+          description: Item variation not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /serviceCharges:
+    get:
+      tags:
+        - serviceCharges
+      summary: Get all service charges
+      description: Get list of all service charges
+      operationId: get_collectionServiceCharges
+      parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+          default: 1
+        description: Page number for pagination
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          default: 20
+        description: Number of items per page
+      - in: query
+        name: sortBy
+        schema:
+          type: string
+          enum: [name, rate, createdAt, updatedAt]
+        description: Field to sort by
+      - in: query
+        name: sortDirection
+        schema:
+          type: string
+          enum: [asc, desc]
+        description: Sort direction
+      - in: query
+        name: filterByName
+        schema:
+          type: string
+        description: Filter service charges by name
+      - in: query
+        name: filterByCreationDate
+        schema:
+          type: string
+          format: date-time
+        description: Filter service charges by creation date
+      - in: query
+        name: filterByUpdateDate
+        schema:
+          type: string
+          format: date-time
+        description: Filter service charges by update date
+
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ServiceCharge.jsonId'
+                  page:
+                    type: integer
+                    example: 1
+                  limit:
+                    type: integer
+                    example: 20
+                  total:
+                    type: integer
+                    example: 240
+                  totalPages:
+                    type: integer
+                    example: 12
+        '404':
+          description: Service charges not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      tags:
+        - serviceCharges
+      summary: Add service charge
+      description: Add new service charge
+      operationId: createServiceCharge
+      requestBody:
+        description: Create a new service charge
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceCharge'
+        required: true
+      responses:
+        '201':
+          description: Successfully created new service charge
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceCharge.jsonId'
+        '400':
+          description: Invalid input
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+                
+  /serviceCharges/{serviceChargeId}:
+    get:
+      tags:
+        - serviceCharges
+      summary: Get service charge by id
+      description: Returns a single service charge
+      operationId: getServiceChargeById
+      parameters:
+        - name: serviceChargeId
+          in: path
+          description: ID of service chargeto return
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceCharge.jsonId'
+        '400':
+          description: Invalid input
+        '404':
+          description: Service charge not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"  
+    patch:
+      tags:
+        - serviceCharges
+      summary:  Modify service charge
+      description: Modify service charge
+      operationId: modifyServiceCharge
+      parameters:
+        - name: serviceChargeId
+          in: path
+          description: ID of service charge to modify
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        description: Modify service charge
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/ServiceCharge'
+        required: true
+      responses:
+        '201':
+          description: Successfully modified service charge
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceCharge.jsonId'
+        '400':
+          description: Invalid input
+        '404':
+          description: Service charge not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags:
+        - serviceCharges
+      summary:  Delete service charge
+      description: Delete service charge
+      operationId: deleteServiceCharge
+      parameters:
+        - name: serviceChargeId
+          in: path
+          description: ID of service charge to delete
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successfully deleted service charge
+        '400':
+          description: Invalid input
+        '404':
+          description: Service charge not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+                
+  /rolePermissions:
+    get:
+      tags:
+        - rolePermissions
+      summary: Get all role permissions
+      description: Get list of all role permissions
+      operationId: get_collectionRolePermissions
+      parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+          default: 1
+        description: Page number for pagination
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          default: 20
+        description: Number of items per page
+      - in: query
+        name: sortBy
+        schema:
+          type: string
+          enum: [createdAt, updatedAt]
+        description: Field to sort by
+      - in: query
+        name: sortDirection
+        schema:
+          type: string
+          enum: [asc, desc]
+        description: Sort direction
+      - in: query
+        name: filterByRoleId
+        schema:
+          type: integer
+          format: int64
+        description: Filter role permissions by role id
+      - in: query
+        name: filterByPermissionId
+        schema:
+          type: integer
+          format: int64
+        description: Filter role permissions by permission id
+
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RolePermission.jsonId'
+                  page:
+                    type: integer
+                    example: 1
+                  limit:
+                    type: integer
+                    example: 20
+                  total:
+                    type: integer
+                    example: 240
+                  totalPages:
+                    type: integer
+                    example: 12
+        '404':
+          description: Role permissions not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      tags:
+        - rolePermissions
+      summary: Add role permission
+      description: Add new role permission
+      operationId: createRolePermission
+      requestBody:
+        description: Create a new role permission
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RolePermission'
+        required: true
+      responses:
+        '201':
+          description: Successfully created new role permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RolePermission.jsonId'
+        '400':
+          description: Invalid input
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+                
+  /rolePermissions/{rolePermissionId}:
+    get:
+      tags:
+        - rolePermissions
+      summary: Get role permission by id
+      description: Returns a single role permission
+      operationId: getRolePermissionById
+      parameters:
+        - name: rolePermissionId
+          in: path
+          description: ID of role permission to return
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RolePermission.jsonId'
+        '400':
+          description: Invalid input
+        '404':
+          description: Role permission not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"  
+    patch:
+      tags:
+        - rolePermissions
+      summary:  Modify role permission
+      description: Modify role permission
+      operationId: modifyRolePermission
+      parameters:
+        - name: rolePermissionId
+          in: path
+          description: ID of role permission to modify
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        description: Modify role permission
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/RolePermission'
+        required: true
+      responses:
+        '201':
+          description: Successfully modified role permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RolePermission.jsonId'
+        '400':
+          description: Invalid input
+        '404':
+          description: Role permission not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags:
+        - rolePermissions
+      summary:  Delete role permission
+      description: Delete role permission
+      operationId: deleteRolePermission
+      parameters:
+        - name: rolePermissionId
+          in: path
+          description: ID of role permission to delete
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successfully deleted role permission
+        '400':
+          description: Invalid input
+        '404':
+          description: Role permission not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /permissions:
+    get:
+      tags:
+        - permissions
+      summary: Get all permissions
+      description: Get list of all permissions
+      operationId: get_collectionPermissions
+      parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+          default: 1
+        description: Page number for pagination
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          default: 20
+        description: Number of items per page
+      - in: query
+        name: sortBy
+        schema:
+          type: string
+          enum: [title, code, resource, createdAt, updatedAt, activity]
+        description: Field to sort by
+      - in: query
+        name: sortDirection
+        schema:
+          type: string
+          enum: [asc, desc]
+        description: Sort direction
+      - in: query
+        name: filterByTitle
+        schema:
+          type: string
+        description: Filter permissions by title
+      - in: query
+        name: filterByCode
+        schema:
+          type: string
+          enum: [CREATE, RETRIEVE, UPDATE, DELETE]
+        description: Filter permissions by code
+      - in: query
+        name: filterByResource
+        schema:
+          type: string
+          enum: [order, business, reservation, tax, item, discount, user, payment, refund, table]
+        description: Filter permissions by resource
+      - in: query
+        name: filterByActivity
+        schema:
+          type: string
+          enum: [active, inactive]
+        description: Filter permissions by activity
+
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Permission.jsonId'
+                  page:
+                    type: integer
+                    example: 1
+                  limit:
+                    type: integer
+                    example: 20
+                  total:
+                    type: integer
+                    example: 240
+                  totalPages:
+                    type: integer
+                    example: 12
+        '404':
+          description: Permissions not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      tags:
+        - permissions
+      summary: Add permission
+      description: Add new permission
+      operationId: createPermission
+      requestBody:
+        description: Create a new permission
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Permission'
+        required: true
+      responses:
+        '201':
+          description: Successfully created new permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Permission.jsonId'
+        '400':
+          description: Invalid input
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+                
+  /permissions/{permissionId}:
+    get:
+      tags:
+        - permissions
+      summary: Get permission by id
+      description: Returns a single permission
+      operationId: getPermissionById
+      parameters:
+        - name: permissionId
+          in: path
+          description: ID of permission to return
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Permission.jsonId'
+        '400':
+          description: Invalid input
+        '404':
+          description: Permission not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"  
+    patch:
+      tags:
+        - permissions
+      summary:  Modify permission
+      description: Modify permission
+      operationId: modifyPermission
+      parameters:
+        - name: permissionId
+          in: path
+          description: ID of permission to modify
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        description: Modify permission
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/Permission'
+        required: true
+      responses:
+        '201':
+          description: Successfully modified permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Permission.jsonId'
+        '400':
+          description: Invalid input
+        '404':
+          description: Permission not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags:
+        - permissions
+      summary:  Delete permission
+      description: Delete permission
+      operationId: deletePermission
+      parameters:
+        - name: permissionId
+          in: path
+          description: ID of permission to delete
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successfully deleted permission
+        '400':
+          description: Invalid input
+        '404':
+          description: Permission not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /userRoles:
+    get:
+      tags:
+        - userRoles
+      summary: Get all user roles
+      description: Get list of all user roles
+      operationId: get_collectionUserRoles
+      parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+          default: 1
+        description: Page number for pagination
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          default: 20
+        description: Number of items per page
+      - in: query
+        name: sortBy
+        schema:
+          type: string
+          enum: [assignedAt]
+        description: Field to sort by
+      - in: query
+        name: sortDirection
+        schema:
+          type: string
+          enum: [asc, desc]
+        description: Sort direction
+      - in: query
+        name: filterByAssignedAt
+        schema:
+          type: string
+          format: date-time
+        description: Filter user roles by assignment time
+      - in: query
+        name: filterByUserId
+        schema:
+          type: integer
+          format: int64
+        description: Filter user roles by user id
+      - in: query
+        name: filterByRoleId
+        schema:
+          type: integer
+          format: int64
+        description: Filter user roles by role id
+
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UserRole.jsonId'
+                  page:
+                    type: integer
+                    example: 1
+                  limit:
+                    type: integer
+                    example: 20
+                  total:
+                    type: integer
+                    example: 240
+                  totalPages:
+                    type: integer
+                    example: 12
+        '404':
+          description: User roles not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      tags:
+        - userRoles
+      summary: Add user role
+      description: Add new user role
+      operationId: createUserRole
+      requestBody:
+        description: Create a new user role
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRole'
+        required: true
+      responses:
+        '201':
+          description: Successfully created new user role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRole.jsonId'
+        '400':
+          description: Invalid input
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+                
+  /userRoles/{userRoleId}:
+    get:
+      tags:
+        - userRoles
+      summary: Get user role by id
+      description: Returns a single user role
+      operationId: getUserRoleById
+      parameters:
+        - name: userRoleId
+          in: path
+          description: ID of user role to return
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRole.jsonId'
+        '400':
+          description: Invalid input
+        '404':
+          description: User role not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"  
+    patch:
+      tags:
+        - userRoles
+      summary:  Modify user role
+      description: Modify user role
+      operationId: modifyUserRole
+      parameters:
+        - name: userRoleId
+          in: path
+          description: ID of user role to modify
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        description: Modify user role
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/UserRole'
+        required: true
+      responses:
+        '201':
+          description: Successfully modified user role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRole.jsonId'
+        '400':
+          description: Invalid input
+        '404':
+          description: User role not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags:
+        - userRoles
+      summary:  Delete user role
+      description: Delete user role
+      operationId: deleteUserRole
+      parameters:
+        - name: userRoleId
+          in: path
+          description: ID of user role to delete
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successfully deleted user role
+        '400':
+          description: Invalid input
+        '404':
+          description: User role not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /roles:
+    get:
+      tags:
+        - roles
+      summary: Get all roles
+      description: Get list of all roles
+      operationId: get_collectionRoles
+      parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+          default: 1
+        description: Page number for pagination
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          default: 20
+        description: Number of items per page
+      - in: query
+        name: sortBy
+        schema:
+          type: string
+          enum: [title, createdAt, updatedAt, activity]
+        description: Field to sort by
+      - in: query
+        name: sortDirection
+        schema:
+          type: string
+          enum: [asc, desc]
+        description: Sort direction
+      - in: query
+        name: filterByTitle
+        schema:
+          type: string
+        description: Filter roles by title
+      - in: query
+        name: filterByActivity
+        schema:
+          type: string
+          enum: [active, inactive]
+        description: Filter roles by activity
+      - in: query
+        name: filterByBusinessId
+        schema:
+          type: integer
+          format: int64
+        description: Filter roles by businessId
+
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Role.jsonId'
+                  page:
+                    type: integer
+                    example: 1
+                  limit:
+                    type: integer
+                    example: 20
+                  total:
+                    type: integer
+                    example: 240
+                  totalPages:
+                    type: integer
+                    example: 12
+        '404':
+          description: Roles not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      tags:
+        - roles
+      summary: Add role
+      description: Add new role
+      operationId: createRole
+      requestBody:
+        description: Create a new role
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Role'
+        required: true
+      responses:
+        '201':
+          description: Successfully created new role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role.jsonId'
+        '400':
+          description: Invalid input
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+                
+  /role/{roleId}:
+    get:
+      tags:
+        - roles
+      summary: Get role by id
+      description: Returns a single role
+      operationId: getRoleById
+      parameters:
+        - name: roleId
+          in: path
+          description: ID of role to return
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role.jsonId'
+        '400':
+          description: Invalid input
+        '404':
+          description: Role not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"  
+    patch:
+      tags:
+        - roles
+      summary:  Modify role
+      description: Modify role
+      operationId: modifyRole
+      parameters:
+        - name: roleId
+          in: path
+          description: ID of role to modify
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        description: Modify role in restaurant
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/Role'
+        required: true
+      responses:
+        '201':
+          description: Successfully modified role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role.jsonId'
+        '400':
+          description: Invalid input
+        '404':
+          description: Role not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags:
+        - roles
+      summary:  Delete role
+      description: Delete role
+      operationId: deleteRole
+      parameters:
+        - name: roleId
+          in: path
+          description: ID of role to delete
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successfully deleted role
+        '400':
+          description: Invalid input
+        '404':
+          description: Role not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /refunds:
+    get:
+      tags:
+        - refunds
+      summary: Get all refunds
+      description: Get list of all refunds
+      operationId: get_collectionRefunds
+      parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+          default: 1
+        description: Page number for pagination
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          default: 20
+        description: Number of items per page
+      - in: query
+        name: sortBy
+        schema:
+          type: string
+          enum: [amount, refundMethod, refundedAt, currency, status]
+        description: Field to sort by
+      - in: query
+        name: sortDirection
+        schema:
+          type: string
+          enum: [asc, desc]
+        description: Sort direction
+      - in: query
+        name: filterByAmount
+        schema:
+          type: number
+          format: float
+        description: Filter refunds by amount
+      - in: query
+        name: filterByRefundMethod
+        schema:
+          type: string
+          enum: [Cash, Card, Gift Card]
+        description: Filter refunds by refund method
+      - in: query
+        name: filterByRefundDate
+        schema:
+          type: string
+          format: date-time
+        description: Filter refunds by refund date
+      - in: query
+        name: filterByCurrency
+        schema:
+          type: string
+          enum: [EUR, USD]
+        description: Filter refunds by currency
+      - in: query
+        name: filterByStatus
+        schema:
+          type: string
+          enum: [Pending, Completed, Failed]
+        description: Filter refunds by status
+      - in: query
+        name: filterByOrderId
+        schema:
+          type: integer
+          format: int64
+        description: Filter refunds by order id
+      - in: query
+        name: filterByPaymentId
+        schema:
+          type: integer
+          format: int64
+        description: Filter refunds by payment id
+      - in: query
+        name: filterByRefunderId
+        schema:
+          type: integer
+          format: int64
+        description: Filter refunds by refunder id
+      - in: query
+        name: filterByTransactionId
+        schema:
+          type: string
+        description: Filter refunds by transaction id
+      
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Refund.jsonId'
+                  page:
+                    type: integer
+                    example: 1
+                  limit:
+                    type: integer
+                    example: 20
+                  total:
+                    type: integer
+                    example: 240
+                  totalPages:
+                    type: integer
+                    example: 12
+        '404':
+          description: Refunds not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      tags:
+        - refunds
+      summary: Add refund
+      description: Add new refund
+      operationId: createRefund
+      requestBody:
+        description: Create a new refund
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Refund'
+        required: true
+      responses:
+        '201':
+          description: Successfully created new refund
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Refund.jsonId'
+        '400':
+          description: Invalid input
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+                
+  /refund/{refundId}:
+    get:
+      tags:
+        - refunds
+      summary: Get refund by id
+      description: Returns a single refund
+      operationId: getRefundById
+      parameters:
+        - name: refundId
+          in: path
+          description: ID of refund to return
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Refund.jsonId'
+        '400':
+          description: Invalid input
+        '404':
+          description: Refund not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"  
+    patch:
+      tags:
+        - refunds
+      summary:  Modify refund
+      description: Modify refund
+      operationId: modifyRefund
+      parameters:
+        - name: refundId
+          in: path
+          description: ID of refund to modify
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        description: Modify refund in restaurant
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/Refund'
+        required: true
+      responses:
+        '201':
+          description: Successfully modified refund
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Refund.jsonId'
+        '400':
+          description: Invalid input
+        '404':
+          description: Refund not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags:
+        - refunds
+      summary:  Delete refund
+      description: Delete refund
+      operationId: deleteRefund
+      parameters:
+        - name: refundId
+          in: path
+          description: ID of refund to delete
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successfully deleted refund
+        '400':
+          description: Invalid input
+        '404':
+          description: Refund not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /items:
+    get:
+      tags:
+        - items
+      summary: Get all items
+      description: Get list of all items
+      operationId: get_collectionItems
+      parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+          default: 1
+        description: Page number for pagination
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          default: 20
+        description: Number of items per page
+      - in: query
+        name: sortBy
+        schema:
+          type: string
+          enum: [name, price, stock, duration]
+        description: Field to sort by
+      - in: query
+        name: sortDirection
+        schema:
+          type: string
+          enum: [asc, desc]
+        description: Sort direction
+      - in: query
+        name: filterByName
+        schema:
+          type: string
+        description: Filter items by name
+      - in: query
+        name: filterByType
+        schema:
+          type: string
+          enum: [product, service]
+        description: Filter items by type
+      - in: query
+        name: filterByTags
+        schema:
+          type: array
+          items:
+            type: string
+        style: form
+        explode: false
+        description: Filter items by tags
+      - in: query
+        name: filterByStock
+        schema:
+          type: integer
+        description: Filter items by stock
+      - in: query
+        name: filterByDuration
+        schema:
+          type: integer
+        description: Filter items by duration
+      - in: query
+        name: filterByBusinessId
+        schema:
+          type: integer
+          format: int64
+        description: Filter items by business id
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Item.jsonId'
+                  page:
+                    type: integer
+                    example: 1
+                  limit:
+                    type: integer
+                    example: 20
+                  total:
+                    type: integer
+                    example: 240
+                  totalPages:
+                    type: integer
+                    example: 12
+        '404':
+          description: Items not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      tags:
+        - items
+      summary: Add item
+      description: Add new item
+      operationId: createItem
+      requestBody:
+        description: Create a new item
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Item'
+        required: true
+      responses:
+        '201':
+          description: Successfully created new item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Item.jsonId'
+        '400':
+          description: Invalid input
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+                
+  /item/{itemId}:
+    get:
+      tags:
+        - items
+      summary: Get item by id
+      description: Returns a single item
+      operationId: getItemById
+      parameters:
+        - name: itemId
+          in: path
+          description: ID of item to return
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Item.jsonId'
+        '400':
+          description: Invalid input
+        '404':
+          description: Item not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"  
+    patch:
+      tags:
+        - items
+      summary:  Modify item
+      description: Modify item
+      operationId: modifyItem
+      parameters:
+        - name: itemId
+          in: path
+          description: ID of item to modify
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        description: Modify item in restaurant
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/Item'
+        required: true
+      responses:
+        '201':
+          description: Successfully modified item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Item.jsonId'
+        '400':
+          description: Invalid input
+        '404':
+          description: Item not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags:
+        - items
+      summary:  Delete item
+      description: Delete item
+      operationId: deleteItem
+      parameters:
+        - name: itemId
+          in: path
+          description: ID of item to delete
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successfully deleted item
+        '400':
+          description: Invalid input
+        '404':
+          description: Item not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /taxes:
+    get:
+      tags:
+        - taxes
+      summary: Get all taxes
+      description: Get list of all taxes
+      operationId: get_collectionTaxes
+      parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+          default: 1
+        description: Page number for pagination
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          default: 20
+        description: Number of items per page
+      - in: query
+        name: sortBy
+        schema:
+          type: string
+          enum: [name, rate, createdAt, activity, effectiveFrom, effectiveTo]
+        description: Field to sort by
+      - in: query
+        name: sortDirection
+        schema:
+          type: string
+          enum: [asc, desc]
+        description: Sort direction
+      - in: query
+        name: filterByName
+        schema:
+          type: string
+        description: Filter taxes by name
+      - in: query
+        name: filterByRate
+        schema:
+          type: number
+          format: float
+        description: Filter taxes by rate
+      - in: query
+        name: filterByCreationDate
+        schema:
+          type: string
+          format: date-time
+        description: Filter taxes by creation date
+      - in: query
+        name: filterByActivity
+        schema:
+          type: string
+          enum: [active, inactive]
+        description: Filter taxes by activity
+      - in: query
+        name: filterByEffectiveFrom
+        schema:
+          type: string
+          format: date-time
+        description: Filter taxes by effective from date
+      - in: query
+        name: filterByEffectiveTo
+        schema:
+          type: string
+          format: date-time
+        description: Filter taxes by effective to date
+      - in: query
+        name: filterByBusinessId
+        schema:
+          type: integer
+          format: int64
+        description: Filter taxes by business id
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Tax.jsonId'
+                  page:
+                    type: integer
+                    example: 1
+                  limit:
+                    type: integer
+                    example: 20
+                  total:
+                    type: integer
+                    example: 240
+                  totalPages:
+                    type: integer
+                    example: 12
+        '404':
+          description: Taxes not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      tags:
+        - taxes
+      summary: Add tax
+      description: Add new tax
+      operationId: createTax
+      requestBody:
+        description: Create a new tax
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Tax'
+        required: true
+      responses:
+        '201':
+          description: Successfully created new tax
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tax.jsonId'
+        '400':
+          description: Invalid input
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+                
+  /tax/{taxId}:
+    get:
+      tags:
+        - taxes
+      summary: Get tax by id
+      description: Returns a single tax
+      operationId: getTaxById
+      parameters:
+        - name: taxId
+          in: path
+          description: ID of tax to return
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tax.jsonId'
+        '400':
+          description: Invalid input
+        '404':
+          description: Tax not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"  
+    patch:
+      tags:
+        - taxes
+      summary:  Modify tax
+      description: Modify tax
+      operationId: modifyTax
+      parameters:
+        - name: taxId
+          in: path
+          description: ID of tax to modify
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        description: Modify tax in restaurant
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/Tax'
+        required: true
+      responses:
+        '201':
+          description: Successfully modified tax
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tax.jsonId'
+        '400':
+          description: Invalid input
+        '404':
+          description: Tax not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags:
+        - taxes
+      summary:  Delete tax
+      description: Delete tax
+      operationId: deleteTax
+      parameters:
+        - name: taxId
+          in: path
+          description: ID of tax to delete
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successfully deleted tax
+        '400':
+          description: Invalid input
+        '404':
+          description: Tax not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /businesses:
+    get:
+      tags:
+        - businesses
+      summary: Get all businesses
+      description: Get list of all businesses
+      operationId: get_collectionBusinesses
+      parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+          default: 1
+        description: Page number for pagination
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          default: 20
+        description: Number of items per page
+      - in: query
+        name: sortBy
+        schema:
+          type: string
+          enum: [name, address, email]
+        description: Field to sort by
+      - in: query
+        name: sortDirection
+        schema:
+          type: string
+          enum: [asc, desc]
+        description: Sort direction
+      - in: query
+        name: filterByName
+        schema:
+          type: string
+        description: Filter businesses by name
+      - in: query
+        name: filterByPhone
+        schema:
+          type: string
+        description: Filter businesses by address
+      - in: query
+        name: filterByAddress
+        schema:
+          type: string
+        description: Filter businesses by address
+      - in: query
+        name: filterByEmail
+        schema:
+          type: string
+        description: Filter businesses by email
+      - in: query
+        name: filterByCurrency
+        schema:
+          type: string
+          enum: [EUR, USD]
+        description: Filter businesses by currency
+      - in: query
+        name: filterBySubscriptionPlan
+        schema:
+          type: string
+          enum: [catering, beauty]
+        description: Filter businesses by subscription plan
+      - in: query
+        name: filterByOwnerId
+        schema:
+          type: integer
+          format: int64
+        description: Filter businesses by owner id
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Business.jsonId'
+                  page:
+                    type: integer
+                    example: 1
+                  limit:
+                    type: integer
+                    example: 20
+                  total:
+                    type: integer
+                    example: 240
+                  totalPages:
+                    type: integer
+                    example: 12
+        '404':
+          description: Businesses not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      tags:
+        - businesses
+      summary: Add business
+      description: Add new business
+      operationId: createBusiness
+      requestBody:
+        description: Create a new business
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Business'
+        required: true
+      responses:
+        '201':
+          description: Successfully created new business
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Business.jsonId'
+        '400':
+          description: Invalid input
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+                
+  /businesses/{businessId}:
+    get:
+      tags:
+        - businesses
+      summary: Get business by id
+      description: Returns a single business
+      operationId: getBusinessById
+      parameters:
+        - name: businessId
+          in: path
+          description: ID of business to return
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Business.jsonId'
+        '400':
+          description: Invalid input
+        '404':
+          description: Business not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"  
+    patch:
+      tags:
+        - businesses
+      summary:  Modify business
+      description: Modify business
+      operationId: modifyBusiness
+      parameters:
+        - name: businessId
+          in: path
+          description: ID of business to modify
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        description: Modify business in restaurant
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/Business'
+        required: true
+      responses:
+        '201':
+          description: Successfully modified business
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Business.jsonId'
+        '400':
+          description: Invalid input
+        '404':
+          description: Business not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags:
+        - businesses
+      summary:  Delete business
+      description: Delete business
+      operationId: deleteBusiness
+      parameters:
+        - name: businessId
+          in: path
+          description: ID of business to delete
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successfully deleted business
+        '400':
+          description: Invalid input
+        '404':
+          description: Business not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /tables:
+    get:
+      tags:
+        - tables
+      summary: Get all tables
+      description: Get list of all tables
+      operationId: get_collectionTables
+      parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+          default: 1
+        description: Page number for pagination
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          default: 20
+        description: Number of items per page
+      - in: query
+        name: sortBy
+        schema:
+          type: string
+          enum: [name, capacity, status]
+        description: Field to sort by
+      - in: query
+        name: sortDirection
+        schema:
+          type: string
+          enum: [asc, desc]
+        description: Sort direction
+      - in: query
+        name: filterByName
+        schema:
+          type: string
+        description: Filter tables by name
+      - in: query
+        name: filterByStatus
+        schema:
+          type: string
+        description: Filter tables by status
+      - in: query
+        name: filterByCapacity
+        schema:
+          type: integer
+        description: Filter tables by capacity  
+      - in: query
+        name: filterByBusinessId
+        schema:
+          type: integer
+          format: int64
+        description: Filter tables by business id
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Table.jsonId'
+                  page:
+                    type: integer
+                    example: 1
+                  limit:
+                    type: integer
+                    example: 20
+                  total:
+                    type: integer
+                    example: 240
+                  totalPages:
+                    type: integer
+                    example: 12
+        '404':
+          description: Tables not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      tags:
+        - tables
+      summary: Add table
+      description: Add new table
+      operationId: createTable
+      requestBody:
+        description: Create a new table
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Table'
+        required: true
+      responses:
+        '201':
+          description: Successfully created new table
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Table.jsonId'
+        '400':
+          description: Invalid input
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+                
+  /tables/{tableId}:
+    get:
+      tags:
+        - tables
+      summary: Get table by id
+      description: Returns a single table
+      operationId: getTableById
+      parameters:
+        - name: tableId
+          in: path
+          description: ID of table to return
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Table.jsonId'
+        '400':
+          description: Invalid input
+        '404':
+          description: Table not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"  
+    patch:
+      tags:
+        - tables
+      summary:  Modify table
+      description: Modify table
+      operationId: modifyTable
+      parameters:
+        - name: tableId
+          in: path
+          description: ID of table to modify
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        description: Modify table
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/Table'
+        required: true
+      responses:
+        '201':
+          description: Successfully modified table
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Table.jsonId'
+        '400':
+          description: Invalid input
+        '404':
+          description: Table not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags:
+        - tables
+      summary:  Delete table
+      description: Delete table
+      operationId: deleteTable
+      parameters:
+        - name: tableId
+          in: path
+          description: ID of table to delete
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successfully deleted table
+        '400':
+          description: Invalid input
+        '404':
+          description: Table not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+                
+  /reservations:
+    get:
+      tags:
+        - reservations
+      summary: Get all reservations
+      description: Returns a list of reservations
+      operationId: get_collectionReservations
+      parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+          default: 1
+        description: Page number for pagination
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          default: 20
+        description: Number of items per page
+      - in: query
+        name: sortBy
+        schema:
+          type: string
+          enum: [customerName, appointmentTime, createdAt, createdBy, status, guestNumber]
+        description: Field to sort by
+      - in: query
+        name: sortDirection
+        schema:
+          type: string
+          enum: [asc, desc]
+      - in: query
+        name: filterByName
+        schema:
+          type: string
+        description: Filter reservations by customer name
+      - in: query
+        name: filterByPhone
+        schema:
+          type: string
+        description: Filter reservastions by customer phone
+      - in: query
+        name: filterByAppointmentTime
+        schema:
+          type: string
+          format: date-time
+        description: Filter reservation by appointment time
+      - in: query
+        name: filterByCreationTime
+        schema:
+          type: string
+          format: date-time
+        description: Filter reservations by creation time
+      - in: query
+        name: filterByStatus
+        schema:
+          type: string
+          enum: [scheduled, completed, cancelled]
+        description: Filter reservations by status
+      - in: query
+        name: filterByBusinessId
+        schema:
+          type: integer
+          format: int64
+        description: Filter reservations by business id
+      - in: query
+        name: filterByUserId
+        schema:
+          type: integer
+          format: int64
+        description: Filter reservations by user id
+      - in: query
+        name: filterByTableId
+        schema:
+          type: integer
+          format: int64
+        description: Filter reservations by table id
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Reservation.jsonId'
+                  page:
+                    type: integer
+                    example: 1
+                  limit:
+                    type: integer
+                    example: 20
+                  total:
+                    type: integer
+                    example: 240
+                  totalPages:
+                    type: integer
+                    example: 12
+        '404':
+          description: Reservations not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      tags:
+        - reservations
+      summary: Create a reservation
+      description: Create a reservation in restaurant
+      operationId: createReservation
+      requestBody:
+        description: Create a new reservation in restaurant
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Reservation'
+        required: true
+      responses:
+        '201':
+          description: Successfully created reservation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reservation.jsonId'
+        '400':
+          description: Invalid input
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /reservations/{reservationId}:
+    get:
+      tags:
+        - reservations
+      summary: Get reservation by id
+      description: Returns a single reservation
+      operationId: getReservationById
+      parameters:
+        - name: reservationId
+          in: path
+          description: ID of reservation to return
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reservation.jsonId'
+        '400':
+          description: Invalid input
+        '404':
+          description: Reservation not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    patch:
+      tags:
+        - reservations
+      summary: Modify reservation
+      description: Change information in specific reservation fields
+      operationId: modifyReservation
+      parameters:
+        - name: reservationId
+          in: path
+          description: ID of reservation to modify
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        description: Modify reservation
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/Reservation'
+        required: true
+      responses:
+        '200':
+          description: Successfully modified reservation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reservation.jsonId'
+        '400':
+          description: Invalid input
+        '404':
+          description: Reservation not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags:
+        - reservations
+      summary: Delete reservation
+      description: Delete a reservation
+      operationId: deleteReservation
+      parameters:
+        - name: reservationId
+          in: path
+          description: ID of reservation to delete
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successfully deleted reservation
+        '400':
+          description: Invalid input
+        '404':
+          description: Reservation not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      
+  /orders:
+    get:
+      tags:
+        - orders
+      summary: Get all orders
+      description: Get a list of orders
+      operationId: get_collectionOrders
+      parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+          default: 1
+        description: Page number for pagination
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          default: 20
+        description: Number of items per page
+      - in: query
+        name: sortBy
+        schema:
+          type: string
+          enum: [tip, updatedAt, status]
+        description: Field to sort by
+      - in: query
+        name: sortDirection
+        schema:
+          type: string
+          enum: [asc, desc]
+      - in: query
+        name: filterByStatus
+        schema:
+          type: string
+          enum: [Open, Pending, Closed]
+        description: Filter orders by status
+      - in: query
+        name: filterByUpdatedAt
+        schema:
+          type: string
+          format: date-time
+        description: Filter orders by update date
+      - in: query
+        name: filterByBusinessId
+        schema:
+          type: integer
+          format: int64
+        description: Filter orders by business id
+      - in: query
+        name: filterByReservationId
+        schema:
+          type: integer
+          format: int64
+        description: Filter orders by reservation id
+      - in: query
+        name: filterByTableId
+        schema:
+          type: integer
+          format: int64
+        description: Filter orders by table id
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Order.jsonId'
+                  page:
+                    type: integer
+                    example: 1
+                  limit:
+                    type: integer
+                    example: 20
+                  total:
+                    type: integer
+                    example: 240
+                  totalPages:
+                    type: integer
+                    example: 12
+        '404':
+          description: Orders not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      tags:
+        - orders
+      summary: Create Order
+      description: Create new Order
+      operationId: createOrder
+      requestBody:
+        description: Create a new order in restaurant
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Order'
+        required: true
+      responses:
+        '201':
+          description: Successfully created order
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order.jsonId'
+        '400':
+          description: Invalid input
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  
+  /orders/{orderId}:
+    get:
+      tags:
+        - orders
+      summary: Get order by id
+      description: Returns a single order
+      operationId: getOrderById
+      parameters:
+        - name: orderId
+          in: path
+          description: ID of order to return
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order.jsonId'
+        '400':
+          description: Invalid input
+        '404':
+          description: Order not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    patch:
+      tags:
+        - orders
+      summary: Modify order
+      description: Change information in specific order fields
+      operationId: modifyOrder
+      parameters:
+        - name: orderId
+          in: path
+          description: ID of order to modify
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        description: Modify order
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/Order'
+        required: true
+      responses:
+        '200':
+          description: Successfully modified order
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order.jsonId'
+        '400':
+          description: Invalid input
+        '404':
+          description: Order not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags:
+        - orders
+      summary: Delete order
+      description: Delete an order
+      operationId: deleteOrder
+      parameters:
+        - name: orderId
+          in: path
+          description: ID of order to delete
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successfully deleted order
+        '400':
+          description: Invalid input
+        '404':
+          description: Order not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+                
+  /orderItems:
+    get:
+      tags:
+        - orderItems
+      summary: Get all order items
+      description: Get a list of order items
+      operationId: get_collectionOrderItems
+      parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+          default: 1
+        description: Page number for pagination
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          default: 20
+        description: Number of items per page
+      - in: query
+        name: sortBy
+        schema:
+          type: string
+          enum: [quantity, discount]
+        description: Field to sort by
+      - in: query
+        name: sortDirection
+        schema:
+          type: string
+          enum: [asc, desc]
+      - in: query
+        name: filterByItemId
+        schema:
+          type: integer
+          format: int64
+        description: Filter order items by item id
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OrderItem.jsonId'
+                  page:
+                    type: integer
+                    example: 1
+                  limit:
+                    type: integer
+                    example: 20
+                  total:
+                    type: integer
+                    example: 240
+                  totalPages:
+                    type: integer
+                    example: 12
+        '404':
+          description: Order items not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      tags:
+        - orderItems
+      summary: Create order item
+      description: Create new order item
+      operationId: createOrderItem
+      requestBody:
+        description: Create a new order item
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderItem'
+        required: true
+      responses:
+        '201':
+          description: Successfully created order item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderItem.jsonId'
+        '400':
+          description: Invalid input
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  
+  /orderItems/{orderItemId}:
+    get:
+      tags:
+        - orderItems
+      summary: Get order item by id
+      description: Returns a single order item
+      operationId: getOrderItemById
+      parameters:
+        - name: orderItemId
+          in: path
+          description: ID of order item to return
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderItem.jsonId'
+        '400':
+          description: Invalid input
+        '404':
+          description: Order not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    patch:
+      tags:
+        - orderItems
+      summary: Modify order item
+      description: Change information in specific order item fields
+      operationId: modifyOrderItem
+      parameters:
+        - name: orderItemId
+          in: path
+          description: ID of order item to modify
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        description: Modify order item
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/OrderItem'
+        required: true
+      responses:
+        '200':
+          description: Successfully modified order item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderItem.jsonId'
+        '400':
+          description: Invalid input
+        '404':
+          description: Order item not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags:
+        - orderItems
+      summary: Delete order item
+      description: Delete an order item
+      operationId: deleteOrderItem
+      parameters:
+        - name: orderItemId
+          in: path
+          description: ID of order item to delete
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successfully deleted order item
+        '400':
+          description: Invalid input
+        '404':
+          description: Order item not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+                
+  /payments:
+    get:
+      tags:
+        - payments
+      summary: Get all payments
+      description: Get a list of payments
+      operationId: get_collectionPayments
+      parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+          default: 1
+        description: Page number for pagination
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          default: 20
+        description: Number of items per page
+      - in: query
+        name: sortBy
+        schema:
+          type: string
+          enum: [amount, method, paidAt, currency, status]
+        description: Field to sort by
+      - in: query
+        name: sortDirection
+        schema:
+          type: string
+          enum: [asc, desc]
+      - in: query
+        name: filterByMethod
+        schema:
+          type: string
+          enum: [Cash, Card]
+        description: Filter payments by payment method
+      - in: query
+        name: filterByPayDate
+        schema:
+          type: string
+          format: date-time
+        description: Filter payments by pay date
+      - in: query
+        name: filterByCurrency
+        schema:
+          type: string
+          enum: [EUR, USD]
+        description: Filter payments by pay date
+      - in: query
+        name: filterByStatus
+        schema:
+          type: string
+          enum: [Pending, Completed, Failed, Refunded]
+        description: Filter payments by payment status
+      - in: query
+        name: filterByOrderId
+        schema:
+          type: integer
+          format: int64
+        description: Filter payments by order id
+      - in: query
+        name: filterByTransactionId
+        schema:
+          type: string
+        description: Filter payments by transaction id
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Payment.jsonId'
+                  page:
+                    type: integer
+                    example: 1
+                  limit:
+                    type: integer
+                    example: 20
+                  total:
+                    type: integer
+                    example: 240
+                  totalPages:
+                    type: integer
+                    example: 12
+        '404':
+          description: Payments not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      tags:
+        - payments
+      summary: Create payment
+      description: Create new payment
+      operationId: createPayment
+      requestBody:
+        description: Create a new payment
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Payment'
+        required: true
+      responses:
+        '201':
+          description: Successfully created payment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment.jsonId'
+        '400':
+          description: Invalid input
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  
+  /payments/{paymentId}:
+    get:
+      tags:
+        - payments
+      summary: Get payment by id
+      description: Returns a single payment
+      operationId: getPaymentById
+      parameters:
+        - name: paymentId
+          in: path
+          description: ID of payment to return
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment.jsonId'
+        '400':
+          description: Invalid input
+        '404':
+          description: Payment not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    patch:
+      tags:
+        - payments
+      summary: Modify payment
+      description: Change information in specific payment fields
+      operationId: modifyPayment
+      parameters:
+        - name: paymentId
+          in: path
+          description: ID of payment to modify
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        description: Modify payment
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/Payment'
+        required: true
+      responses:
+        '200':
+          description: Successfully modified payment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment.jsonId'
+        '400':
+          description: Invalid input
+        '404':
+          description: Payment not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags:
+        - payments
+      summary: Delete payment
+      description: Delete a payment
+      operationId: deletePayment
+      parameters:
+        - name: paymentId
+          in: path
+          description: ID of payment to delete
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successfully deleted payment
+        '400':
+          description: Invalid input
+        '404':
+          description: Payment not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+                
+  /discounts:
+    get:
+      tags:
+        - discounts
+      summary: Get all discounts
+      description: Get a list of discounts
+      operationId: get_collectionDiscounts
+      parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+          default: 1
+        description: Page number for pagination
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          default: 20
+        description: Number of items per page
+      - in: query
+        name: sortBy
+        schema:
+          type: string
+          enum: [name, type, rate, validFrom, validTo, appliesTo, activity]
+        description: Field to sort by
+      - in: query
+        name: sortDirection
+        schema:
+          type: string
+          enum: [asc, desc]
+      - in: query
+        name: filterByName
+        schema:
+          type: string
+        description: Filter discounts by name
+      - in: query
+        name: filterByType
+        schema:
+          type: string
+          enum: [Percentage, Fixed]
+        description: Filter discounts by type
+      - in: query
+        name: filterByRate
+        schema:
+          type: number
+          format: float
+        description: Filter discounts by rate
+      - in: query
+        name: filterByValidFrom
+        schema:
+          type: string
+          format: date-time
+        description: Filter discounts by valid from date
+      - in: query
+        name: filterByValidTo
+        schema:
+          type: string
+          format: date-time
+        description: Filter discounts by valid to date
+      - in: query
+        name: filterByAppliesTo
+        schema:
+          type: string
+          enum: [order, item, service]
+        description: Filter discounts by applies to
+      - in: query
+        name: filterByActivity
+        schema:
+          type: string
+          enum: [active, inactive]
+        description: Filter discounts by activity status
+      - in: query
+        name: filterByBusinessId
+        schema:
+          type: integer
+          format: int64
+        description: Filter discounts by business id
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Discount.jsonId'
+                  page:
+                    type: integer
+                    example: 1
+                  limit:
+                    type: integer
+                    example: 20
+                  total:
+                    type: integer
+                    example: 240
+                  totalPages:
+                    type: integer
+                    example: 12
+        '404':
+          description: Discounts not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      tags:
+        - discounts
+      summary: Create discount
+      description: Create new discount
+      operationId: createDiscount
+      requestBody:
+        description: Create a new discount
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Discount'
+        required: true
+      responses:
+        '201':
+          description: Successfully created discount
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Discount.jsonId'
+        '400':
+          description: Invalid input
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  
+  /discounts/{discountId}:
+    get:
+      tags:
+        - discounts
+      summary: Get discount by id
+      description: Returns a single discount
+      operationId: getDiscountById
+      parameters:
+        - name: discountId
+          in: path
+          description: ID of discount to return
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Discount.jsonId'
+        '400':
+          description: Invalid input
+        '404':
+          description: Discount not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    patch:
+      tags:
+        - discounts
+      summary: Modify discount
+      description: Change information in specific discount fields
+      operationId: modifyDiscount
+      parameters:
+        - name: discountId
+          in: path
+          description: ID of discount to modify
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        description: Modify discount
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/Discount'
+        required: true
+      responses:
+        '200':
+          description: Successfully modified discount
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Discount.jsonId'
+        '400':
+          description: Invalid input
+        '404':
+          description: Discount not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags:
+        - discounts
+      summary: Delete discount
+      description: Delete a discount
+      operationId: deleteDiscount
+      parameters:
+        - name: discountId
+          in: path
+          description: ID of discount to delete
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successfully deleted discount
+        '400':
+          description: Invalid input
+        '404':
+          description: Discount not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+                
+  /users:
+    get:
+      tags:
+        - users
+      summary: Get all users
+      description: Get a list of users
+      operationId: get_collectionUsers
+      parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+          default: 1
+        description: Page number for pagination
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          default: 20
+        description: Number of items per page
+      - in: query
+        name: sortBy
+        schema:
+          type: string
+          enum: [name, phone, email]
+        description: Field to sort by
+      - in: query
+        name: sortDirection
+        schema:
+          type: string
+          enum: [asc, desc]
+      - in: query
+        name: filterByName
+        schema:
+          type: string
+        description: Filter users by name
+      - in: query
+        name: filterByPhone
+        schema:
+          type: string
+        description: Filter users by phone
+      - in: query
+        name: filterByEmail
+        schema:
+          type: string
+        description: Filter users by email
+      - in: query
+        name: filterByActivity
+        schema:
+          type: string
+          enum: [active, inactive]
+        description: Filter users by activity
+      - in: query
+        name: filterByBusinessId
+        schema:
+          type: integer
+          format: int64
+        description: Filter users by business id
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User.jsonId'
+                  page:
+                    type: integer
+                    example: 1
+                  limit:
+                    type: integer
+                    example: 20
+                  total:
+                    type: integer
+                    example: 240
+                  totalPages:
+                    type: integer
+                    example: 12
+        '404':
+          description: Users not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      tags:
+        - users
+      summary: Create user
+      description: Create new user
+      operationId: createUsers
+      requestBody:
+        description: Create a new user
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+        required: true
+      responses:
+        '201':
+          description: Successfully created user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User.jsonId'
+        '400':
+          description: Invalid input
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  
+  /users/{userId}:
+    get:
+      tags:
+        - users
+      summary: Get user by id
+      description: Returns a single user
+      operationId: getUserById
+      parameters:
+        - name: userId
+          in: path
+          description: ID of user to return
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User.jsonId'
+        '400':
+          description: Invalid input
+        '404':
+          description: User not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    patch:
+      tags:
+        - users
+      summary: Modify user
+      description: Change information in specific user fields
+      operationId: modifyUsers
+      parameters:
+        - name: userId
+          in: path
+          description: ID of user to modify
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        description: Modify user
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+        required: true
+      responses:
+        '200':
+          description: Successfully modified User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User.jsonId'
+        '400':
+          description: Invalid input
+        '404':
+          description: User not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags:
+        - users
+      summary: Delete user
+      description: Delete a user
+      operationId: deleteUser
+      parameters:
+        - name: userId
+          in: path
+          description: ID of user to delete
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successfully deleted user
+        '400':
+          description: Invalid input
+        '404':
+          description: User not found
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+                
+  
+components:
+  schemas:
+    Table.jsonId:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        businessId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        capacity:
+          type: integer
+        status:
+          type: string
+          enum:
+            - reserved
+            - occupied
+            - free
+    Table:
+      type: object
+      properties:
+        businessId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        capacity:
+          type: integer
+        status:
+          type: string
+          enum:
+            - reserved
+            - occupied
+            - free
+          
+    Reservation.jsonId:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        businessId:
+          type: integer
+          format: int64
+        customerName:
+          type: string
+          description: Customer name
+        customerPhone:
+          type: string
+          description: Customer phone number
+        customerNote:
+          type: string
+          description: Note about customer
+        appointmentTime:
+          type: string
+          format: date-time
+          description: Reservation appointment time
+        createdAt:
+          type: string
+          format: date-time
+          description: Reservation creation time
+        createdBy:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum:
+            - scheduled
+            - completed
+            - cancelled
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderItem.jsonId"
+        assignedEmployee:
+          type: integer
+          format: int64
+        guestNumber:
+          type: integer
+        tableId:
+          type: integer
+          format: int64
+    Reservation:
+      type: object
+      properties:
+        businessId:
+          type: integer
+          format: int64
+        customerName:
+          type: string
+          description: Customer name
+        customerPhone:
+          type: string
+          description: Customer phone number
+        customerNote:
+          type: string
+          description: Note about customer
+        appointmentTime:
+          type: string
+          format: date-time
+          description: Reservation appointment time
+        createdAt:
+          type: string
+          format: date-time
+          description: Reservation creation time
+        createdBy:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum:
+            - scheduled
+            - completed
+            - cancelled
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderItem.jsonId"
+        assignedEmployee:
+          type: integer
+          format: int64
+        guestNumber:
+          type: integer
+        tableId:
+          type: integer
+          format: int64
+
+    Order.jsonId:
+      type: object
+      properties:
+        id: 
+          type: integer
+          format: int64
+        businessId: 
+          type: integer
+          format: int64
+        reservationId:
+          type: integer
+          format: int64
+        items:
+          type: array
+          items: 
+            $ref: "#/components/schemas/OrderItem.jsonId"
+        discount:
+          type: number
+          format: float
+        tip:
+          type: number
+          format: float
+        updatedAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum: 
+            - Open
+            - Pending
+            - Closed
+        tableId:
+          type: integer
+          format: int64
+        
+        
+    Order:
+      type: object
+      properties:
+        businessId: 
+          type: integer
+          format: int64
+        reservationId:
+          type: integer
+          format: int64
+        items:
+          type: array
+          items: 
+            $ref: "#/components/schemas/OrderItem.jsonId"
+        discount:
+          type: number
+          format: float
+        tip:
+          type: number
+          format: float
+        updatedAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum: 
+            - Open
+            - Pending
+            - Closed
+        tableId:
+          type: integer
+          format: int64
+            
+    OrderItem.jsonId:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        itemId:
+          type: integer
+          format: int64
+        quantity:
+          type: integer
+          format: int64
+        discountId:
+          type: integer
+          format: int64
+        notes:
+          type: string
+        taxes:
+          type: array
+          items:
+            $ref: "#/components/schemas/Tax.jsonId"
+        serviceCharges:
+          type: array
+          items:
+            $ref: "#/components/schemas/ServiceCharge.jsonId"
+    
+    OrderItem:
+      type: object
+      properties:
+        itemId:
+          type: integer
+          format: int64
+        quantity:
+          type: integer
+          format: int64
+        discountId:
+          type: integer
+          format: int64
+        notes:
+          type: string
+        taxes:
+          type: array
+          items:
+            $ref: "#/components/schemas/Tax.jsonId"
+        serviceCharges:
+          type: array
+          items:
+            $ref: "#/components/schemas/ServiceCharge.jsonId"
+    
+    Payment.jsonId:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        orderId:
+          type: integer
+          format: int64
+        amount:
+          type: number
+          format: float
+        method:
+          type: string
+          enum:
+            - Cash
+            - Card
+            - Gift Card
+        transactionId:
+          type: string
+        paidAt:
+          type: string
+          format: date-time
+        currency:
+          type: string
+          enum:
+            - EUR
+            - USD
+        status:
+          type: string
+          enum:
+            - Pending
+            - Completed
+            - Failed
+            - Refunded
+    
+    Payment:
+      type: object
+      properties:
+        orderId:
+          type: integer
+          format: int64
+        amount:
+          type: number
+          format: float
+        method:
+          type: string
+          enum:
+            - Cash
+            - Card
+            - Gift Card
+        transactionId:
+          type: string
+        paidAt:
+          type: string
+          format: date-time
+        currency:
+          type: string
+          enum:
+            - EUR
+            - USD
+        status:
+          type: string
+          enum:
+            - Pending
+            - Completed
+            - Failed
+            - Refunded
+            
+    Discount.jsonId:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        businessId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        type:
+          type: string
+          enum:
+            - Percentage
+            - Fixed
+        rate:
+          type: number
+          format: float
+        validFrom:
+          type: string
+          format: date-time
+        validTo:
+          type: string
+          format: date-time
+        appliesTo:
+          type: string
+          enum:
+            - order
+            - item
+            - service
+        activity:
+          type: string
+          enum:
+            - active
+            - inactive
+      
+    Discount:
+      type: object
+      properties:
+        businessId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        type:
+          type: string
+          enum:
+            - Percentage
+            - Fixed
+        rate:
+          type: number
+          format: float
+        validFrom:
+          type: string
+          format: date-time
+        validTo:
+          type: string
+          format: date-time
+        appliesTo:
+          type: string
+          enum:
+            - order
+            - item
+            - service
+        activity:
+          type: string
+          enum:
+            - active
+            - inactive
+          
+    User.jsonId:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        businessId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        activity:
+          type: string
+          enum:
+            - active
+            - inactive
+        
+    UserCreate:
+      type: object
+      properties:
+        businessId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+          format: password
+        phone:
+          type: string
+        activity:
+          type: string
+          enum:
+            - active
+            - inactive
+            
+    UserLogin:
+      type: object
+      required: ['email', 'password']
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+          format: password
+            
+    Business.jsonId:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        phone:
+          type: string
+        address:
+          type: string
+        email:
+          type: string
+        owner:
+          type: integer
+          format: int64
+        currency:
+          type: string
+          enum:
+            - EUR
+            - USD
+        subscriptionPlan:
+          type: string
+          enum:
+            - catering
+            - beauty
+            
+    Business:
+      type: object
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        address:
+          type: string
+        email:
+          type: string
+        owner:
+          type: integer
+          format: int64
+        currency:
+          type: string
+          enum:
+            - EUR
+            - USD
+        subscriptionPlan:
+          type: string
+          enum:
+            - catering
+            - beauty
+            
+    Tax.jsonId:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        businessId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        rate:
+          type: number
+          format: float
+        createdAt:
+          type: string
+          format: date-time
+        activity:
+          type: string
+          enum:
+            - active
+            - inactive
+        effectiveFrom:
+          type: string
+          format: date-time
+        effectiveTo:
+          type: string
+          format: date-time
+    Tax:
+      type: object
+      properties:
+        businessId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        rate:
+          type: number
+          format: float
+        createdAt:
+          type: string
+          format: date-time
+        activity:
+          type: string
+          enum:
+            - active
+            - inactive
+        effectiveFrom:
+          type: string
+          format: date-time
+        effectiveTo:
+          type: string
+          format: date-time
+          
+    Item.jsonId:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        businessId:
+          type: integer
+          format: int64
+        type:
+          type: string
+          enum:
+            - item
+            - service
+        variations:
+          type: array
+          items:
+            $ref: "#/components/schemas/ItemVariation.jsonId"
+        name:
+          type: string
+        description:
+          type: string
+        associatedRoles:
+          type: array
+          items:
+            $ref: "#/components/schemas/Role.jsonId"
+        price:
+          type: number
+          format: float
+        tags:
+          type: array
+          items:
+            type: string
+        stock:
+          type: integer
+        duration:
+          type: integer
+    Item:
+      type: object
+      properties:
+        businessId:
+          type: integer
+          format: int64
+        type:
+          type: string
+          enum:
+            - item
+            - service
+        variations:
+          type: array
+          items:
+            $ref: "#/components/schemas/ItemVariation.jsonId"
+        name:
+          type: string
+        description:
+          type: string
+        associatedRoles:
+          type: array
+          items:
+            $ref: "#/components/schemas/Role.jsonId"
+        price:
+          type: number
+          format: float
+        tags:
+          type: array
+          items:
+            type: string
+        stock:
+          type: integer
+        duration:
+          type: integer
+          
+    Refund.jsonId:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        orderId:
+          type: integer
+          format: int64
+        paymentId:
+          type: integer
+          format: int64
+        amount:
+          type: number
+          format: float
+        reason:
+          type: string
+        refundMethod:
+          type: string
+          enum:
+            - Cash
+            - Card
+            - Gift Card
+        transactionId:
+          type: integer
+          format: int64
+        refundedAt:
+          type: string
+          format: date-time
+        refundedBy:
+          type: integer
+          format: int64
+        currency:
+          type: string
+          enum:
+            - EUR
+            - USD
+        status:
+          type: string
+          enum:
+            - Pending
+            - Completed
+            - Failed
+    Refund:
+      type: object
+      properties:
+        orderId:
+          type: integer
+          format: int64
+        paymentId:
+          type: integer
+          format: int64
+        amount:
+          type: number
+          format: float
+        reason:
+          type: string
+        refundMethod:
+          type: string
+          enum:
+            - Cash
+            - Card
+            - Gift Card
+        transactionId:
+          type: integer
+          format: int64
+        refundedAt:
+          type: string
+          format: date-time
+        refundedBy:
+          type: integer
+          format: int64
+        currency:
+          type: string
+          enum:
+            - EUR
+            - USD
+        status:
+          type: string
+          enum:
+            - Pending
+            - Completed
+            - Failed
+
+    Role.jsonId:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        businessId:
+          type: integer
+          format: int64
+        title:
+          type: string
+        description:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        activity:
+          type: string
+          enum:
+            - active
+            - inactive
+            
+    Role:
+      type: object
+      properties:
+        businessId:
+          type: integer
+          format: int64
+        title:
+          type: string
+        description:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        activity:
+          type: string
+          enum:
+            - active
+            - inactive
+            
+    UserRole.jsonId:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        userId:
+          type: integer
+          format: int64
+        roleId:
+          type: integer
+          format: int64
+        assignedAt:
+          type: string
+          format: date-time
+          
+    UserRole:
+      type: object
+      properties:
+        userId:
+          type: integer
+          format: int64
+        roleId:
+          type: integer
+          format: int64
+        assignedAt:
+          type: string
+          format: date-time
+          
+    Permission.jsonId:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        title:
+          type: string
+        code:
+          type: string
+          enum:
+            - CREATE
+            - RETRIEVE
+            - UPDATE
+            - DELETE
+        description:
+          type: string
+        resource:
+          type: string
+          enum:
+            - order
+            - business
+            - reservation
+            - tax
+            - item
+            - discount
+            - user
+            - payment
+            - refund
+            - table
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        activity:
+          type: string
+          enum:
+           - active
+           - inactive
+           
+    Permission:
+      type: object
+      properties:
+        title:
+          type: string
+        code:
+          type: string
+          enum:
+            - CREATE
+            - RETRIEVE
+            - UPDATE
+            - DELETE
+        description:
+          type: string
+        resource:
+          type: string
+          enum:
+            - order
+            - business
+            - reservation
+            - tax
+            - item
+            - discount
+            - user
+            - payment
+            - refund
+            - table
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        activity:
+          type: string
+          enum:
+           - active
+           - inactive
+           
+    RolePermission.jsonId:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        roleId:
+          type: integer
+          format: int64
+        permissionId:
+          type: integer
+          format: int64
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    RolePermission:
+      type: object
+      properties:
+        roleId:
+          type: integer
+          format: int64
+        permissionId:
+          type: integer
+          format: int64
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+          
+    ServiceCharge.jsonId:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        businessId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        rate:
+          type: number
+          format: float
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    ServiceCharge:
+      type: object
+      properties:
+        businessId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        rate:
+          type: number
+          format: float
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+          
+    ItemVariation.jsonId:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        itemId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        selection:
+          type: string
+          enum:
+            - required
+            - optional
+            - multiSelection
+    ItemVariation:
+      type: object
+      properties:
+        itemId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        selection:
+          type: string
+          enum:
+            - required
+            - optional
+            - multiSelection
+            
+    ItemVariationOption.jsonId:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        variationId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        priceAdjustment:
+          type: number
+          format: float
+    ItemVariationOption:
+      type: object
+      properties:
+        variationId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        priceAdjustment:
+          type: number
+          format: float
+          
+    GiftCard.jsonId:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        code:
+          type: string
+        redemptions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Payment.jsonId"
+        initialValue:
+          type: number
+          format: float
+        currentBalance:
+          type: number
+          format: float
+        currency:
+          type: string
+          enum:
+            - EUR
+            - USD
+        issuedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        issuedBy:
+          type: integer
+          format: int64
+        issuedTo:
+          type: string
+        status:
+          type: string
+          enum:
+           - valid
+           - expired
+           - redeemed
+           - void
+    GiftCard:
+      type: object
+      properties:
+        code:
+          type: string
+        redemptions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Payment.jsonId"
+        initialValue:
+          type: number
+          format: float
+        currentBalance:
+          type: number
+          format: float
+        currency:
+          type: string
+          enum:
+            - EUR
+            - USD
+        issuedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        issuedBy:
+          type: integer
+          format: int64
+        issuedTo:
+          type: string
+        status:
+          type: string
+          enum:
+           - valid
+           - expired
+           - redeemed
+           - void
+          
+    TokenResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+      
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+      required:
+        - code
+        - message
+        
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+            
+      
+security:
+   - bearerAuth: []
+      

@@ -8,7 +8,7 @@
         public long RoleId{get; set;}
         public DateTimeOffset AssignedAt {get; set;}
 
-        public User User { get; set; }
-        public Role Role { get; set; }
+        public required User User { get; set; }
+        public required Role Role { get; set; }
     }
 }

@@ -1,12 +1,42 @@
-using Microsoft.EntityFrameworkCore;
 using CentralizedSalesSystem.API.Data;
+using CentralizedSalesSystem.API.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
-builder.Services.AddAuthentication().AddJwtBearer();
+builder.Services.AddDbContext<CentralizedSalesDbContext>(options =>
+{
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+}
+);
+
+builder.Services.AddScoped<ITokenService, TokenService>();
+
+var jwtSection = builder.Configuration.GetSection("JWT");
+var jwtKey = jwtSection["Key"] ?? throw new InvalidOperationException("JWT: Key is missing in config");
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.SaveToken = true;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+
+            ValidIssuer = jwtSection["Issuer"],
+            ValidAudience = jwtSection["Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+        };
+    });
 builder.Services.AddAuthorization();
 
 builder.Services.AddControllers();
@@ -22,12 +52,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
-builder.Services.AddDbContext<CentralizedSalesDbContext>(options =>
-{
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
-}
-);
 
 app.UseHttpsRedirection();
 

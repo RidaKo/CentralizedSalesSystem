@@ -5,8 +5,8 @@ namespace CentralizedSalesSystem.API.Models.Auth
 {
     public class Role
     {
-        public int Id { get; set; }
-        public int BussinessId {  get; set; }
+        public long Id { get; set; }
+        public long BussinessId {  get; set; }
 
         public String Title { get; set; } = string.Empty;
         public String? Description { get; set; }

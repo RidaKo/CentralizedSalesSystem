@@ -4,9 +4,11 @@ namespace CentralizedSalesSystem.API.Models.Auth
 {
     public class Permission
     {
-        public int Id { get; set; }
+        public long Id { get; set; }
         public string Title { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
+
+        public string Code {  get; set; } = string.Empty;
         public PermissionResource Resource { get; set; }
 
         public DateTimeOffset CreatedAt { get; set; }

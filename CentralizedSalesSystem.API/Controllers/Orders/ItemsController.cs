@@ -2,6 +2,7 @@ using CentralizedSalesSystem.API.Models.Orders.enums;
 using CentralizedSalesSystem.API.Models.Orders;
 using CentralizedSalesSystem.API.Data;
 using CentralizedSalesSystem.API.Models.Orders.DTOs;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 

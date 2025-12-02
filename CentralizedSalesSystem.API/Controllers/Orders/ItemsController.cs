@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 namespace CentralizedSalesSystem.API.Controllers.Orders
 {
     [ApiController]
+    [Authorize]
     [Route("items")]
     public class ItemsController : ControllerBase
     {
@@ -19,7 +20,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
             _context = context;
         }
 
-        // GET: api/items
+        // GET: items
         [HttpGet]
         public async Task<ActionResult<IEnumerable<ItemReadDto>>> GetItems()
         {
@@ -39,7 +40,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
             return Ok(result);
         }
 
-        // GET: api/items/{id}
+        // GET: items/{id}
         [HttpGet("{id}")]
         public async Task<ActionResult<ItemReadDto>> GetItem(long id)
         {
@@ -60,7 +61,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
             };
         }
 
-        // POST: api/items/add
+        // POST: items/add
         [HttpPost("add")]
         public async Task<ActionResult<ItemReadDto>> CreateItem(ItemCreateDto dto)
         {

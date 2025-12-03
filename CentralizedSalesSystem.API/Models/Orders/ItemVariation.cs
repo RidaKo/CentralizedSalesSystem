@@ -1,18 +1,18 @@
 using CentralizedSalesSystem.API.Models.Orders.enums;
 
 namespace CentralizedSalesSystem.API.Models.Orders
+
 {
-    public class Table
+    public class ItemVariation
     {
         public long Id { get; set; }
         public string Name { get; set; } = string.Empty;
-        public int Capacity { get; set; }
 
-        public TableStatus Status { get; set; }
+        public long ItemId { get; set; }
 
-        public long BusinessId { get; set; }
+        public ItemVariationSelection Selection { get; set; }
 
-        
+        public required Item Item { get; set; }
 
     }
 }

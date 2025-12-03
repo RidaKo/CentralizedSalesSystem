@@ -22,6 +22,12 @@ namespace CentralizedSalesSystem.API.Data
         public DbSet<ServiceCharge> ServiceCharges { get; set; }
         public DbSet<Table> Tables { get; set; }
         public DbSet<Tax> Taxes { get; set; }
+        public DbSet<Discount> Discounts { get; set; }
+        public DbSet<ItemVariation> ItemVariations { get; set; }
+        public DbSet<ItemVariationOption> ItemVariationOptions { get; set; }
+
+
+
 
 
 

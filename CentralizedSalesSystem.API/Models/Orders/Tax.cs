@@ -12,7 +12,7 @@ namespace CentralizedSalesSystem.API.Models.Orders
 
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset EffectiveFrom { get; set; }
-        public DateTimeOffset EffectiveTo { get; set; }
+        public DateTimeOffset? EffectiveTo { get; set; }
 
         public TaxStatus Status { get; set; }
 

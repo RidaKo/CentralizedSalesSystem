@@ -178,7 +178,7 @@ namespace CentralizedSalesSystem.API.Migrations
                     b.Property<DateTimeOffset>("ValidFrom")
                         .HasColumnType("datetimeoffset");
 
-                    b.Property<DateTimeOffset>("ValidTo")
+                    b.Property<DateTimeOffset?>("ValidTo")
                         .HasColumnType("datetimeoffset");
 
                     b.Property<decimal>("rate")
@@ -282,19 +282,19 @@ namespace CentralizedSalesSystem.API.Migrations
                     b.Property<long>("BusinessId")
                         .HasColumnType("bigint");
 
-                    b.Property<long>("DiscountId")
+                    b.Property<long?>("DiscountId")
                         .HasColumnType("bigint");
 
-                    b.Property<long>("ReservationId")
+                    b.Property<long?>("ReservationId")
                         .HasColumnType("bigint");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
 
-                    b.Property<long>("TableId")
+                    b.Property<long?>("TableId")
                         .HasColumnType("bigint");
 
-                    b.Property<decimal>("Tip")
+                    b.Property<decimal?>("Tip")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
@@ -322,7 +322,7 @@ namespace CentralizedSalesSystem.API.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
-                    b.Property<long>("DiscountId")
+                    b.Property<long?>("DiscountId")
                         .HasColumnType("bigint");
 
                     b.Property<long>("ItemId")
@@ -366,6 +366,9 @@ namespace CentralizedSalesSystem.API.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<long?>("OrderItemId")
+                        .HasColumnType("bigint");
+
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("datetimeoffset");
 
@@ -373,6 +376,8 @@ namespace CentralizedSalesSystem.API.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("OrderItemId");
 
                     b.ToTable("ServiceCharges");
                 });
@@ -420,7 +425,7 @@ namespace CentralizedSalesSystem.API.Migrations
                     b.Property<DateTimeOffset>("EffectiveFrom")
                         .HasColumnType("datetimeoffset");
 
-                    b.Property<DateTimeOffset>("EffectiveTo")
+                    b.Property<DateTimeOffset?>("EffectiveTo")
                         .HasColumnType("datetimeoffset");
 
                     b.Property<string>("Name")
@@ -545,15 +550,11 @@ namespace CentralizedSalesSystem.API.Migrations
                 {
                     b.HasOne("CentralizedSalesSystem.API.Models.Orders.Discount", "Discount")
                         .WithMany()
-                        .HasForeignKey("DiscountId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("DiscountId");
 
                     b.HasOne("CentralizedSalesSystem.API.Models.Orders.Table", "Table")
                         .WithMany()
-                        .HasForeignKey("TableId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("TableId");
 
                     b.HasOne("CentralizedSalesSystem.API.Models.User", "User")
                         .WithMany()
@@ -572,9 +573,7 @@ namespace CentralizedSalesSystem.API.Migrations
                 {
                     b.HasOne("CentralizedSalesSystem.API.Models.Orders.Discount", "Discount")
                         .WithMany()
-                        .HasForeignKey("DiscountId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("DiscountId");
 
                     b.HasOne("CentralizedSalesSystem.API.Models.Orders.Item", "Item")
                         .WithMany("OrderItems")
@@ -593,6 +592,13 @@ namespace CentralizedSalesSystem.API.Migrations
                     b.Navigation("Item");
 
                     b.Navigation("Order");
+                });
+
+            modelBuilder.Entity("CentralizedSalesSystem.API.Models.Orders.ServiceCharge", b =>
+                {
+                    b.HasOne("CentralizedSalesSystem.API.Models.Orders.OrderItem", null)
+                        .WithMany("ServiceCharge")
+                        .HasForeignKey("OrderItemId");
                 });
 
             modelBuilder.Entity("CentralizedSalesSystem.API.Models.Orders.Tax", b =>
@@ -630,6 +636,8 @@ namespace CentralizedSalesSystem.API.Migrations
 
             modelBuilder.Entity("CentralizedSalesSystem.API.Models.Orders.OrderItem", b =>
                 {
+                    b.Navigation("ServiceCharge");
+
                     b.Navigation("Taxes");
                 });
 

@@ -11,6 +11,6 @@ namespace CentralizedSalesSystem.API.Models.Orders
 
         public long ItemVariationId { get; set; }
 
-        public required ItemVariation ItemVariation { get; set; }
+        public ItemVariation ItemVariation { get; set; } = null!;
     }
 }

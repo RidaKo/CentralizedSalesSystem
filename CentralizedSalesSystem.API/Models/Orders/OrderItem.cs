@@ -8,14 +8,15 @@ namespace CentralizedSalesSystem.API.Models.Orders
         public string? Notes { get; set; }
 
         public long ItemId { get; set; }
-        public long OrderId { get; set; }
-        public long DiscountId { get; set; }
+        public long? DiscountId { get; set; }
 
         public ICollection<Tax> Taxes { get; set; } = new List<Tax>();
+        public ICollection<ServiceCharge>? ServiceCharge { get; set; } = new List<ServiceCharge>();
 
-        public required Item Item { get; set; }
-        public required Order Order { get; set; }
-        public required Discount Discount { get; set; }
+
+        public Item Item { get; set; } = null!;
+        public Order Order { get; set; } = null!;
+        public Discount? Discount { get; set; }
 
     }
 }

@@ -10,7 +10,7 @@ namespace CentralizedSalesSystem.API.Models.Orders
         public decimal rate { get; set; }
 
         public DateTimeOffset ValidFrom { get; set; }
-        public DateTimeOffset ValidTo { get; set; }
+        public DateTimeOffset? ValidTo { get; set; }
 
         public DiscountType Type { get; set; }
         public DiscountAppliesTo AppliesTo { get; set; }

@@ -1,5 +1,6 @@
 using CentralizedSalesSystem.API.Models.Orders.enums;
 namespace CentralizedSalesSystem.API.Models.Orders.DTOs.OrderDTOs;
+
 public class OrderUpdateDto
 {
     public long? BusinessId { get; set; }

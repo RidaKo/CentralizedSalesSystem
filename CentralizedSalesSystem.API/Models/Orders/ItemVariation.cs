@@ -12,7 +12,7 @@ namespace CentralizedSalesSystem.API.Models.Orders
 
         public ItemVariationSelection Selection { get; set; }
 
-        public required Item Item { get; set; }
+        public Item Item { get; set; } = null!;
 
     }
 }

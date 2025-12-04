@@ -15,6 +15,8 @@ builder.Services.AddDbContext<CentralizedSalesDbContext>(options =>
 );
 
 builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddScoped<IReservationService, ReservationService>();
+builder.Services.AddScoped<ITableService, TableService>();
 
 var jwtSection = builder.Configuration.GetSection("JWT");
 var jwtKey = jwtSection["Key"] ?? throw new InvalidOperationException("JWT: Key is missing in config");

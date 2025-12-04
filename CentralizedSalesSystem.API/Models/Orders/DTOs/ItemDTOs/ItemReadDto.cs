@@ -1,5 +1,10 @@
 using CentralizedSalesSystem.API.Models.Orders.enums;
+using CentralizedSalesSystem.API.Models.Orders.DTOs.ItemVariationDTOs;
+using CentralizedSalesSystem.API.Models.Auth;
+
 namespace CentralizedSalesSystem.API.Models.Orders.DTOs.ItemDTOs;
+
+
 
 public class ItemReadDto
 {
@@ -10,4 +15,9 @@ public class ItemReadDto
     public ItemType Type { get; set; }
     public int Stock { get; set; }
     public long BusinessId { get; set; }
+
+    public List<ItemVariationReadDto> Variations { get; set; } = new();
+    public List<Role> AssociatedRoles { get; set; } = new();
+
+
 }

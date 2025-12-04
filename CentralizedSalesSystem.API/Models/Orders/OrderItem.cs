@@ -15,7 +15,6 @@ namespace CentralizedSalesSystem.API.Models.Orders
 
 
         public Item Item { get; set; } = null!;
-        public Order Order { get; set; } = null!;
         public Discount? Discount { get; set; }
 
     }

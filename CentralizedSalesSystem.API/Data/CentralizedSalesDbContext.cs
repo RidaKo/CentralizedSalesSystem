@@ -29,6 +29,9 @@ namespace CentralizedSalesSystem.API.Data
 
 
 
+        // Reservations
+        public DbSet<Reservation> Reservations { get; set; }
+
 
 
 

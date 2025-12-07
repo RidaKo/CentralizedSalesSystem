@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace CentralizedSalesSystem.API.Migrations
 {
     /// <inheritdoc />
-    public partial class StillFixingDB : Migration
+    public partial class addedORderId : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -183,6 +183,46 @@ namespace CentralizedSalesSystem.API.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Reservations",
+                columns: table => new
+                {
+                    Id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    BusinessId = table.Column<long>(type: "bigint", nullable: false),
+                    CustomerName = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    CustomerPhone = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    CustomerNote = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    AppointmentTime = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
+                    CreatedAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
+                    CreatedBy = table.Column<long>(type: "bigint", nullable: false),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    AssignedEmployee = table.Column<long>(type: "bigint", nullable: true),
+                    GuestNumber = table.Column<int>(type: "int", nullable: false),
+                    TableId = table.Column<long>(type: "bigint", nullable: true),
+                    CreatedByUserId = table.Column<long>(type: "bigint", nullable: true),
+                    AssignedEmployeeUserId = table.Column<long>(type: "bigint", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Reservations", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Reservations_Tables_TableId",
+                        column: x => x.TableId,
+                        principalTable: "Tables",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_Reservations_Users_AssignedEmployeeUserId",
+                        column: x => x.AssignedEmployeeUserId,
+                        principalTable: "Users",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_Reservations_Users_CreatedByUserId",
+                        column: x => x.CreatedByUserId,
+                        principalTable: "Users",
+                        principalColumn: "Id");
+                });
+
+            migrationBuilder.CreateTable(
                 name: "ItemVariationOptions",
                 columns: table => new
                 {
@@ -265,10 +305,11 @@ namespace CentralizedSalesSystem.API.Migrations
                     Id = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     Quantity = table.Column<int>(type: "int", nullable: false),
+                    DiscountId = table.Column<long>(type: "bigint", nullable: true),
                     Notes = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     ItemId = table.Column<long>(type: "bigint", nullable: false),
-                    DiscountId = table.Column<long>(type: "bigint", nullable: true),
-                    OrderId = table.Column<long>(type: "bigint", nullable: false)
+                    OrderId = table.Column<long>(type: "bigint", nullable: false),
+                    ReservationId = table.Column<long>(type: "bigint", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -290,6 +331,11 @@ namespace CentralizedSalesSystem.API.Migrations
                         principalTable: "Orders",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_OrderItems_Reservations_ReservationId",
+                        column: x => x.ReservationId,
+                        principalTable: "Reservations",
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
@@ -366,6 +412,11 @@ namespace CentralizedSalesSystem.API.Migrations
                 column: "OrderId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_OrderItems_ReservationId",
+                table: "OrderItems",
+                column: "ReservationId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Orders_DiscountId",
                 table: "Orders",
                 column: "DiscountId");
@@ -379,6 +430,21 @@ namespace CentralizedSalesSystem.API.Migrations
                 name: "IX_Orders_UserId",
                 table: "Orders",
                 column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Reservations_AssignedEmployeeUserId",
+                table: "Reservations",
+                column: "AssignedEmployeeUserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Reservations_CreatedByUserId",
+                table: "Reservations",
+                column: "CreatedByUserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Reservations_TableId",
+                table: "Reservations",
+                column: "TableId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_RolePermissions_PermissionID",
@@ -448,6 +514,9 @@ namespace CentralizedSalesSystem.API.Migrations
 
             migrationBuilder.DropTable(
                 name: "Orders");
+
+            migrationBuilder.DropTable(
+                name: "Reservations");
 
             migrationBuilder.DropTable(
                 name: "Items");

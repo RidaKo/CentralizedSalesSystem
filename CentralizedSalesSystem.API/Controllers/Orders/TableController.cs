@@ -1,4 +1,4 @@
-using CentralizedSalesSystem.API.Models.DTOs;
+using CentralizedSalesSystem.API.Models.Orders.DTOs.TableDTOs;
 using CentralizedSalesSystem.API.Services;
 using CentralizedSalesSystem.API.Models.Orders.enums;
 using Microsoft.AspNetCore.Authorization;
@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Mvc;
 namespace CentralizedSalesSystem.API.Controllers
 {
     [Route("tables")]
-    [Authorize]
     [ApiController]
     public class TableController : ControllerBase
     {

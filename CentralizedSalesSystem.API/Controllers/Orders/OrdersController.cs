@@ -85,7 +85,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
                 .Take(limit)
                 .ToListAsync();
 
-            var result = orders.Select(o => new OrderReadDto
+            var result = orders.Select(o => new OrderResponseDto
             {
                 Id = o.Id,
                 BusinessId = o.BusinessId,
@@ -112,7 +112,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
         // GET: /orders/{orderId}
         // ---------------------------------------------------------
         [HttpGet("{orderId}")]
-        public async Task<ActionResult<OrderReadDto>> GetOrderById(long orderId)
+        public async Task<ActionResult<OrderResponseDto>> GetOrderById(long orderId)
         {
             var order = await _context.Orders
                 .Include(o => o.User)
@@ -123,7 +123,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
             if (order == null)
                 return NotFound();
 
-            return Ok(new OrderReadDto
+            return Ok(new OrderResponseDto
             {
                 Id = order.Id,
                 BusinessId = order.BusinessId,
@@ -141,7 +141,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
         // POST: /orders
         // ---------------------------------------------------------
         [HttpPost]
-        public async Task<ActionResult<OrderReadDto>> CreateOrder(OrderCreateDto dto)
+        public async Task<ActionResult<OrderResponseDto>> CreateOrder(OrderCreateDto dto)
         {
             // Validate optional foreign keys
             Discount? discount = null;
@@ -177,7 +177,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
             _context.Orders.Add(order);
             await _context.SaveChangesAsync();
 
-            var result = new OrderReadDto
+            var result = new OrderResponseDto
             {
                 Id = order.Id,
                 BusinessId = order.BusinessId,
@@ -198,7 +198,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
         // PATCH: /orders/{orderId}
         // ---------------------------------------------------------
         [HttpPatch("{orderId}")]
-        public async Task<ActionResult<OrderReadDto>> ModifyOrder(long orderId, OrderUpdateDto dto)
+        public async Task<ActionResult<OrderResponseDto>> ModifyOrder(long orderId, OrderUpdateDto dto)
         {
             var order = await _context.Orders.FindAsync(orderId);
             if (order == null)
@@ -217,7 +217,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
 
             await _context.SaveChangesAsync();
 
-            var result = new OrderReadDto
+            var result = new OrderResponseDto
             {
                 Id = order.Id,
                 BusinessId = order.BusinessId,

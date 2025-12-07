@@ -1,7 +1,7 @@
 using CentralizedSalesSystem.API.Models.Orders.enums;
 namespace CentralizedSalesSystem.API.Models.Orders.DTOs.DiscountDTOs;
 
-public class DiscountReadDto
+public class DiscountResponseDto
 {
     public long Id { get; set; }
     public string Name { get; set; } = string.Empty;

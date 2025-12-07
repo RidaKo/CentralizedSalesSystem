@@ -35,7 +35,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
                 .Take(limit)
                 .ToListAsync();
 
-            var result = discounts.Select(d => new DiscountReadDto
+            var result = discounts.Select(d => new DiscountResponseDto
             {
                 Id = d.Id,
                 Name = d.Name,
@@ -60,12 +60,12 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
 
         // GET: /discounts/{id}
         [HttpGet("{id}")]
-        public async Task<ActionResult<DiscountReadDto>> GetDiscountById(long id)
+        public async Task<ActionResult<DiscountResponseDto>> GetDiscountById(long id)
         {
             var discount = await _context.Discounts.FindAsync(id);
             if (discount == null) return NotFound();
 
-            return Ok(new DiscountReadDto
+            return Ok(new DiscountResponseDto
             {
                 Id = discount.Id,
                 Name = discount.Name,
@@ -81,7 +81,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
 
         // POST: /discounts
         [HttpPost]
-        public async Task<ActionResult<DiscountReadDto>> CreateDiscount(DiscountCreateDto dto)
+        public async Task<ActionResult<DiscountResponseDto>> CreateDiscount(DiscountCreateDto dto)
         {
             var discount = new Discount
             {
@@ -99,7 +99,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
             await _context.SaveChangesAsync();
 
             return CreatedAtAction(nameof(GetDiscountById), new { id = discount.Id },
-                new DiscountReadDto
+                new DiscountResponseDto
                 {
                     Id = discount.Id,
                     Name = discount.Name,
@@ -115,7 +115,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
 
         // PATCH: /discounts/{id}
         [HttpPatch("{id}")]
-        public async Task<ActionResult<DiscountReadDto>> UpdateDiscount(long id, DiscountUpdateDto dto)
+        public async Task<ActionResult<DiscountResponseDto>> UpdateDiscount(long id, DiscountUpdateDto dto)
         {
             var discount = await _context.Discounts.FindAsync(id);
             if (discount == null) return NotFound();
@@ -130,7 +130,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
 
             await _context.SaveChangesAsync();
 
-            return Ok(new DiscountReadDto
+            return Ok(new DiscountResponseDto
             {
                 Id = discount.Id,
                 Name = discount.Name,

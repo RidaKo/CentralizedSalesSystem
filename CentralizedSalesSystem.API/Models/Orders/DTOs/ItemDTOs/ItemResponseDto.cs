@@ -6,7 +6,7 @@ namespace CentralizedSalesSystem.API.Models.Orders.DTOs.ItemDTOs;
 
 
 
-public class ItemReadDto
+public class ItemResponseDto
 {
     public long Id { get; set; }
     public string Name { get; set; } = string.Empty;
@@ -16,7 +16,7 @@ public class ItemReadDto
     public int Stock { get; set; }
     public long BusinessId { get; set; }
 
-    public List<ItemVariationReadDto> Variations { get; set; } = new();
+    public List<ItemVariationResponseDto> Variations { get; set; } = new();
     public List<Role> AssociatedRoles { get; set; } = new();
 
 

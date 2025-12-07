@@ -1,7 +1,7 @@
 using CentralizedSalesSystem.API.Models.Orders.enums;
 namespace CentralizedSalesSystem.API.Models.Orders.DTOs.OrderDTOs;
 
-public class OrderReadDto
+public class OrderResponseDto
 {
     public long Id { get; set; }
     public long BusinessId { get; set; }

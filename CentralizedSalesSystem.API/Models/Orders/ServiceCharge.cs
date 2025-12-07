@@ -12,9 +12,5 @@ namespace CentralizedSalesSystem.API.Models.Orders
         public DateTimeOffset UpdatedAt { get; set; }
 
         public long BusinessId { get; set; }
-
-
-
-
     }
 }

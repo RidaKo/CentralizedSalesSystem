@@ -36,7 +36,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
                 .Include(v => v.Item)
                 .ToListAsync();
 
-            var result = variations.Select(v => new ItemVariationReadDto
+            var result = variations.Select(v => new ItemVariationResponseDto
             {
                 Id = v.Id,
                 Name = v.Name,
@@ -56,12 +56,12 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
 
         // GET: /itemVariations/{id}
         [HttpGet("{id}")]
-        public async Task<ActionResult<ItemVariationReadDto>> GetItemVariationById(long id)
+        public async Task<ActionResult<ItemVariationResponseDto>> GetItemVariationById(long id)
         {
             var variation = await _context.ItemVariations.FindAsync(id);
             if (variation == null) return NotFound();
 
-            return Ok(new ItemVariationReadDto
+            return Ok(new ItemVariationResponseDto
             {
                 Id = variation.Id,
                 Name = variation.Name,
@@ -72,7 +72,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
 
         // POST: /itemVariations
         [HttpPost]
-        public async Task<ActionResult<ItemVariationReadDto>> CreateItemVariation(ItemVariationCreateDto dto)
+        public async Task<ActionResult<ItemVariationResponseDto>> CreateItemVariation(ItemVariationCreateDto dto)
         {
             var variation = new ItemVariation
             {
@@ -85,7 +85,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
             await _context.SaveChangesAsync();
 
             return CreatedAtAction(nameof(GetItemVariationById), new { id = variation.Id },
-                new ItemVariationReadDto
+                new ItemVariationResponseDto
                 {
                     Id = variation.Id,
                     Name = variation.Name,
@@ -96,7 +96,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
 
         // PATCH: /itemVariations/{id}
         [HttpPatch("{id}")]
-        public async Task<ActionResult<ItemVariationReadDto>> UpdateItemVariation(long id, ItemVariationUpdateDto dto)
+        public async Task<ActionResult<ItemVariationResponseDto>> UpdateItemVariation(long id, ItemVariationUpdateDto dto)
         {
             var variation = await _context.ItemVariations.FindAsync(id);
             if (variation == null) return NotFound();
@@ -107,7 +107,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
 
             await _context.SaveChangesAsync();
 
-            return Ok(new ItemVariationReadDto
+            return Ok(new ItemVariationResponseDto
             {
                 Id = variation.Id,
                 Name = variation.Name,

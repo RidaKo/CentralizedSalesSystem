@@ -1,7 +1,7 @@
 using CentralizedSalesSystem.API.Models.Orders.enums;
 namespace CentralizedSalesSystem.API.Models.Orders.DTOs.ItemVariationDTOs;
 
-public class ItemVariationReadDto
+public class ItemVariationResponseDto
 {
     public long Id { get; set; }
     public string Name { get; set; } = string.Empty;

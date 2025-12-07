@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CentralizedSalesSystem.API.Migrations
 {
     [DbContext(typeof(CentralizedSalesDbContext))]
-    [Migration("20251203101101_StillFixingDB")]
-    partial class StillFixingDB
+    [Migration("20251206141947_addedORderId")]
+    partial class addedORderId
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -340,6 +340,9 @@ namespace CentralizedSalesSystem.API.Migrations
                     b.Property<int>("Quantity")
                         .HasColumnType("int");
 
+                    b.Property<long?>("ReservationId")
+                        .HasColumnType("bigint");
+
                     b.HasKey("Id");
 
                     b.HasIndex("DiscountId");
@@ -347,6 +350,8 @@ namespace CentralizedSalesSystem.API.Migrations
                     b.HasIndex("ItemId");
 
                     b.HasIndex("OrderId");
+
+                    b.HasIndex("ReservationId");
 
                     b.ToTable("OrderItems");
                 });
@@ -449,6 +454,64 @@ namespace CentralizedSalesSystem.API.Migrations
                     b.HasIndex("OrderItemId");
 
                     b.ToTable("Taxes");
+                });
+
+            modelBuilder.Entity("CentralizedSalesSystem.API.Models.Reservation", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTimeOffset>("AppointmentTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long?>("AssignedEmployee")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("AssignedEmployeeUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long>("CreatedBy")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("CreatedByUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("CustomerName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CustomerNote")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CustomerPhone")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("GuestNumber")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<long?>("TableId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssignedEmployeeUserId");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("TableId");
+
+                    b.ToTable("Reservations");
                 });
 
             modelBuilder.Entity("CentralizedSalesSystem.API.Models.User", b =>
@@ -590,17 +653,23 @@ namespace CentralizedSalesSystem.API.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("CentralizedSalesSystem.API.Models.Reservation", "Reservation")
+                        .WithMany("Items")
+                        .HasForeignKey("ReservationId");
+
                     b.Navigation("Discount");
 
                     b.Navigation("Item");
 
                     b.Navigation("Order");
+
+                    b.Navigation("Reservation");
                 });
 
             modelBuilder.Entity("CentralizedSalesSystem.API.Models.Orders.ServiceCharge", b =>
                 {
                     b.HasOne("CentralizedSalesSystem.API.Models.Orders.OrderItem", null)
-                        .WithMany("ServiceCharge")
+                        .WithMany("ServiceCharges")
                         .HasForeignKey("OrderItemId");
                 });
 
@@ -609,6 +678,27 @@ namespace CentralizedSalesSystem.API.Migrations
                     b.HasOne("CentralizedSalesSystem.API.Models.Orders.OrderItem", null)
                         .WithMany("Taxes")
                         .HasForeignKey("OrderItemId");
+                });
+
+            modelBuilder.Entity("CentralizedSalesSystem.API.Models.Reservation", b =>
+                {
+                    b.HasOne("CentralizedSalesSystem.API.Models.User", "AssignedEmployeeUser")
+                        .WithMany()
+                        .HasForeignKey("AssignedEmployeeUserId");
+
+                    b.HasOne("CentralizedSalesSystem.API.Models.User", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId");
+
+                    b.HasOne("CentralizedSalesSystem.API.Models.Orders.Table", "Table")
+                        .WithMany()
+                        .HasForeignKey("TableId");
+
+                    b.Navigation("AssignedEmployeeUser");
+
+                    b.Navigation("CreatedByUser");
+
+                    b.Navigation("Table");
                 });
 
             modelBuilder.Entity("CentralizedSalesSystem.API.Models.Auth.Permission", b =>
@@ -639,9 +729,14 @@ namespace CentralizedSalesSystem.API.Migrations
 
             modelBuilder.Entity("CentralizedSalesSystem.API.Models.Orders.OrderItem", b =>
                 {
-                    b.Navigation("ServiceCharge");
+                    b.Navigation("ServiceCharges");
 
                     b.Navigation("Taxes");
+                });
+
+            modelBuilder.Entity("CentralizedSalesSystem.API.Models.Reservation", b =>
+                {
+                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("CentralizedSalesSystem.API.Models.User", b =>

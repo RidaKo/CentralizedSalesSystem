@@ -79,7 +79,7 @@ namespace CentralizedSalesSystem.API.Controllers
 
             var taxes = await query.Skip((page - 1) * limit).Take(limit).ToListAsync();
 
-            var result = taxes.Select(t => new TaxReadDto
+            var result = taxes.Select(t => new TaxResponseDto
             {
                 Id = t.Id,
                 Name = t.Name,
@@ -96,12 +96,12 @@ namespace CentralizedSalesSystem.API.Controllers
 
         // GET /taxes/{taxId}
         [HttpGet("{taxId}")]
-        public async Task<ActionResult<TaxReadDto>> GetTaxById(long taxId)
+        public async Task<ActionResult<TaxResponseDto>> GetTaxById(long taxId)
         {
             var tax = await _context.Taxes.FindAsync(taxId);
             if (tax == null) return NotFound();
 
-            return Ok(new TaxReadDto
+            return Ok(new TaxResponseDto
             {
                 Id = tax.Id,
                 Name = tax.Name,
@@ -116,7 +116,7 @@ namespace CentralizedSalesSystem.API.Controllers
 
         // POST /taxes
         [HttpPost]
-        public async Task<ActionResult<TaxReadDto>> CreateTax(TaxCreateDto dto)
+        public async Task<ActionResult<TaxResponseDto>> CreateTax(TaxCreateDto dto)
         {
             var tax = new Tax
             {
@@ -132,7 +132,7 @@ namespace CentralizedSalesSystem.API.Controllers
             _context.Taxes.Add(tax);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetTaxById), new { taxId = tax.Id }, new TaxReadDto
+            return CreatedAtAction(nameof(GetTaxById), new { taxId = tax.Id }, new TaxResponseDto
             {
                 Id = tax.Id,
                 Name = tax.Name,
@@ -147,7 +147,7 @@ namespace CentralizedSalesSystem.API.Controllers
 
         // PATCH /taxes/{taxId}
         [HttpPatch("{taxId}")]
-        public async Task<ActionResult<TaxReadDto>> ModifyTax(long taxId, TaxUpdateDto dto)
+        public async Task<ActionResult<TaxResponseDto>> ModifyTax(long taxId, TaxUpdateDto dto)
         {
             var tax = await _context.Taxes.FindAsync(taxId);
             if (tax == null) return NotFound();
@@ -161,7 +161,7 @@ namespace CentralizedSalesSystem.API.Controllers
 
             await _context.SaveChangesAsync();
 
-            return Ok(new TaxReadDto
+            return Ok(new TaxResponseDto
             {
                 Id = tax.Id,
                 Name = tax.Name,

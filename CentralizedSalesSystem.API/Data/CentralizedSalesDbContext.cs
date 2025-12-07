@@ -40,5 +40,6 @@ namespace CentralizedSalesSystem.API.Data
         public CentralizedSalesDbContext(DbContextOptions<CentralizedSalesDbContext> options) : base(options) { 
                 
         }
+
     }
 }

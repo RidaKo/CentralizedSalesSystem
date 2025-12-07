@@ -31,7 +31,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
                 .Take(limit)
                 .ToListAsync();
 
-            var result = serviceCharges.Select(sc => new ServiceChargeReadDto
+            var result = serviceCharges.Select(sc => new ServiceChargeResponseDto
             {
                 Id = sc.Id,
                 Name = sc.Name,
@@ -53,12 +53,12 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
 
         // GET: /serviceCharges/{id}
         [HttpGet("{id}")]
-        public async Task<ActionResult<ServiceChargeReadDto>> GetServiceChargeById(long id)
+        public async Task<ActionResult<ServiceChargeResponseDto>> GetServiceChargeById(long id)
         {
             var sc = await _context.ServiceCharges.FindAsync(id);
             if (sc == null) return NotFound();
 
-            return Ok(new ServiceChargeReadDto
+            return Ok(new ServiceChargeResponseDto
             {
                 Id = sc.Id,
                 Name = sc.Name,
@@ -71,7 +71,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
 
         // POST: /serviceCharges
         [HttpPost]
-        public async Task<ActionResult<ServiceChargeReadDto>> CreateServiceCharge(ServiceChargeCreateDto dto)
+        public async Task<ActionResult<ServiceChargeResponseDto>> CreateServiceCharge(ServiceChargeCreateDto dto)
         {
             var sc = new ServiceCharge
             {
@@ -85,7 +85,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
             _context.ServiceCharges.Add(sc);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetServiceChargeById), new { id = sc.Id }, new ServiceChargeReadDto
+            return CreatedAtAction(nameof(GetServiceChargeById), new { id = sc.Id }, new ServiceChargeResponseDto
             {
                 Id = sc.Id,
                 Name = sc.Name,
@@ -98,7 +98,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
 
         // PATCH: /serviceCharges/{id}
         [HttpPatch("{id}")]
-        public async Task<ActionResult<ServiceChargeReadDto>> UpdateServiceCharge(long id, ServiceChargeUpdateDto dto)
+        public async Task<ActionResult<ServiceChargeResponseDto>> UpdateServiceCharge(long id, ServiceChargeUpdateDto dto)
         {
             var sc = await _context.ServiceCharges.FindAsync(id);
             if (sc == null) return NotFound();
@@ -110,7 +110,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
 
             await _context.SaveChangesAsync();
 
-            return Ok(new ServiceChargeReadDto
+            return Ok(new ServiceChargeResponseDto
             {
                 Id = sc.Id,
                 Name = sc.Name,

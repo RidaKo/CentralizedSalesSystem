@@ -40,7 +40,7 @@ namespace CentralizedSalesSystem.API.Controllers.Items
                 .ToListAsync();
 
 
-            var result = items.Select(i => new ItemReadDto
+            var result = items.Select(i => new ItemResponseDto
             {
                 Id = i.Id,
                 Name = i.Name,
@@ -50,7 +50,7 @@ namespace CentralizedSalesSystem.API.Controllers.Items
                 Type = i.Type,
                 BusinessId = i.BusinessId,
                 //Creating a list for ItemVariations from DTO
-                Variations = i.Variations.Select(v => new ItemVariationReadDto
+                Variations = i.Variations.Select(v => new ItemVariationResponseDto
                 {
                     Id = v.Id,
                     Name = v.Name,
@@ -84,12 +84,12 @@ namespace CentralizedSalesSystem.API.Controllers.Items
 
         // GET: /items/{id}
         [HttpGet("{id}")]
-        public async Task<ActionResult<ItemReadDto>> GetItemById(long id)
+        public async Task<ActionResult<ItemResponseDto>> GetItemById(long id)
         {
             var item = await _context.Items.FindAsync(id);
             if (item == null) return NotFound();
 
-            return Ok(new ItemReadDto
+            return Ok(new ItemResponseDto
             {
                 Id = item.Id,
                 Name = item.Name,
@@ -103,7 +103,7 @@ namespace CentralizedSalesSystem.API.Controllers.Items
 
         // POST: /items
         [HttpPost]
-        public async Task<ActionResult<ItemReadDto>> CreateItem(ItemCreateDto dto)
+        public async Task<ActionResult<ItemResponseDto>> CreateItem(ItemCreateDto dto)
         {
             var item = new Item
             {
@@ -119,7 +119,7 @@ namespace CentralizedSalesSystem.API.Controllers.Items
             await _context.SaveChangesAsync();
 
             return CreatedAtAction(nameof(GetItemById), new { id = item.Id },
-                new ItemReadDto
+                new ItemResponseDto
                 {
                     Id = item.Id,
                     Name = item.Name,
@@ -133,7 +133,7 @@ namespace CentralizedSalesSystem.API.Controllers.Items
 
         // PATCH: /items/{id}
         [HttpPatch("{id}")]
-        public async Task<ActionResult<ItemReadDto>> UpdateItem(long id, ItemUpdateDto dto)
+        public async Task<ActionResult<ItemResponseDto>> UpdateItem(long id, ItemUpdateDto dto)
         {
             var item = await _context.Items.FindAsync(id);
             if (item == null) return NotFound();
@@ -147,7 +147,7 @@ namespace CentralizedSalesSystem.API.Controllers.Items
 
             await _context.SaveChangesAsync();
 
-            return Ok(new ItemReadDto
+            return Ok(new ItemResponseDto
             {
                 Id = item.Id,
                 Name = item.Name,

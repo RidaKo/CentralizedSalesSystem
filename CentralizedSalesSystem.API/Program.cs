@@ -87,11 +87,11 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
-await DbSeeder.SeedAsync(app.Services);
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
+    await DbSeeder.SeedAsync(app.Services);
     app.UseSwagger();
     app.UseSwaggerUI();
 }

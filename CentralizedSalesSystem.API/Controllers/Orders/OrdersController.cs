@@ -1,10 +1,6 @@
-using CentralizedSalesSystem.API.Data;
-using CentralizedSalesSystem.API.Models.Orders;
 using CentralizedSalesSystem.API.Models.Orders.DTOs.OrderDTOs;
-using CentralizedSalesSystem.API.Models.Orders.enums;
-using Microsoft.AspNetCore.Authorization;
+using CentralizedSalesSystem.API.Services;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace CentralizedSalesSystem.API.Controllers.Orders
 {
@@ -12,16 +8,14 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
     [Route("orders")]
     public class OrdersController : ControllerBase
     {
-        private readonly CentralizedSalesDbContext _context;
+        private readonly IOrderService _orderService;
 
-        public OrdersController(CentralizedSalesDbContext context)
+        public OrdersController(IOrderService orderService)
         {
-            _context = context;
+            _orderService = orderService;
         }
 
-        // ---------------------------------------------------------
         // GET: /orders
-        // ---------------------------------------------------------
         [HttpGet]
         public async Task<ActionResult<object>> GetOrders(
             [FromQuery] int page = 1,
@@ -34,218 +28,48 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
             [FromQuery] long? filterByReservationId = null,
             [FromQuery] long? filterByTableId = null)
         {
-            var query = _context.Orders
-                .Include(o => o.User)
-                .Include(o => o.Table)
-                .Include(o => o.Discount)
-                .AsQueryable();
-
-            // -------- FILTERS --------
-            if (!string.IsNullOrEmpty(filterByStatus) &&
-                Enum.TryParse<OrderStatus>(filterByStatus, out var status))
-            {
-                query = query.Where(o => o.Status == status);
-            }
-
-            if (filterByUpdatedAt.HasValue)
-                query = query.Where(o => o.UpdatedAt >= filterByUpdatedAt.Value);
-
-            if (filterByBusinessId.HasValue)
-                query = query.Where(o => o.BusinessId == filterByBusinessId.Value);
-
-            if (filterByReservationId.HasValue)
-                query = query.Where(o => o.ReservationId == filterByReservationId.Value);
-
-            if (filterByTableId.HasValue)
-                query = query.Where(o => o.TableId == filterByTableId.Value);
-
-            // -------- SORTING --------
-            bool desc = sortDirection?.ToLower() == "desc";
-
-            query = sortBy switch
-            {
-                "tip" => desc ? query.OrderByDescending(o => o.Tip)
-                                     : query.OrderBy(o => o.Tip),
-
-                "updatedAt" => desc ? query.OrderByDescending(o => o.UpdatedAt)
-                                     : query.OrderBy(o => o.UpdatedAt),
-
-                "status" => desc ? query.OrderByDescending(o => o.Status)
-                                     : query.OrderBy(o => o.Status),
-
-                _ => query
-            };
-
-            // -------- PAGINATION --------
-            var total = await query.CountAsync();
-            var totalPages = (int)Math.Ceiling((double)total / limit);
-
-            var orders = await query
-                .Skip((page - 1) * limit)
-                .Take(limit)
-                .ToListAsync();
-
-            var result = orders.Select(o => new OrderResponseDto
-            {
-                Id = o.Id,
-                BusinessId = o.BusinessId,
-                Tip = o.Tip,
-                UpdatedAt = o.UpdatedAt,
-                Status = o.Status,
-                UserId = o.UserId,
-                TableId = o.TableId,
-                DiscountId = o.DiscountId,
-                ReservationId = o.ReservationId
-            });
-
-            return Ok(new
-            {
-                data = result,
-                page,
-                limit,
-                total,
-                totalPages
-            });
-        }
-
-        // ---------------------------------------------------------
-        // GET: /orders/{orderId}
-        // ---------------------------------------------------------
-        [HttpGet("{orderId}")]
-        public async Task<ActionResult<OrderResponseDto>> GetOrderById(long orderId)
-        {
-            var order = await _context.Orders
-                .Include(o => o.User)
-                .Include(o => o.Table)
-                .Include(o => o.Discount)
-                .FirstOrDefaultAsync(o => o.Id == orderId);
-
-            if (order == null)
-                return NotFound();
-
-            return Ok(new OrderResponseDto
-            {
-                Id = order.Id,
-                BusinessId = order.BusinessId,
-                Tip = order.Tip,
-                UpdatedAt = order.UpdatedAt,
-                Status = order.Status,
-                UserId = order.UserId,
-                TableId = order.TableId,
-                DiscountId = order.DiscountId,
-                ReservationId = order.ReservationId
-            });
-        }
-
-        // ---------------------------------------------------------
-        // POST: /orders
-        // ---------------------------------------------------------
-        [HttpPost]
-        public async Task<ActionResult<OrderResponseDto>> CreateOrder(OrderCreateDto dto)
-        {
-            // Validate optional foreign keys
-            Discount? discount = null;
-            if (dto.DiscountId.HasValue)
-            {
-                discount = await _context.Discounts.FindAsync(dto.DiscountId.Value);
-                if (discount == null)
-                    return BadRequest($"Discount with Id {dto.DiscountId.Value} does not exist.");
-            }
-
-            Table? table = null;
-            if (dto.TableId.HasValue)
-            {
-                table = await _context.Tables.FindAsync(dto.TableId.Value);
-                if (table == null)
-                    return BadRequest($"Table with Id {dto.TableId.Value} does not exist.");
-            }
-
-            var order = new Order
-            {
-                BusinessId = dto.BusinessId,
-                Tip = dto.Tip,
-                Status = dto.Status,
-                UserId = dto.UserId,
-                TableId = dto.TableId,
-                ReservationId = dto.ReservationId,
-                DiscountId = dto.DiscountId,
-                Discount = discount,
-                Table = table,
-                UpdatedAt = DateTimeOffset.UtcNow
-            };
-
-            _context.Orders.Add(order);
-            await _context.SaveChangesAsync();
-
-            var result = new OrderResponseDto
-            {
-                Id = order.Id,
-                BusinessId = order.BusinessId,
-                Tip = order.Tip,
-                UpdatedAt = order.UpdatedAt,
-                Status = order.Status,
-                UserId = order.UserId,
-                TableId = order.TableId,
-                DiscountId = order.DiscountId,
-                ReservationId = order.ReservationId
-            };
-
-            return CreatedAtAction(nameof(GetOrderById), new { orderId = order.Id }, result);
-        }
-
-
-        // ---------------------------------------------------------
-        // PATCH: /orders/{orderId}
-        // ---------------------------------------------------------
-        [HttpPatch("{orderId}")]
-        public async Task<ActionResult<OrderResponseDto>> ModifyOrder(long orderId, OrderUpdateDto dto)
-        {
-            var order = await _context.Orders.FindAsync(orderId);
-            if (order == null)
-                return NotFound();
-
-            // Apply only provided fields
-            if (dto.BusinessId.HasValue) order.BusinessId = dto.BusinessId.Value;
-            if (dto.Tip.HasValue) order.Tip = dto.Tip.Value;
-            if (dto.Status.HasValue) order.Status = dto.Status.Value;
-            if (dto.UserId.HasValue) order.UserId = dto.UserId.Value;
-            if (dto.TableId.HasValue) order.TableId = dto.TableId.Value;
-            if (dto.ReservationId.HasValue) order.ReservationId = dto.ReservationId.Value;
-            if (dto.DiscountId.HasValue) order.DiscountId = dto.DiscountId.Value;
-
-            order.UpdatedAt = DateTimeOffset.UtcNow;
-
-            await _context.SaveChangesAsync();
-
-            var result = new OrderResponseDto
-            {
-                Id = order.Id,
-                BusinessId = order.BusinessId,
-                Tip = order.Tip,
-                UpdatedAt = order.UpdatedAt,
-                Status = order.Status,
-                UserId = order.UserId,
-                TableId = order.TableId,
-                DiscountId = order.DiscountId,
-                ReservationId = order.ReservationId
-            };
+            var result = await _orderService.GetOrdersAsync(
+                page, limit, sortBy, sortDirection,
+                filterByStatus, filterByUpdatedAt,
+                filterByBusinessId, filterByReservationId, filterByTableId
+            );
 
             return Ok(result);
         }
 
-        // ---------------------------------------------------------
-        // DELETE: /orders/{orderId}
-        // ---------------------------------------------------------
-        [HttpDelete("{orderId}")]
-        public async Task<IActionResult> DeleteOrder(long orderId)
+        // GET: /orders/{id}
+        [HttpGet("{id}")]
+        public async Task<ActionResult<OrderResponseDto>> GetOrderById(long id)
         {
-            var order = await _context.Orders.FindAsync(orderId);
-            if (order == null)
-                return NotFound();
+            var order = await _orderService.GetOrderByIdAsync(id);
+            if (order == null) return NotFound();
+            return Ok(order);
+        }
 
-            _context.Orders.Remove(order);
-            await _context.SaveChangesAsync();
+        // POST: /orders
+        [HttpPost]
+        public async Task<ActionResult<OrderResponseDto>> CreateOrder(OrderCreateDto dto)
+        {
+            var created = await _orderService.CreateOrderAsync(dto);
+            if (created == null) return BadRequest("User not found.");
+            return Ok(created);
+        }
 
+        // PATCH: /orders/{id}
+        [HttpPatch("{id}")]
+        public async Task<ActionResult<OrderResponseDto>> UpdateOrder(long id, OrderUpdateDto dto)
+        {
+            var updated = await _orderService.UpdateOrderAsync(id, dto);
+            if (updated == null) return NotFound();
+            return Ok(updated);
+        }
+
+        // DELETE: /orders/{id}
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteOrder(long id)
+        {
+            var deleted = await _orderService.DeleteOrderAsync(id);
+            if (!deleted) return NotFound();
             return Ok(new { message = "Successfully deleted order" });
         }
     }

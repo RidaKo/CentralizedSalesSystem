@@ -17,17 +17,21 @@ namespace CentralizedSalesSystem.API.Services
 			_db = db;
 		}
 
-		public async Task<object> GetOrderItemsAsync(int page, int limit, string? sortBy = null, string? sortDirection = null, long? filterByItemId = null, long? filterByDiscountId = null)
+		public async Task<object> GetOrderItemsAsync(
+		int page,
+		int limit,
+		string? sortBy = null,
+		string? sortDirection = "asc",
+		long? filterByOrderId = null,
+		long? filterByItemId = null,
+		long? filterByDiscountId = null
+		)
 		{
-			if (page < 1) page = 1;
-			if (limit < 1) limit = 20;
+			var query = _db.OrderItems.AsQueryable();
 
-			IQueryable<OrderItem> query = _db.OrderItems
-				.Include(oi => oi.Item)
-					.ThenInclude(i => i.Variations)
-				.Include(oi => oi.Discount)
-				.Include(oi => oi.Taxes)
-				.Include(oi => oi.ServiceCharges);
+			// FILTERING
+			if (filterByOrderId.HasValue)
+				query = query.Where(oi => oi.OrderId == filterByOrderId.Value);
 
 			if (filterByItemId.HasValue)
 				query = query.Where(oi => oi.ItemId == filterByItemId.Value);
@@ -35,24 +39,28 @@ namespace CentralizedSalesSystem.API.Services
 			if (filterByDiscountId.HasValue)
 				query = query.Where(oi => oi.DiscountId == filterByDiscountId.Value);
 
-			bool asc = string.Equals(sortDirection, "asc", StringComparison.OrdinalIgnoreCase);
-			var sortKey = (sortBy ?? "id").ToLower();
+			// SORTING
+			bool desc = sortDirection?.ToLower() == "desc";
 
-			var total = await query.CountAsync();
-			var totalPages = (int)Math.Ceiling(total / (double)limit);
-
-			query = sortKey switch
+			query = sortBy switch
 			{
-				"quantity" => asc ? query.OrderBy(oi => oi.Quantity) : query.OrderByDescending(oi => oi.Quantity),
-				"itemid" => asc ? query.OrderBy(oi => oi.ItemId) : query.OrderByDescending(oi => oi.ItemId),
-				_ => asc ? query.OrderBy(oi => oi.Id) : query.OrderByDescending(oi => oi.Id)
+				"quantity" => desc ? query.OrderByDescending(oi => oi.Quantity) : query.OrderBy(oi => oi.Quantity),
+				"id" => desc ? query.OrderByDescending(oi => oi.Id) : query.OrderBy(oi => oi.Id),
+				_ => query
 			};
 
-			var items = await query.Skip((page - 1) * limit).Take(limit).ToListAsync();
+			// PAGINATION
+			var total = await query.CountAsync();
+			var totalPages = (int)Math.Ceiling((double)total / limit);
 
-			return new
+			var items = await query.Skip((page - 1) * limit)
+								   .Take(limit)
+								   .ToListAsync();
+			var result = items.Select(v => v.ToDto());
+			
+            return new
 			{
-				data = items.Select(oi => oi.ToDto()),
+				data = result,
 				page,
 				limit,
 				total,
@@ -60,7 +68,8 @@ namespace CentralizedSalesSystem.API.Services
 			};
 		}
 
-		public async Task<OrderItemResponseDto?> GetOrderItemByIdAsync(long orderItemId)
+
+        public async Task<OrderItemResponseDto?> GetOrderItemByIdAsync(long orderItemId)
 		{
 			var oi = await _db.OrderItems
 				.Include(oi => oi.Item)

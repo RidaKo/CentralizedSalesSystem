@@ -1,9 +1,7 @@
-using CentralizedSalesSystem.API.Models.Orders.enums;
-using CentralizedSalesSystem.API.Data;
-using CentralizedSalesSystem.API.Models.Orders;
 using CentralizedSalesSystem.API.Models.Orders.DTOs.DiscountDTOs;
+using CentralizedSalesSystem.API.Services;
+using CentralizedSalesSystem.API.Models.Orders.enums;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace CentralizedSalesSystem.API.Controllers.Orders
 {
@@ -11,150 +9,72 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
     [Route("discounts")]
     public class DiscountsController : ControllerBase
     {
-        private readonly CentralizedSalesDbContext _context;
+        private readonly IDiscountService _service;
 
-        public DiscountsController(CentralizedSalesDbContext context)
+        public DiscountsController(IDiscountService service)
         {
-            _context = context;
+            _service = service;
         }
 
-        // GET: /discounts
         [HttpGet]
         public async Task<ActionResult<object>> GetDiscounts(
-            [FromQuery] int page = 1,
-            [FromQuery] int limit = 20
-        )
+           [FromQuery] int page = 1,
+           [FromQuery] int limit = 20,
+           [FromQuery] string? sortBy = null,
+           [FromQuery] string? sortDirection = "asc",
+           [FromQuery] string? filterByName = null,
+           [FromQuery] decimal? filterByRate = null,
+           [FromQuery] long? filterByBusinessId = null,
+           [FromQuery] DiscountType? filterByDiscountType = null,
+           [FromQuery] DiscountStatus? filterByStatus = null,
+           [FromQuery] DiscountAppliesTo? filterByAppliesTo = null)
         {
-            var query = _context.Discounts.AsQueryable();
+            var result = await _service.GetDiscountsAsync(
+                page, limit, sortBy, sortDirection,
+                filterByName, filterByRate, filterByBusinessId,
+                filterByDiscountType, filterByStatus, filterByAppliesTo
+            );
 
-            var total = await query.CountAsync();
-            var totalPages = (int)Math.Ceiling((double)total / limit);
-
-            var discounts = await query
-                .Skip((page - 1) * limit)
-                .Take(limit)
-                .ToListAsync();
-
-            var result = discounts.Select(d => new DiscountResponseDto
-            {
-                Id = d.Id,
-                Name = d.Name,
-                Rate = d.rate,
-                ValidFrom = d.ValidFrom,
-                ValidTo = d.ValidTo,
-                Type = d.Type,
-                AppliesTo = d.AppliesTo,
-                Status = d.Status,
-                BusinessId = d.BusinessId
-            });
-
-            return Ok(new
-            {
-                data = result,
-                page,
-                limit,
-                total,
-                totalPages
-            });
+            return Ok(result);
         }
 
-        // GET: /discounts/{id}
+
         [HttpGet("{id}")]
         public async Task<ActionResult<DiscountResponseDto>> GetDiscountById(long id)
         {
-            var discount = await _context.Discounts.FindAsync(id);
-            if (discount == null) return NotFound();
-
-            return Ok(new DiscountResponseDto
-            {
-                Id = discount.Id,
-                Name = discount.Name,
-                Rate = discount.rate,
-                ValidFrom = discount.ValidFrom,
-                ValidTo = discount.ValidTo,
-                Type = discount.Type,
-                AppliesTo = discount.AppliesTo,
-                Status = discount.Status,
-                BusinessId = discount.BusinessId
-            });
+            var discount = await _service.GetDiscountByIdAsync(id);
+            return discount == null ? NotFound() : Ok(discount);
         }
 
-        // POST: /discounts
         [HttpPost]
         public async Task<ActionResult<DiscountResponseDto>> CreateDiscount(DiscountCreateDto dto)
         {
-            var discount = new Discount
-            {
-                Name = dto.Name,
-                rate = dto.Rate,
-                ValidFrom = dto.ValidFrom,
-                ValidTo = dto.ValidTo,
-                Type = dto.Type,
-                AppliesTo = dto.AppliesTo,
-                Status = dto.Status,
-                BusinessId = dto.BusinessId
-            };
-
-            _context.Discounts.Add(discount);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetDiscountById), new { id = discount.Id },
-                new DiscountResponseDto
-                {
-                    Id = discount.Id,
-                    Name = discount.Name,
-                    Rate = discount.rate,
-                    ValidFrom = discount.ValidFrom,
-                    ValidTo = discount.ValidTo,
-                    Type = discount.Type,
-                    AppliesTo = discount.AppliesTo,
-                    Status = discount.Status,
-                    BusinessId = discount.BusinessId
-                });
+            var created = await _service.CreateDiscountAsync(dto);
+            return created == null ? BadRequest() : Ok(created);
         }
 
-        // PATCH: /discounts/{id}
         [HttpPatch("{id}")]
         public async Task<ActionResult<DiscountResponseDto>> UpdateDiscount(long id, DiscountUpdateDto dto)
         {
-            var discount = await _context.Discounts.FindAsync(id);
-            if (discount == null) return NotFound();
-
-            if (!string.IsNullOrEmpty(dto.Name)) discount.Name = dto.Name;
-            if (dto.Rate.HasValue) discount.rate = dto.Rate.Value;
-            if (dto.ValidFrom.HasValue) discount.ValidFrom = dto.ValidFrom.Value;
-            if (dto.ValidTo.HasValue) discount.ValidTo = dto.ValidTo.Value;
-            if (dto.Type.HasValue) discount.Type = dto.Type.Value;
-            if (dto.AppliesTo.HasValue) discount.AppliesTo = dto.AppliesTo.Value;
-            if (dto.Status.HasValue) discount.Status = dto.Status.Value;
-
-            await _context.SaveChangesAsync();
-
-            return Ok(new DiscountResponseDto
-            {
-                Id = discount.Id,
-                Name = discount.Name,
-                Rate = discount.rate,
-                ValidFrom = discount.ValidFrom,
-                ValidTo = discount.ValidTo,
-                Type = discount.Type,
-                AppliesTo = discount.AppliesTo,
-                Status = discount.Status,
-                BusinessId = discount.BusinessId
-            });
+            var updated = await _service.UpdateDiscountAsync(id, dto);
+            return updated == null ? NotFound() : Ok(updated);
         }
 
-        // DELETE: /discounts/{id}
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteDiscount(long id)
         {
-            var discount = await _context.Discounts.FindAsync(id);
-            if (discount == null) return NotFound();
-
-            _context.Discounts.Remove(discount);
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "Successfully deleted discount" });
+            try
+            {
+                var deleted = await _service.DeleteDiscountAsync(id);
+                return deleted
+                    ? Ok(new { message = "Successfully deleted discount" })
+                    : NotFound();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { message = ex.Message });
+            }
         }
+
     }
 }

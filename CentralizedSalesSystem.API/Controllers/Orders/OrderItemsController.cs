@@ -24,10 +24,20 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
         }
 
         [HttpGet]
-        public async Task<ActionResult<object>> GetOrderItems([FromQuery] int page = 1, [FromQuery] int limit = 20)
+        public async Task<IActionResult> Get(
+            [FromQuery] int page = 1,
+            [FromQuery] int limit = 20,
+            [FromQuery] string? sortBy = null,
+            [FromQuery] string? sortDirection = "asc",
+            [FromQuery] long? filterByOrderId = null,
+            [FromQuery] long? filterByItemId = null,
+            [FromQuery] long? filterByDiscountId = null
+        )
         {
-            var pagedResult = await _orderItemService.GetOrderItemsAsync(page, limit);
-            return Ok(pagedResult);
+            return Ok(await _orderItemService.GetOrderItemsAsync(
+                page, limit, sortBy, sortDirection,
+                filterByOrderId, filterByItemId, filterByDiscountId
+            ));
         }
 
         [HttpGet("{id}")]

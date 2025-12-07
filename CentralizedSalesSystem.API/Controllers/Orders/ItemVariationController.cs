@@ -1,9 +1,6 @@
-using CentralizedSalesSystem.API.Models.Orders.enums;
-using CentralizedSalesSystem.API.Data;
-using CentralizedSalesSystem.API.Models.Orders;
 using CentralizedSalesSystem.API.Models.Orders.DTOs.ItemVariationDTOs;
+using CentralizedSalesSystem.API.Services;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace CentralizedSalesSystem.API.Controllers.Orders
 {
@@ -11,122 +8,52 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
     [Route("itemVariations")]
     public class ItemVariationsController : ControllerBase
     {
-        private readonly CentralizedSalesDbContext _context;
+        private readonly IItemVariationService _service;
 
-        public ItemVariationsController(CentralizedSalesDbContext context)
+        public ItemVariationsController(IItemVariationService service)
         {
-            _context = context;
+            _service = service;
         }
 
-        // GET: /itemVariations
         [HttpGet]
         public async Task<ActionResult<object>> GetItemVariations(
-            [FromQuery] int page = 1,
-            [FromQuery] int limit = 20
-        )
+            [FromQuery] int page = 1, 
+            [FromQuery] int limit = 20, 
+            [FromQuery] string? sortBy = null, 
+            [FromQuery] string? sortDirection = null, 
+            [FromQuery] long? filterByItemId = null,
+            [FromQuery] string? filterByName = null)
         {
-            var query = _context.ItemVariations.AsQueryable();
-
-            var total = await query.CountAsync();
-            var totalPages = (int)Math.Ceiling((double)total / limit);
-
-            var variations = await query
-                .Skip((page - 1) * limit)
-                .Take(limit)
-                .Include(v => v.Item)
-                .ToListAsync();
-
-            var result = variations.Select(v => new ItemVariationResponseDto
-            {
-                Id = v.Id,
-                Name = v.Name,
-                ItemId = v.ItemId,
-                Selection = v.Selection
-            });
-
-            return Ok(new
-            {
-                data = result,
-                page,
-                limit,
-                total,
-                totalPages
-            });
+            var result = await _service.GetItemVariationsAsync(page, limit, sortBy, sortDirection, filterByItemId, filterByName);
+            return Ok(result);
         }
 
-        // GET: /itemVariations/{id}
         [HttpGet("{id}")]
         public async Task<ActionResult<ItemVariationResponseDto>> GetItemVariationById(long id)
         {
-            var variation = await _context.ItemVariations.FindAsync(id);
-            if (variation == null) return NotFound();
-
-            return Ok(new ItemVariationResponseDto
-            {
-                Id = variation.Id,
-                Name = variation.Name,
-                ItemId = variation.ItemId,
-                Selection = variation.Selection
-            });
+            var result = await _service.GetItemVariationByIdAsync(id);
+            return result == null ? NotFound() : Ok(result);
         }
 
-        // POST: /itemVariations
         [HttpPost]
         public async Task<ActionResult<ItemVariationResponseDto>> CreateItemVariation(ItemVariationCreateDto dto)
         {
-            var variation = new ItemVariation
-            {
-                Name = dto.Name,
-                ItemId = dto.ItemId,
-                Selection = dto.Selection
-            };
-
-            _context.ItemVariations.Add(variation);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetItemVariationById), new { id = variation.Id },
-                new ItemVariationResponseDto
-                {
-                    Id = variation.Id,
-                    Name = variation.Name,
-                    ItemId = variation.ItemId,
-                    Selection = variation.Selection
-                });
+            var created = await _service.CreateItemVariationAsync(dto);
+            return created == null ? BadRequest("Item not found.") : Ok(created);
         }
 
-        // PATCH: /itemVariations/{id}
         [HttpPatch("{id}")]
         public async Task<ActionResult<ItemVariationResponseDto>> UpdateItemVariation(long id, ItemVariationUpdateDto dto)
         {
-            var variation = await _context.ItemVariations.FindAsync(id);
-            if (variation == null) return NotFound();
-
-            if (!string.IsNullOrEmpty(dto.Name)) variation.Name = dto.Name;
-            if (dto.ItemId.HasValue) variation.ItemId = dto.ItemId.Value;
-            if (dto.Selection.HasValue) variation.Selection = dto.Selection.Value;
-
-            await _context.SaveChangesAsync();
-
-            return Ok(new ItemVariationResponseDto
-            {
-                Id = variation.Id,
-                Name = variation.Name,
-                ItemId = variation.ItemId,
-                Selection = variation.Selection
-            });
+            var updated = await _service.UpdateItemVariationAsync(id, dto);
+            return updated == null ? NotFound() : Ok(updated);
         }
 
-        // DELETE: /itemVariations/{id}
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteItemVariation(long id)
         {
-            var variation = await _context.ItemVariations.FindAsync(id);
-            if (variation == null) return NotFound();
-
-            _context.ItemVariations.Remove(variation);
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "Successfully deleted item variation" });
+            var deleted = await _service.DeleteItemVariationAsync(id);
+            return deleted ? Ok(new { message = "Successfully deleted item variation" }) : NotFound();
         }
     }
 }

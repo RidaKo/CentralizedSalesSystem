@@ -1,4 +1,5 @@
 using CentralizedSalesSystem.API.Models.Orders;
+using CentralizedSalesSystem.API.Models.Auth;
 using CentralizedSalesSystem.API.Models;
 using CentralizedSalesSystem.API.Models.DTOs;
 using CentralizedSalesSystem.API.Models.Orders.DTOs.TableDTOs;
@@ -102,16 +103,95 @@ namespace CentralizedSalesSystem.API.Mappers
                 }).ToList() ?? new List<ServiceChargeResponseDto>()
             };
         }
-        public static UserResponseDto ToDto(this User user)
+        public static OrderResponseDto ToOrderResponse(Order order)
         {
-            return new UserResponseDto
+            return new OrderResponseDto
             {
-                Id = user.Id,
-                BusinessId = user.BusinessId,
-                Email = user.Email,
-                Phone = user.Phone,
-                Status = user.Status
+                Id = order.Id,
+                BusinessId = order.BusinessId,
+                Tip = order.Tip,
+                UpdatedAt = order.UpdatedAt,
+                Status = order.Status,
+                UserId = order.UserId,
+                TableId = order.TableId,
+                DiscountId = order.DiscountId,
+                ReservationId = order.ReservationId
             };
         }
+        public static ItemResponseDto ToDto(this Item item)
+        {
+            return new ItemResponseDto
+            {
+                Id = item.Id,
+                Name = item.Name,
+                Description = item.Description,
+                Price = item.Price,
+                Stock = item.Stock,
+                Type = item.Type,
+                BusinessId = item.BusinessId,
+                Variations = item.Variations?.Select(v => new ItemVariationResponseDto
+                {
+                    Id = v.Id,
+                    Name = v.Name,
+                    ItemId = v.ItemId,
+                    Selection = v.Selection
+                }).ToList(),
+                AssociatedRoles = item.Type == Models.Orders.enums.ItemType.service && item.AssociatedRoles != null
+                    ? item.AssociatedRoles.ToList()
+                    : null
+            };
+        }
+        public static ItemVariationResponseDto ToDto(this ItemVariation variation)
+        {
+            return new ItemVariationResponseDto
+            {
+                Id = variation.Id,
+                Name = variation.Name,
+                ItemId = variation.ItemId,
+                Selection = variation.Selection
+            };
+        }
+        public static TaxResponseDto ToDto(this Tax tax)
+        {
+            return new TaxResponseDto
+            {
+                Id = tax.Id,
+                Name = tax.Name,
+                Rate = tax.Rate,
+                CreatedAt = tax.CreatedAt,
+                EffectiveFrom = tax.EffectiveFrom,
+                EffectiveTo = tax.EffectiveTo,
+                Status = tax.Status,
+                BusinessId = tax.BusinessId
+            };
+        }
+        public static DiscountResponseDto ToDto(this Discount discount)
+        {
+            return new DiscountResponseDto
+            {
+                Id = discount.Id,
+                Name = discount.Name,
+                Rate = discount.rate,
+                ValidFrom = discount.ValidFrom,
+                ValidTo = discount.ValidTo,
+                Type = discount.Type,
+                AppliesTo = discount.AppliesTo,
+                Status = discount.Status,
+                BusinessId = discount.BusinessId
+            };
+        }
+        public static ServiceChargeResponseDto ToDto(this ServiceCharge sc)
+        {
+            return new ServiceChargeResponseDto
+            {
+                Id = sc.Id,
+                Name = sc.Name,
+                Rate = sc.rate,
+                CreatedAt = sc.CreatedAt,
+                UpdatedAt = sc.UpdatedAt,
+                BusinessId = sc.BusinessId
+            };
+        }
+
     }
 }

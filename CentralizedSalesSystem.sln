@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
-VisualStudioVersion = 18.0.11222.15
+VisualStudioVersion = 18.0.11222.15 d18.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CentralizedSalesSystem.API", "CentralizedSalesSystem.API\CentralizedSalesSystem.API.csproj", "{2052A0F7-2B55-4A66-B398-2B19F7F42300}"
 EndProject

@@ -87,6 +87,22 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowWasmClient", policy =>
+    {
+        policy
+            // Allow both dev HTTPS ports (API and WASM host) to call the API.
+            .WithOrigins(
+                "https://localhost:5001",
+                "https://localhost:7054",
+                "https://localhost:7051")
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
+
 var app = builder.Build();
 
 
@@ -101,6 +117,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 
+app.UseCors("AllowWasmClient");
 app.UseAuthentication();
 app.UseAuthorization();
 

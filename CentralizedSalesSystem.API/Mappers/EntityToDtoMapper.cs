@@ -1,6 +1,7 @@
 using CentralizedSalesSystem.API.Models.Orders;
 using CentralizedSalesSystem.API.Models.Auth;
 using CentralizedSalesSystem.API.Models;
+using CentralizedSalesSystem.API.Models.Orders.enums;
 using CentralizedSalesSystem.API.Models.DTOs;
 using CentralizedSalesSystem.API.Models.Orders.DTOs.TableDTOs;
 using CentralizedSalesSystem.API.Models.Orders.DTOs.OrderItemDTOs;
@@ -56,8 +57,10 @@ namespace CentralizedSalesSystem.API.Mappers
                 Quantity = oi.Quantity,
                 Notes = oi.Notes,
                 ItemId = oi.ItemId,
-                DiscountId = oi.DiscountId,
                 OrderId = oi.OrderId,
+                DiscountId = oi.DiscountId,
+                TaxId = oi.TaxId,
+                ServiceChargeId = oi.ServiceChargeId,
                 Item = oi.Item != null ? new ItemResponseDto
                 {
                     Id = oi.Item.Id,
@@ -74,7 +77,7 @@ namespace CentralizedSalesSystem.API.Mappers
                         ItemId = v.ItemId,
                         Selection = v.Selection
                     }).ToList() ?? new List<ItemVariationResponseDto>()
-                } : null,
+                } : null!,
                 Discount = oi.Discount != null ? new DiscountResponseDto
                 {
                     Id = oi.Discount.Id,
@@ -87,23 +90,27 @@ namespace CentralizedSalesSystem.API.Mappers
                     Status = oi.Discount.Status,
                     BusinessId = oi.Discount.BusinessId
                 } : null,
-                Taxes = oi.Taxes?.Select(t => new TaxResponseDto
-                {
-                    Id = t.Id,
-                    Name = t.Name,
-                    Rate = t.Rate,
-                    BusinessId = t.BusinessId
-                }).ToList() ?? new List<TaxResponseDto>(),
-                ServiceCharges = oi.ServiceCharges?.Select(sc => new ServiceChargeResponseDto
-                {
-                    Id = sc.Id,
-                    Name = sc.Name,
-                    Rate = sc.rate,
-                    BusinessId = sc.BusinessId
-                }).ToList() ?? new List<ServiceChargeResponseDto>()
+                Tax = oi.Tax != null && oi.Tax.Status == TaxStatus.Active &&
+                      (oi.Tax.EffectiveTo == null || oi.Tax.EffectiveTo > DateTimeOffset.UtcNow) &&
+                      oi.Tax.EffectiveFrom <= DateTimeOffset.UtcNow
+                    ? new TaxResponseDto
+                    {
+                        Id = oi.Tax.Id,
+                        Name = oi.Tax.Name,
+                        Rate = oi.Tax.Rate,
+                        BusinessId = oi.Tax.BusinessId
+                    } : null,
+                ServiceCharge = oi.ServiceCharge != null
+                    ? new ServiceChargeResponseDto
+                    {
+                        Id = oi.ServiceCharge.Id,
+                        Name = oi.ServiceCharge.Name,
+                        Rate = oi.ServiceCharge.rate,
+                        BusinessId = oi.ServiceCharge.BusinessId
+                    } : null
             };
         }
-        public static OrderResponseDto ToOrderResponse(Order order)
+        public static OrderResponseDto ToOrderResponse(this Order order)
         {
             return new OrderResponseDto
             {
@@ -114,8 +121,9 @@ namespace CentralizedSalesSystem.API.Mappers
                 Status = order.Status,
                 UserId = order.UserId,
                 TableId = order.TableId,
-                DiscountId = order.DiscountId,
-                ReservationId = order.ReservationId
+                Discount = order.Discount != null ? order.Discount.ToDto() : null,
+                ReservationId = order.ReservationId,
+                Items = order.Items?.Select(i => i.ToDto()).ToList() ?? new List<OrderItemResponseDto>()
             };
         }
         public static ItemResponseDto ToDto(this Item item)
@@ -135,10 +143,10 @@ namespace CentralizedSalesSystem.API.Mappers
                     Name = v.Name,
                     ItemId = v.ItemId,
                     Selection = v.Selection
-                }).ToList(),
+                }).ToList() ?? new List<ItemVariationResponseDto>(),
                 AssociatedRoles = item.Type == Models.Orders.enums.ItemType.service && item.AssociatedRoles != null
                     ? item.AssociatedRoles.ToList()
-                    : null
+                    : new List<Role>()//This has to be changed to RoleResponse
             };
         }
         public static ItemVariationResponseDto ToDto(this ItemVariation variation)

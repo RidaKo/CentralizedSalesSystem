@@ -1,163 +1,124 @@
 using CentralizedSalesSystem.API.Data;
 using CentralizedSalesSystem.API.Mappers;
+using CentralizedSalesSystem.API.Models;
 using CentralizedSalesSystem.API.Models.Orders;
 using CentralizedSalesSystem.API.Models.Orders.DTOs.OrderItemDTOs;
-using CentralizedSalesSystem.API.Models.Orders.DTOs.OrderDTOs;
-
 using Microsoft.EntityFrameworkCore;
 
 namespace CentralizedSalesSystem.API.Services
 {
-	public class OrderItemService : IOrderItemService
-	{
-		private readonly CentralizedSalesDbContext _db;
+    public class OrderItemService : IOrderItemService
+    {
+        private readonly CentralizedSalesDbContext _db;
 
-		public OrderItemService(CentralizedSalesDbContext db)
-		{
-			_db = db;
-		}
+        public OrderItemService(CentralizedSalesDbContext db)
+        {
+            _db = db;
+        }
 
-		public async Task<object> GetOrderItemsAsync(
-		int page,
-		int limit,
-		string? sortBy = null,
-		string? sortDirection = "asc",
-		long? filterByOrderId = null,
-		long? filterByItemId = null,
-		long? filterByDiscountId = null
-		)
-		{
-			var query = _db.OrderItems.AsQueryable();
+        public async Task<object> GetOrderItemsAsync(int page, int limit, string? sortBy = null, string? sortDirection = "asc",
+            long? filterByOrderId = null, long? filterByItemId = null, long? filterByDiscountId = null)
+        {
+            var query = _db.OrderItems
+                .Include(oi => oi.Item)
+                .Include(oi => oi.Discount)
+                .Include(oi => oi.Tax)
+                .Include(oi => oi.ServiceCharge)
+                .AsQueryable();
 
-			// FILTERING
-			if (filterByOrderId.HasValue)
-				query = query.Where(oi => oi.OrderId == filterByOrderId.Value);
+            if (filterByOrderId.HasValue) query = query.Where(oi => oi.OrderId == filterByOrderId.Value);
+            if (filterByItemId.HasValue) query = query.Where(oi => oi.ItemId == filterByItemId.Value);
+            if (filterByDiscountId.HasValue) query = query.Where(oi => oi.DiscountId == filterByDiscountId.Value);
 
-			if (filterByItemId.HasValue)
-				query = query.Where(oi => oi.ItemId == filterByItemId.Value);
+            bool desc = sortDirection?.ToLower() == "desc";
+            query = sortBy switch
+            {
+                "quantity" => desc ? query.OrderByDescending(oi => oi.Quantity) : query.OrderBy(oi => oi.Quantity),
+                _ => query
+            };
 
-			if (filterByDiscountId.HasValue)
-				query = query.Where(oi => oi.DiscountId == filterByDiscountId.Value);
+            var total = await query.CountAsync();
+            var items = await query.Skip((page - 1) * limit).Take(limit).ToListAsync();
 
-			// SORTING
-			bool desc = sortDirection?.ToLower() == "desc";
+            var result = items.Select(i => i.ToDto()).ToList();
 
-			query = sortBy switch
-			{
-				"quantity" => desc ? query.OrderByDescending(oi => oi.Quantity) : query.OrderBy(oi => oi.Quantity),
-				"id" => desc ? query.OrderByDescending(oi => oi.Id) : query.OrderBy(oi => oi.Id),
-				_ => query
-			};
+            return new { data = result, page, limit, total, totalPages = (int)Math.Ceiling(total / (double)limit) };
+        }
 
-			// PAGINATION
-			var total = await query.CountAsync();
-			var totalPages = (int)Math.Ceiling((double)total / limit);
+        public async Task<OrderItemResponseDto?> GetOrderItemByIdAsync(long id)
+        {
+            var item = await _db.OrderItems
+                .Include(oi => oi.Item)
+                .Include(oi => oi.Discount)
+                .Include(oi => oi.Tax)
+                .Include(oi => oi.ServiceCharge)
+                .FirstOrDefaultAsync(oi => oi.Id == id);
 
-			var items = await query.Skip((page - 1) * limit)
-								   .Take(limit)
-								   .ToListAsync();
-			var result = items.Select(v => v.ToDto());
-			
-            return new
-			{
-				data = result,
-				page,
-				limit,
-				total,
-				totalPages
-			};
-		}
+            return item?.ToDto();
+        }
 
+        public async Task<OrderItemResponseDto?> CreateOrderItemAsync(OrderItemCreateDto dto)
+        {
+            var item = await _db.Items.FindAsync(dto.ItemId);
+            if (item == null) throw new Exception($"Item {dto.ItemId} not found");
+            if (item.Stock < dto.Quantity) throw new Exception($"Insufficient stock for item {item.Name}");
 
-        public async Task<OrderItemResponseDto?> GetOrderItemByIdAsync(long orderItemId)
-		{
-			var oi = await _db.OrderItems
-				.Include(oi => oi.Item)
-					.ThenInclude(i => i.Variations)
-				.Include(oi => oi.Discount)
-				.Include(oi => oi.Taxes)
-				.Include(oi => oi.ServiceCharges)
-				.FirstOrDefaultAsync(oi => oi.Id == orderItemId);
+            item.Stock -= dto.Quantity; // reduce stock
 
-			return oi == null ? null : oi.ToDto();
-		}
+            var orderItem = new OrderItem
+            {
+                OrderId = dto.OrderId,
+                ItemId = dto.ItemId,
+                Quantity = dto.Quantity,
+                Notes = dto.Notes,
+                DiscountId = dto.DiscountId,
+                TaxId = dto.TaxId,
+                ServiceChargeId = dto.ServiceChargeId
+            };
 
-		public async Task<OrderItemResponseDto?> CreateOrderItemAsync(OrderItemCreateDto dto)
-		{
-			var item = await _db.Items.FindAsync(dto.ItemId);
-			var order = await _db.Orders.FindAsync(dto.OrderId); 
+            _db.OrderItems.Add(orderItem);
+            await _db.SaveChangesAsync();
 
-			if (item == null) return null;
+            return await GetOrderItemByIdAsync(orderItem.Id);
+        }
 
-			var orderItem = new OrderItem
-			{
-				OrderId = dto.OrderId,
-				Item = item,
-				Quantity = dto.Quantity,
-				Notes = dto.Notes,
-				DiscountId = dto.DiscountId
-			};
+        public async Task<OrderItemResponseDto?> UpdateOrderItemAsync(long id, OrderItemUpdateDto dto)
+        {
+            var orderItem = await _db.OrderItems.FindAsync(id);
+            if (orderItem == null) return null;
 
-			if (dto.TaxIds != null)
-			{
-				orderItem.Taxes = await _db.Taxes
-					.Where(t => dto.TaxIds.Contains(t.Id))
-					.ToListAsync();
-			}
+            if (dto.Quantity.HasValue)
+            {
+                var item = await _db.Items.FindAsync(orderItem.ItemId);
+                if (item == null) throw new Exception($"Item {orderItem.ItemId} not found");
 
-			if (dto.ServiceChargeIds != null)
-			{
-				orderItem.ServiceCharges = await _db.ServiceCharges
-					.Where(sc => dto.ServiceChargeIds.Contains(sc.Id))
-					.ToListAsync();
-			}
+                int delta = dto.Quantity.Value - orderItem.Quantity;
+                if (item.Stock < delta) throw new Exception($"Insufficient stock for item {item.Name}");
 
-			_db.OrderItems.Add(orderItem);
-			await _db.SaveChangesAsync();
+                item.Stock -= delta;
+                orderItem.Quantity = dto.Quantity.Value;
+            }
 
-			return orderItem.ToDto();
-		}
+            if (!string.IsNullOrEmpty(dto.Notes)) orderItem.Notes = dto.Notes;
+            if (dto.DiscountId.HasValue) orderItem.DiscountId = dto.DiscountId;
+            if (dto.TaxId.HasValue) orderItem.TaxId = dto.TaxId;
+            if (dto.ServiceChargeId.HasValue) orderItem.ServiceChargeId = dto.ServiceChargeId;
 
-		public async Task<OrderItemResponseDto?> UpdateOrderItemAsync(long orderItemId, OrderItemUpdateDto dto)
-		{
-			var oi = await _db.OrderItems
-				.Include(oi => oi.Taxes)
-				.Include(oi => oi.ServiceCharges)
-				.FirstOrDefaultAsync(oi => oi.Id == orderItemId);
+            await _db.SaveChangesAsync();
+            return await GetOrderItemByIdAsync(orderItem.Id);
+        }
 
-			if (oi == null) return null;
+        public async Task<bool> DeleteOrderItemAsync(long id)
+        {
+            var orderItem = await _db.OrderItems.FindAsync(id);
+            if (orderItem == null) return false;
 
-			if (dto.Quantity.HasValue) oi.Quantity = dto.Quantity.Value;
-			if (!string.IsNullOrWhiteSpace(dto.Notes)) oi.Notes = dto.Notes;
-			if (dto.DiscountId.HasValue) oi.DiscountId = dto.DiscountId;
+            var item = await _db.Items.FindAsync(orderItem.ItemId);
+            if (item != null) item.Stock += orderItem.Quantity; // restore stock
 
-			if (dto.TaxIds != null)
-			{
-				oi.Taxes = await _db.Taxes
-					.Where(t => dto.TaxIds.Contains(t.Id))
-					.ToListAsync();
-			}
-
-			if (dto.ServiceChargeIds != null)
-			{
-				oi.ServiceCharges = await _db.ServiceCharges
-					.Where(sc => dto.ServiceChargeIds.Contains(sc.Id))
-					.ToListAsync();
-			}
-
-			await _db.SaveChangesAsync();
-			return oi.ToDto();
-		}
-
-		public async Task<bool> DeleteOrderItemAsync(long orderItemId)
-		{
-			var oi = await _db.OrderItems.FindAsync(orderItemId);
-			if (oi == null) return false;
-
-			_db.OrderItems.Remove(oi);
-			await _db.SaveChangesAsync();
-
-			return true;
-		}
-	}
+            _db.OrderItems.Remove(orderItem);
+            await _db.SaveChangesAsync();
+            return true;
+        }
+    }
 }

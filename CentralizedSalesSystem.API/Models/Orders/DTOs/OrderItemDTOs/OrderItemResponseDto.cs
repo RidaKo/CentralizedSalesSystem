@@ -15,7 +15,11 @@ public class OrderItemResponseDto
     public ItemResponseDto Item { get; set; } = null!;
     public long OrderId { get; set; }
     public DiscountResponseDto? Discount { get; set; }
-    public List<TaxResponseDto> Taxes { get; set; } = new();
-    public List<ServiceChargeResponseDto> ServiceCharges { get; set; } = new();
+
+    public long? TaxId { get; set; }
+    public TaxResponseDto? Tax { get; set; }
+
+    public long? ServiceChargeId { get; set; }
+    public ServiceChargeResponseDto? ServiceCharge { get; set; }
 }
 

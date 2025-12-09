@@ -7,19 +7,25 @@ namespace CentralizedSalesSystem.API.Models.Orders
     {
         public long Id { get; set; }
         public int Quantity { get; set; }
-        public long? DiscountId { get; set; }
-        public string? Notes { get; set; }
-        public long ItemId { get; set; }
-        public long OrderId { get; set; }
 
-        public long? ReservationId { get; set; }
-        public ICollection<Tax> Taxes { get; set; } = new List<Tax>();
-        public ICollection<ServiceCharge> ServiceCharges { get; set; } = new List<ServiceCharge>();
+        public string? Notes { get; set; }
+
+        public long? TaxId { get; set; }
+        public Tax? Tax { get; set; }
+
+        public long? ServiceChargeId { get; set; }
+        public ServiceCharge? ServiceCharge { get; set; }
 
         public Discount? Discount { get; set; }
-        public required Item Item { get; set; }
+        public long? DiscountId { get; set; }
+
+        public Item? Item { get; set; }
+        public long ItemId { get; set; }
+
         public Reservation? Reservation { get; set; }
+        public long? ReservationId { get; set; }
 
         public Order? Order { get; set; }
+        public long OrderId { get; set; }
     }
 }

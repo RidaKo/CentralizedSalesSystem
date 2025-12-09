@@ -22,7 +22,7 @@ namespace CentralizedSalesSystem.API.Models.Orders
 
 		public User User { get; set; } = null!;
 		public Table? Table { get; set; }
-        public Discount? Discount { get; set; } = null!;
+        public Discount? Discount { get; set; }
         public Reservation? Reservation { get; set; }
 
 

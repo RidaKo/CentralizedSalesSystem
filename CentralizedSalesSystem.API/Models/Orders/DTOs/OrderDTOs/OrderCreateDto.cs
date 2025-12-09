@@ -1,5 +1,7 @@
 using CentralizedSalesSystem.API.Models.Orders.enums;
+using CentralizedSalesSystem.API.Models.Orders.DTOs.OrderItemDTOs;
 namespace CentralizedSalesSystem.API.Models.Orders.DTOs.OrderDTOs;
+
 
 public class OrderCreateDto
 {
@@ -10,5 +12,4 @@ public class OrderCreateDto
     public long? TableId { get; set; }
     public long? DiscountId { get; set; }
     public long? ReservationId { get; set; }
-    //public List<OrderItemCreateDto>? Items { get; set; }
 }

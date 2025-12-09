@@ -18,7 +18,7 @@ namespace CentralizedSalesSystem.API.Services
     DiscountStatus? filterByStatus = null,
     DiscountAppliesTo? filterByAppliesTo = null);
         Task<DiscountResponseDto?> GetDiscountByIdAsync(long id);
-        Task<DiscountResponseDto?> CreateDiscountAsync(DiscountCreateDto dto);
+        Task<DiscountResponseDto> CreateDiscountAsync(DiscountCreateDto dto);
         Task<DiscountResponseDto?> UpdateDiscountAsync(long id, DiscountUpdateDto dto);
         Task<bool> DeleteDiscountAsync(long id);
     }

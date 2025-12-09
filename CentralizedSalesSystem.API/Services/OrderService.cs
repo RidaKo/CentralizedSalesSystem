@@ -10,15 +10,15 @@ namespace CentralizedSalesSystem.API.Services
 {
     public class OrderService : IOrderService
     {
-        private readonly CentralizedSalesDbContext _context;
+        private readonly CentralizedSalesDbContext _db;
 
-        public OrderService(CentralizedSalesDbContext context)
+        public OrderService(CentralizedSalesDbContext db)
         {
-            _context = context;
+            _db = db;
         }
 
         // --------------------------------------------------
-        // GET ALL
+        // GET ALL ORDERS
         // --------------------------------------------------
         public async Task<object> GetOrdersAsync(
             int page,
@@ -31,13 +31,20 @@ namespace CentralizedSalesSystem.API.Services
             long? filterByReservationId = null,
             long? filterByTableId = null)
         {
-            var query = _context.Orders
-                .Include(o => o.User)
-                .Include(o => o.Table)
+            var query = _db.Orders
                 .Include(o => o.Discount)
+                .Include(o => o.Items)
+                    .ThenInclude(oi => oi.Item)
+                        .ThenInclude(i => i.Variations)
+                .Include(o => o.Items)
+                    .ThenInclude(oi => oi.Discount)
+                .Include(o => o.Items)
+                    .ThenInclude(oi => oi.Tax)
+                .Include(o => o.Items)
+                    .ThenInclude(oi => oi.ServiceCharge)
                 .AsQueryable();
 
-            // filters
+            // Filters
             if (!string.IsNullOrEmpty(filterByStatus) &&
                 Enum.TryParse<OrderStatus>(filterByStatus, out var parsedStatus))
                 query = query.Where(o => o.Status == parsedStatus);
@@ -47,7 +54,7 @@ namespace CentralizedSalesSystem.API.Services
             if (filterByReservationId.HasValue) query = query.Where(o => o.ReservationId == filterByReservationId.Value);
             if (filterByTableId.HasValue) query = query.Where(o => o.TableId == filterByTableId.Value);
 
-            // sorting
+            // Sorting
             bool desc = sortDirection?.ToLower() == "desc";
             query = sortBy switch
             {
@@ -57,17 +64,25 @@ namespace CentralizedSalesSystem.API.Services
                 _ => query
             };
 
-            int total = await query.CountAsync();
-
-            var items = await query
+            // Pagination
+            var total = await query.CountAsync();
+            var orders = await query
                 .Skip((page - 1) * limit)
                 .Take(limit)
                 .ToListAsync();
 
-            // final pagination object (same as IOrderItemService)
+            // Map to DTOs and calculate totals
+            var result = orders.Select(o =>
+            {
+                var dto = o.ToOrderResponse();
+                dto.Items = o.Items.Select(i => i.ToDto()).ToList();
+                CalculateOrderTotals(o, dto);
+                return dto;
+            }).ToList();
+
             return new
             {
-                data = items.Select(EntityToDtoMapper.ToOrderResponse),
+                data = result,
                 page,
                 limit,
                 total,
@@ -75,41 +90,47 @@ namespace CentralizedSalesSystem.API.Services
             };
         }
 
-
-
         // --------------------------------------------------
-        // GET BY ID
+        // GET ORDER BY ID
         // --------------------------------------------------
         public async Task<OrderResponseDto?> GetOrderByIdAsync(long id)
         {
-            var order = await _context.Orders
-                .Include(o => o.User)
-                .Include(o => o.Table)
+            var order = await _db.Orders
                 .Include(o => o.Discount)
+                .Include(o => o.Items)
+                    .ThenInclude(oi => oi.Item)
+                        .ThenInclude(i => i.Variations)
+                .Include(o => o.Items)
+                    .ThenInclude(oi => oi.Discount)
+                .Include(o => o.Items)
+                    .ThenInclude(oi => oi.Tax)
+                .Include(o => o.Items)
+                    .ThenInclude(oi => oi.ServiceCharge)
                 .FirstOrDefaultAsync(o => o.Id == id);
 
-            return order == null ? null : EntityToDtoMapper.ToOrderResponse(order);
+            if (order == null) return null;
+
+            var dto = order.ToOrderResponse();
+            dto.Items = order.Items.Select(i => i.ToDto()).ToList();
+            CalculateOrderTotals(order, dto);
+            return dto;
         }
 
         // --------------------------------------------------
-        // CREATE
+        // CREATE ORDER
         // --------------------------------------------------
         public async Task<OrderResponseDto> CreateOrderAsync(OrderCreateDto dto)
         {
-            Discount? discount = dto.DiscountId.HasValue
-                ? await _context.Discounts.FindAsync(dto.DiscountId.Value)
-                : null;
+            // Load discount if provided
+            Discount? discount = null;
+            if (dto.DiscountId.HasValue)
+            {
+                discount = await _db.Discounts.FindAsync(dto.DiscountId.Value);
+                if (discount == null)
+                    throw new Exception($"Discount {dto.DiscountId} does not exist");
+            }
 
-            if (dto.DiscountId.HasValue && discount == null)
-                throw new Exception($"Discount {dto.DiscountId} does not exist");
-
-            Table? table = dto.TableId.HasValue
-                ? await _context.Tables.FindAsync(dto.TableId.Value)
-                : null;
-
-            if (dto.TableId.HasValue && table == null)
-                throw new Exception($"Table {dto.TableId} does not exist");
-
+            // Create order without items
             var order = new Order
             {
                 BusinessId = dto.BusinessId,
@@ -117,25 +138,60 @@ namespace CentralizedSalesSystem.API.Services
                 Status = dto.Status,
                 UserId = dto.UserId,
                 TableId = dto.TableId,
-                DiscountId = dto.DiscountId,
                 ReservationId = dto.ReservationId,
+                DiscountId = discount?.Id,
                 UpdatedAt = DateTimeOffset.UtcNow
             };
 
-            _context.Orders.Add(order);
-            await _context.SaveChangesAsync();
+            // Assign order-level discount
+            if (discount != null && discount.AppliesTo == DiscountAppliesTo.order)
+                order.Discount = discount;
 
-            return EntityToDtoMapper.ToOrderResponse(order);
+            _db.Orders.Add(order);
+            await _db.SaveChangesAsync();
+
+            // Reload order fully with relationships for correct totals
+            var loadedOrder = await _db.Orders
+                .Include(o => o.Discount)
+                .Include(o => o.Items)
+                    .ThenInclude(i => i.Item)
+                        .ThenInclude(it => it.Variations)
+                .Include(o => o.Items)
+                    .ThenInclude(i => i.Discount)
+                .Include(o => o.Items)
+                    .ThenInclude(i => i.Tax)
+                .Include(o => o.Items)
+                    .ThenInclude(i => i.ServiceCharge)
+                .FirstAsync(o => o.Id == order.Id);
+
+            var dtoResponse = loadedOrder.ToOrderResponse();
+            dtoResponse.Items = loadedOrder.Items.Select(i => i.ToDto()).ToList();
+            CalculateOrderTotals(loadedOrder, dtoResponse);
+
+            return dtoResponse;
         }
 
         // --------------------------------------------------
-        // UPDATE
+        // UPDATE ORDER
         // --------------------------------------------------
         public async Task<OrderResponseDto?> UpdateOrderAsync(long id, OrderUpdateDto dto)
         {
-            var order = await _context.Orders.FindAsync(id);
-            if (order == null)
-                return null;
+            var order = await _db.Orders
+                .Include(o => o.Discount)
+                .Include(o => o.Items)
+                    .ThenInclude(i => i.Item)
+                .Include(o => o.Items)
+                    .ThenInclude(i => i.Discount)
+                .Include(o => o.Items)
+                    .ThenInclude(i => i.Tax)
+                .Include(o => o.Items)
+                    .ThenInclude(i => i.ServiceCharge)
+                .FirstOrDefaultAsync(o => o.Id == id);
+
+            if (order == null) return null;
+
+            if (order.Status == OrderStatus.closed)
+                throw new InvalidOperationException("This order cannot be updated because it is closed");
 
             if (dto.BusinessId.HasValue) order.BusinessId = dto.BusinessId.Value;
             if (dto.Tip.HasValue) order.Tip = dto.Tip.Value;
@@ -143,27 +199,97 @@ namespace CentralizedSalesSystem.API.Services
             if (dto.UserId.HasValue) order.UserId = dto.UserId.Value;
             if (dto.TableId.HasValue) order.TableId = dto.TableId.Value;
             if (dto.ReservationId.HasValue) order.ReservationId = dto.ReservationId.Value;
-            if (dto.DiscountId.HasValue) order.DiscountId = dto.DiscountId.Value;
+            if (dto.DiscountId.HasValue)
+            {
+                var discount = await _db.Discounts.FindAsync(dto.DiscountId.Value);
+                if (discount != null && discount.AppliesTo == DiscountAppliesTo.order)
+                {
+                    order.Discount = discount;
+                    order.DiscountId = discount.Id;
+                }
+            }
 
             order.UpdatedAt = DateTimeOffset.UtcNow;
+            await _db.SaveChangesAsync();
 
-            await _context.SaveChangesAsync();
-
-            return EntityToDtoMapper.ToOrderResponse(order);
+            var dtoResponse = order.ToOrderResponse();
+            dtoResponse.Items = order.Items.Select(i => i.ToDto()).ToList();
+            CalculateOrderTotals(order, dtoResponse);
+            return dtoResponse;
         }
 
         // --------------------------------------------------
-        // DELETE
+        // DELETE ORDER
         // --------------------------------------------------
         public async Task<bool> DeleteOrderAsync(long id)
         {
-            var order = await _context.Orders.FindAsync(id);
-            if (order == null)
-                return false;
+            var order = await _db.Orders.FindAsync(id);
+            if (order == null) return false;
 
-            _context.Orders.Remove(order);
-            await _context.SaveChangesAsync();
+            _db.Orders.Remove(order);
+            await _db.SaveChangesAsync();
             return true;
         }
+
+        // --------------------------------------------------
+        // CALCULATE TOTALS
+        // --------------------------------------------------
+        private void CalculateOrderTotals(Order order, OrderResponseDto dto)
+        {
+            // Subtotal: sum of item base prices × quantity
+            dto.Subtotal = order.Items.Sum(i => i.Quantity * i.Item.Price);
+
+            // Item-level discount
+            decimal itemLevelDiscount = order.Items.Sum(i =>
+                i.Discount != null && i.Discount.AppliesTo == DiscountAppliesTo.product
+                    ? (i.Discount.rate / 100m) * i.Quantity * i.Item.Price
+                    : 0m
+            );
+
+            // Order-level discount
+            decimal orderLevelDiscount = order.Discount != null && order.Discount.AppliesTo == DiscountAppliesTo.order
+                ? (order.Discount.rate / 100m) * dto.Subtotal
+                : 0m;
+
+            dto.DiscountTotal = itemLevelDiscount + orderLevelDiscount;
+
+            // Tax — apply after item-level discount
+            dto.TaxTotal = order.Items.Sum(i =>
+            {
+                if (i.Tax == null || i.Tax.Status != TaxStatus.Active ||
+                    i.Tax.EffectiveFrom > DateTimeOffset.UtcNow ||
+                    (i.Tax.EffectiveTo.HasValue && i.Tax.EffectiveTo.Value < DateTimeOffset.UtcNow))
+                    return 0m;
+
+                // Calculate the taxable amount after item-level discount
+                decimal itemDiscount = i.Discount != null && i.Discount.AppliesTo == DiscountAppliesTo.product
+                    ? (i.Discount.rate / 100m) * i.Quantity * i.Item.Price
+                    : 0m;
+
+                decimal taxableAmount = i.Quantity * i.Item.Price - itemDiscount;
+
+                return (i.Tax.Rate / 100m) * taxableAmount;
+            });
+
+            // Service charge — apply after item-level discount
+            dto.ServiceChargeTotal = order.Items.Sum(i =>
+            {
+                if (i.ServiceCharge == null)
+                    return 0m;
+
+                decimal itemDiscount = i.Discount != null && i.Discount.AppliesTo == DiscountAppliesTo.product
+                    ? (i.Discount.rate / 100m) * i.Quantity * i.Item.Price
+                    : 0m;
+
+                decimal baseAmount = i.Quantity * i.Item.Price - itemDiscount;
+
+                return (i.ServiceCharge.rate / 100m) * baseAmount;
+            });
+
+            // Total including tip
+            dto.Total = dto.Subtotal - dto.DiscountTotal + dto.TaxTotal + dto.ServiceChargeTotal + (order.Tip ?? 0);
+        }
+
+
     }
 }

@@ -17,6 +17,5 @@ namespace CentralizedSalesSystem.API.Models.Orders
         public TaxStatus Status { get; set; }
 
         public long BusinessId { get; set; }
-
     }
 }

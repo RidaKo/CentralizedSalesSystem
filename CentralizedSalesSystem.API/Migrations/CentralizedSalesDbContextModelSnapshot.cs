@@ -342,6 +342,12 @@ namespace CentralizedSalesSystem.API.Migrations
                     b.Property<long?>("ReservationId")
                         .HasColumnType("bigint");
 
+                    b.Property<long?>("ServiceChargeId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("TaxId")
+                        .HasColumnType("bigint");
+
                     b.HasKey("Id");
 
                     b.HasIndex("DiscountId");
@@ -351,6 +357,10 @@ namespace CentralizedSalesSystem.API.Migrations
                     b.HasIndex("OrderId");
 
                     b.HasIndex("ReservationId");
+
+                    b.HasIndex("ServiceChargeId");
+
+                    b.HasIndex("TaxId");
 
                     b.ToTable("OrderItems");
                 });
@@ -373,9 +383,6 @@ namespace CentralizedSalesSystem.API.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<long?>("OrderItemId")
-                        .HasColumnType("bigint");
-
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("datetimeoffset");
 
@@ -383,8 +390,6 @@ namespace CentralizedSalesSystem.API.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("OrderItemId");
 
                     b.ToTable("ServiceCharges");
                 });
@@ -439,9 +444,6 @@ namespace CentralizedSalesSystem.API.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<long?>("OrderItemId")
-                        .HasColumnType("bigint");
-
                     b.Property<decimal>("Rate")
                         .HasColumnType("decimal(18,2)");
 
@@ -449,8 +451,6 @@ namespace CentralizedSalesSystem.API.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("OrderItemId");
 
                     b.ToTable("Taxes");
                 });
@@ -662,6 +662,14 @@ namespace CentralizedSalesSystem.API.Migrations
                         .WithMany("Items")
                         .HasForeignKey("ReservationId");
 
+                    b.HasOne("CentralizedSalesSystem.API.Models.Orders.ServiceCharge", "ServiceCharge")
+                        .WithMany()
+                        .HasForeignKey("ServiceChargeId");
+
+                    b.HasOne("CentralizedSalesSystem.API.Models.Orders.Tax", "Tax")
+                        .WithMany()
+                        .HasForeignKey("TaxId");
+
                     b.Navigation("Discount");
 
                     b.Navigation("Item");
@@ -669,20 +677,10 @@ namespace CentralizedSalesSystem.API.Migrations
                     b.Navigation("Order");
 
                     b.Navigation("Reservation");
-                });
 
-            modelBuilder.Entity("CentralizedSalesSystem.API.Models.Orders.ServiceCharge", b =>
-                {
-                    b.HasOne("CentralizedSalesSystem.API.Models.Orders.OrderItem", null)
-                        .WithMany("ServiceCharges")
-                        .HasForeignKey("OrderItemId");
-                });
+                    b.Navigation("ServiceCharge");
 
-            modelBuilder.Entity("CentralizedSalesSystem.API.Models.Orders.Tax", b =>
-                {
-                    b.HasOne("CentralizedSalesSystem.API.Models.Orders.OrderItem", null)
-                        .WithMany("Taxes")
-                        .HasForeignKey("OrderItemId");
+                    b.Navigation("Tax");
                 });
 
             modelBuilder.Entity("CentralizedSalesSystem.API.Models.Reservation", b =>
@@ -730,13 +728,6 @@ namespace CentralizedSalesSystem.API.Migrations
             modelBuilder.Entity("CentralizedSalesSystem.API.Models.Orders.Order", b =>
                 {
                     b.Navigation("Items");
-                });
-
-            modelBuilder.Entity("CentralizedSalesSystem.API.Models.Orders.OrderItem", b =>
-                {
-                    b.Navigation("ServiceCharges");
-
-                    b.Navigation("Taxes");
                 });
 
             modelBuilder.Entity("CentralizedSalesSystem.API.Models.Reservation", b =>

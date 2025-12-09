@@ -7,6 +7,6 @@ public class OrderItemCreateDto
     public long ItemId { get; set; }
     public long OrderId { get; set; }
     public long? DiscountId { get; set; }
-    public List<long>? TaxIds { get; set; }
-    public List<long>? ServiceChargeIds { get; set; }
+    public long? TaxId { get; set; }
+    public long? ServiceChargeId { get; set; }
 }

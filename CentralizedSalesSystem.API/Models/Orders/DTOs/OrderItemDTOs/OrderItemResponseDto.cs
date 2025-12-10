@@ -7,12 +7,13 @@ namespace CentralizedSalesSystem.API.Models.Orders.DTOs.OrderItemDTOs;
 public class OrderItemResponseDto
 {
     public long Id { get; set; }
-    public long ItemId { get; set; }
     public int Quantity { get; set; }
     public long? DiscountId { get; set; }
     public string? Notes { get; set; }
 
+    public long ItemId { get; set; }
     public ItemResponseDto Item { get; set; } = null!;
+
     public long OrderId { get; set; }
     public DiscountResponseDto? Discount { get; set; }
 

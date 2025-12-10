@@ -240,11 +240,21 @@ namespace CentralizedSalesSystem.API.Services
             dto.Subtotal = order.Items.Sum(i => i.Quantity * i.Item.Price);
 
             // Item-level discount
+            // Item-level discount (supports product and service types)
             decimal itemLevelDiscount = order.Items.Sum(i =>
-                i.Discount != null && i.Discount.AppliesTo == DiscountAppliesTo.product
-                    ? (i.Discount.rate / 100m) * i.Quantity * i.Item.Price
-                    : 0m
-            );
+            {
+                if (i.Discount == null) return 0m;
+
+                bool applies =
+                    (i.Discount.AppliesTo == DiscountAppliesTo.product && i.Item.Type == ItemType.product) ||
+                    (i.Discount.AppliesTo == DiscountAppliesTo.service && i.Item.Type == ItemType.service);
+
+                if (!applies)
+                    return 0m;
+
+                return (i.Discount.rate / 100m) * i.Quantity * i.Item.Price;
+            });
+
 
             // Order-level discount
             decimal orderLevelDiscount = order.Discount != null && order.Discount.AppliesTo == DiscountAppliesTo.order

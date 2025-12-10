@@ -48,12 +48,10 @@
 </div>
 
 @code {
-    // These variables store what you type in the boxes
     private string email = "";
     private string password = "";
     private string errorMessage = "";
 
-    // This matches the data the API expects
     public class LoginRequest
     {
         public string Email { get; set; } = string.Empty;
@@ -67,30 +65,23 @@
 
     private async Task HandleLogin()
     {
-        errorMessage = ""; // Clear previous errors
+        errorMessage = "";
         
-        // --- TEMPORARY BYPASS (Day 1 Only) ---
-        // Since we haven't built the "Create User" page yet, the DB is empty.
-        // This lets you "log in" successfully so you can see the UI works.
+        // login works for now so that the UI works
         if (!string.IsNullOrWhiteSpace(email)) 
         {
-            // Pretend we got a token and move to the next page (which we will build tomorrow)
-            // For now, I'll just show an alert or redirect to Home
             Navigation.NavigateTo("/manager/dashboard");
             return;
         }
-        // -------------------------------------
 
         var loginModel = new LoginRequest { Email = email, Password = password };
 
         try 
         {
-            // This line actually talks to your friend's backend code!
             var response = await Http.PostAsJsonAsync("/auth/login", loginModel);
 
             if (response.IsSuccessStatusCode)
             {
-                // If backend says "OK", go to homepage
                Navigation.NavigateTo("/manager/dashboard");
             }
             else
@@ -100,7 +91,6 @@
         }
         catch (Exception ex)
         {
-             // If the API isn't running, this error will show up
              errorMessage = "Could not connect to API. Is it running? (" + ex.Message + ")";
         }
     }

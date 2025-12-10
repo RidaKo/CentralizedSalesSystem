@@ -1,0 +1,107 @@
+@layout CentralizedSalesSystem.Frontend.Components.Layout.EmptyLayout
+@page "/manager/login"
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>Manager Login</PageTitle>
+
+<div class="d-flex justify-content-center align-items-center vh-100" style="background-color: #ffffff;">
+    <div class="card shadow-sm" style="width: 400px; padding: 30px; border-radius: 8px;">
+        <div class="card-body text-center">
+            
+            <h4 class="mb-4 fw-normal">Centralized Sales System</h4>
+            
+            <!-- orange icon -->
+            <div class="mb-4" style="font-size: 3rem; color: #fd7e14;">
+                <i class="bi bi-people-fill"></i>
+            </div>
+
+            <!-- email input -->
+            <div class="mb-3 text-start">
+                <input type="email" class="form-control" @bind="email" placeholder="Email address" style="border-radius: 4px;" />
+            </div>
+
+            <!-- password input -->
+            <div class="mb-4 text-start">
+                <input type="password" class="form-control" @bind="password" placeholder="password" style="border-radius: 4px;" />
+            </div>
+
+            <!-- error message display -->
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger p-2" style="font-size: 0.9rem;">
+                    @errorMessage
+                </div>
+            }
+
+            <!-- login button -->
+            <button class="btn btn-primary w-100" @onclick="HandleLogin" style="background-color: #2b78e4; border-radius: 5px;">
+                Login
+            </button>
+            
+            <div class="mt-3">
+                 <small class="text-muted">(For testing: use any email)</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    // These variables store what you type in the boxes
+    private string email = "";
+    private string password = "";
+    private string errorMessage = "";
+
+    // This matches the data the API expects
+    public class LoginRequest
+    {
+        public string Email { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+    }
+
+    public class LoginResponse
+    {
+        public string Token { get; set; } = string.Empty;
+    }
+
+    private async Task HandleLogin()
+    {
+        errorMessage = ""; // Clear previous errors
+        
+        // --- TEMPORARY BYPASS (Day 1 Only) ---
+        // Since we haven't built the "Create User" page yet, the DB is empty.
+        // This lets you "log in" successfully so you can see the UI works.
+        if (!string.IsNullOrWhiteSpace(email)) 
+        {
+            // Pretend we got a token and move to the next page (which we will build tomorrow)
+            // For now, I'll just show an alert or redirect to Home
+            Navigation.NavigateTo("/manager/dashboard");
+            return;
+        }
+        // -------------------------------------
+
+        var loginModel = new LoginRequest { Email = email, Password = password };
+
+        try 
+        {
+            // This line actually talks to your friend's backend code!
+            var response = await Http.PostAsJsonAsync("/auth/login", loginModel);
+
+            if (response.IsSuccessStatusCode)
+            {
+                // If backend says "OK", go to homepage
+               Navigation.NavigateTo("/manager/dashboard");
+            }
+            else
+            {
+                errorMessage = "Invalid credentials (API rejected login).";
+            }
+        }
+        catch (Exception ex)
+        {
+             // If the API isn't running, this error will show up
+             errorMessage = "Could not connect to API. Is it running? (" + ex.Message + ")";
+        }
+    }
+}

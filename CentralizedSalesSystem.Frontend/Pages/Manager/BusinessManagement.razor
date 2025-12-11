@@ -131,6 +131,7 @@
             // 1. try to get real data from the API
             _business = await Http.GetFromJsonAsync<Business>($"businesses/{BusinessId}");
         }
+        // TODO: will remove this block once the API is fully stable in all environments
         catch (Exception ex)
         {
             Console.WriteLine($"API Request failed: {ex.Message}. Loading mock data.");

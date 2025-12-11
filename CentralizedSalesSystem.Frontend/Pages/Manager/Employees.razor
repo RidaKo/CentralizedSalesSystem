@@ -69,37 +69,24 @@
 
     private List<EmployeeDTO> _employees = new();
     private string _searchString = "";
-    private bool _loading = true;
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            _loading = true;
             // 1. try to get real data from the API
             var response = await Http.GetFromJsonAsync<PaginatedResponse<EmployeeDTO>>($"users?businessId={BusinessId}");
-            
-            if (response?.Data != null && response.Data.Any())
+            if (response?.Data != null)
             {
                 _employees = response.Data;
             }
-            else 
-            {
-                LoadMockData(); 
-            }
         }
+        // TODO: will remove this block once the API is fully stable in all environments
         catch (Exception ex)
         {
-            // 2. if API fails we load mock data
-            Console.WriteLine($"API Failed: {ex.Message}. Loading Mocks.");
+            Console.WriteLine($"API Request failed: {ex.Message}. Loading mock data.");
             LoadMockData();
-            
-            // alert on screen that says we're using mock data
-            Snackbar.Add("API unavailable. Showing demo data.", Severity.Warning);
-        }
-        finally
-        {
-            _loading = false;
+            Snackbar.Add("Using Mock Data", Severity.Normal);
         }
     }
 
@@ -117,7 +104,7 @@
     private Color GetRoleColor(string role) => role.ToLower() switch
     {
         "manager" => Color.Warning,
-        "super admin" => Color.Tertiary,
+        "super admin" => Color.Tertiary, 
         "worker" => Color.Info,
         _ => Color.Default
     };
@@ -148,6 +135,6 @@
             Role = "Worker", 
             Status = "active" 
         });
-        Snackbar.Add("Employee Added (Local Only)", Severity.Success);
+        Snackbar.Add("Employee Added", Severity.Success);
     }
 }

@@ -1,0 +1,153 @@
+@page "/manager/business/{BusinessId:long}/employees"
+@using CentralizedSalesSystem.Frontend.Models
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-8">
+    
+    <!-- header with back button -->
+    <div class="d-flex align-center gap-4 mb-6">
+        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" 
+                       OnClick="@(() => Navigation.NavigateTo($"/manager/business/{BusinessId}"))" />
+        <MudText Typo="Typo.h4">Employees</MudText>
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Add" OnClick="AddMockEmployee">
+            Add Employee
+        </MudButton>
+    </div>
+
+    <!-- employee data table -->
+    <MudTable Items="@_employees" Hover="true" Striped="true" Filter="new Func<EmployeeDTO,bool>(FilterFunc)">
+        <ToolBarContent>
+            <MudText Typo="Typo.h6">Staff List</MudText>
+            <MudSpacer />
+            <MudTextField @bind-Value="_searchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Name</MudTh>
+            <MudTh>Email</MudTh>
+            <MudTh>Phone</MudTh>
+            <MudTh>Role</MudTh>
+            <MudTh>Status</MudTh>
+            <MudTh Style="text-align:right">Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Name">@context.Name</MudTd>
+            <MudTd DataLabel="Email">@context.Email</MudTd>
+            <MudTd DataLabel="Phone">@context.Phone</MudTd>
+            <MudTd DataLabel="Role">
+                <MudChip T="string" Size="Size.Small" Color="@GetRoleColor(context.Role)">@context.Role</MudChip>
+            </MudTd>
+            <MudTd DataLabel="Status">
+                @if(context.Status == "active")
+                {
+                    <MudText Color="Color.Success" Typo="Typo.body2">Active</MudText>
+                }
+                else
+                {
+                    <MudText Color="Color.Error" Typo="Typo.body2">Inactive</MudText>
+                }
+            </MudTd>
+            <MudTd DataLabel="Actions" Style="text-align:right">
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => DeleteEmployee(context))" />
+            </MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager />
+        </PagerContent>
+    </MudTable>
+
+</MudContainer>
+
+@code {
+    [Parameter]
+    public long BusinessId { get; set; }
+
+    private List<EmployeeDTO> _employees = new();
+    private string _searchString = "";
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _loading = true;
+            // 1. try to get real data from the API
+            var response = await Http.GetFromJsonAsync<PaginatedResponse<EmployeeDTO>>($"users?businessId={BusinessId}");
+            
+            if (response?.Data != null && response.Data.Any())
+            {
+                _employees = response.Data;
+            }
+            else 
+            {
+                LoadMockData(); 
+            }
+        }
+        catch (Exception ex)
+        {
+            // 2. if API fails we load mock data
+            Console.WriteLine($"API Failed: {ex.Message}. Loading Mocks.");
+            LoadMockData();
+            
+            // alert on screen that says we're using mock data
+            Snackbar.Add("API unavailable. Showing demo data.", Severity.Warning);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void LoadMockData()
+    {
+        _employees = new List<EmployeeDTO>
+        {
+            new EmployeeDTO { Id = 1, Name = "Tommy Buckworth", Email = "t.buck@buckycheese.com", Phone = "+1-555-0142", Role = "Manager", Status = "active" },
+            new EmployeeDTO { Id = 2, Name = "Sarah Cheddarson", Email = "s.cheddar@buckycheese.com", Phone = "+1-555-0298", Role = "Worker", Status = "active" },
+            new EmployeeDTO { Id = 3, Name = "Mike Gouda", Email = "m.gouda@buckycheese.com", Phone = "+1-555-0371", Role = "Cashier", Status = "active" },
+            new EmployeeDTO { Id = 4, Name = "Linda Brie", Email = "l.brie@buckycheese.com", Phone = "+1-555-0156", Role = "Worker", Status = "inactive" }
+        };
+    }
+
+    private Color GetRoleColor(string role) => role.ToLower() switch
+    {
+        "manager" => Color.Warning,
+        "super admin" => Color.Tertiary,
+        "worker" => Color.Info,
+        _ => Color.Default
+    };
+
+    private bool FilterFunc(EmployeeDTO element)
+    {
+        if (string.IsNullOrWhiteSpace(_searchString)) return true;
+        if (element.Name.Contains(_searchString, StringComparison.OrdinalIgnoreCase)) return true;
+        if (element.Email.Contains(_searchString, StringComparison.OrdinalIgnoreCase)) return true;
+        if ($"{element.Role}".Contains(_searchString, StringComparison.OrdinalIgnoreCase)) return true;
+        return false;
+    }
+
+    private void DeleteEmployee(EmployeeDTO emp)
+    {
+        _employees.Remove(emp);
+        Snackbar.Add($"Deleted {emp.Name}", Severity.Success);
+    }
+
+    private void AddMockEmployee()
+    {
+        _employees.Add(new EmployeeDTO 
+        { 
+            Id = DateTime.Now.Ticks, 
+            Name = "New Hire", 
+            Email = "new@hire.com", 
+            Phone = "---", 
+            Role = "Worker", 
+            Status = "active" 
+        });
+        Snackbar.Add("Employee Added (Local Only)", Severity.Success);
+    }
+}

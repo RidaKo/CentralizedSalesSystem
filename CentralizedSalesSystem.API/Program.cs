@@ -96,7 +96,8 @@ builder.Services.AddCors(options =>
             .WithOrigins(
                 "https://localhost:5001",
                 "https://localhost:7054",
-                "https://localhost:7051")
+                "https://localhost:7051",
+                "http://localhost:5251")
             .AllowAnyHeader()
             .AllowAnyMethod();
     });

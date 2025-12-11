@@ -1,0 +1,108 @@
+@page "/login"
+@using System.ComponentModel.DataAnnotations
+@using CentralizedSalesSystem.Frontend.Services
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-12">
+    <MudPaper Elevation="1" Class="pa-6">
+        <MudText Typo="Typo.h5" Class="mb-2">Sign in</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+            Use your email and password to access your workspace.
+        </MudText>
+
+        <EditForm Model="@Model" OnValidSubmit="@HandleLogin">
+            <DataAnnotationsValidator />
+            <MudStack Spacing="2">
+                <MudTextField @bind-Value="Model.Email" Label="Email" Required="true" For="@(() => Model.Email)" Disabled="@IsBusy" />
+                <MudTextField @bind-Value="Model.Password" Label="Password" InputType="InputType.Password" Required="true" For="@(() => Model.Password)" Disabled="@IsBusy" />
+                @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+                {
+                    <MudAlert Severity="Severity.Error">@ErrorMessage</MudAlert>
+                }
+                <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Disabled="@IsBusy" Loading="@IsBusy">
+                        Login
+                    </MudButton>
+                    <MudButton Variant="Variant.Text" Color="Color.Secondary" OnClick="@Reset" Disabled="@IsBusy">
+                        Clear
+                    </MudButton>
+                </MudStack>
+            </MudStack>
+        </EditForm>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private LoginModel Model { get; } = new();
+    private bool IsBusy { get; set; }
+    private string? ErrorMessage { get; set; }
+
+    [Inject] public HttpClient Http { get; set; } = default!;
+    [Inject] public ITokenStore TokenStore { get; set; } = default!;
+    [Inject] public NavigationManager Navigation { get; set; } = default!;
+    [Inject] public ISnackbar Snackbar { get; set; } = default!;
+
+    private void Reset()
+    {
+        ErrorMessage = null;
+        Model.Clear();
+    }
+
+    private async Task HandleLogin()
+    {
+        await LoginAsync("/auth/login", new { email = Model.Email, password = Model.Password });
+    }
+
+    private async Task LoginAsync(string endpoint, object payload)
+    {
+        IsBusy = true;
+        ErrorMessage = null;
+        try
+        {
+            var response = await Http.PostAsJsonAsync(endpoint, payload);
+            if (!response.IsSuccessStatusCode)
+            {
+                ErrorMessage = "Login failed. Please verify your credentials.";
+                return;
+            }
+
+            var login = await response.Content.ReadFromJsonAsync<LoginResponse>();
+            if (login is null || string.IsNullOrWhiteSpace(login.AccessToken))
+            {
+                ErrorMessage = "Unexpected response from server.";
+                return;
+            }
+
+            await TokenStore.SetTokenAsync(login.AccessToken);
+            Snackbar.Add("Signed in successfully.", Severity.Success);
+            Navigation.NavigateTo("/");
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Unable to sign in: {ex.Message}";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private sealed class LoginModel
+    {
+        [Required, EmailAddress]
+        public string Email { get; set; } = string.Empty;
+
+        [Required]
+        public string Password { get; set; } = string.Empty;
+
+        public void Clear()
+        {
+            Email = string.Empty;
+            Password = string.Empty;
+        }
+    }
+
+    private sealed class LoginResponse
+    {
+        public string? AccessToken { get; set; }
+    }
+}

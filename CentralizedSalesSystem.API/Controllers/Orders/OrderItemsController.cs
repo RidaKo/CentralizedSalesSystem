@@ -9,10 +9,12 @@ using CentralizedSalesSystem.API.Models.Orders;
 using CentralizedSalesSystem.API.Models.Orders.DTOs.OrderItemDTOs;
 using CentralizedSalesSystem.API.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace CentralizedSalesSystem.API.Controllers.Orders
 {
     [ApiController]
+    //[Authorize]
     [Route("orderItems")]
     public class OrderItemsController : ControllerBase
     {

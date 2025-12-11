@@ -1,10 +1,12 @@
 using CentralizedSalesSystem.API.Models.Orders.DTOs.TaxDTOs;
 using CentralizedSalesSystem.API.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace CentralizedSalesSystem.API.Controllers
 {
     [ApiController]
+    [Authorize]
     [Route("taxes")]
     public class TaxesController : ControllerBase
     {

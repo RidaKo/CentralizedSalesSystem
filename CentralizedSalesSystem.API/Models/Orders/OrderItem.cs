@@ -1,7 +1,9 @@
+using CentralizedSalesSystem.API.Models;
+using CentralizedSalesSystem.API.Models.Reservations;
 
 namespace CentralizedSalesSystem.API.Models.Orders
 {
-    using CentralizedSalesSystem.API.Models;
+    
 
     public class OrderItem
     {

@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace CentralizedSalesSystem.API.Controllers
 {
     [Route("tables")]
+    [Authorize]
     [ApiController]
     public class TableController : ControllerBase
     {

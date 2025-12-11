@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using CentralizedSalesSystem.API.Models.Orders;
 
-namespace CentralizedSalesSystem.API.Models
+namespace CentralizedSalesSystem.API.Models.Reservations
 {
     public class Reservation
     {

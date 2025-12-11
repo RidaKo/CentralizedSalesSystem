@@ -2,6 +2,8 @@ using CentralizedSalesSystem.API.Models.Orders.enums;
 using CentralizedSalesSystem.API.Models.Orders.DTOs.OrderItemDTOs;
 using CentralizedSalesSystem.API.Models.Orders.DTOs.DiscountDTOs;
 namespace CentralizedSalesSystem.API.Models.Orders.DTOs.OrderDTOs;
+using CentralizedSalesSystem.API.Models.Orders.DTOs.PaymentDTOs;
+
 
 public class OrderResponseDto
 {
@@ -24,4 +26,12 @@ public class OrderResponseDto
     public decimal TaxTotal { get; set; }
     public decimal ServiceChargeTotal { get; set; }
     public decimal Total { get; set; }
+
+    public decimal AmountPaid { get; set; }
+    public decimal Remaining { get; set; }
+    public decimal ChangeDue { get; set; }
+
+    public ICollection<PaymentResponseDto> Payments { get; set; } = new List<PaymentResponseDto>();
+
+
 }

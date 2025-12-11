@@ -1,11 +1,13 @@
 using CentralizedSalesSystem.API.Models.Orders.DTOs.ItemDTOs;
 using CentralizedSalesSystem.API.Models.Orders.enums;
 using CentralizedSalesSystem.API.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CentralizedSalesSystem.API.Controllers.Items
 {
     [ApiController]
+    [Authorize]
     [Route("items")]
     public class ItemsController : ControllerBase
     {

@@ -4,7 +4,7 @@ namespace CentralizedSalesSystem.API.Models.Orders.enums
 {
     public enum DiscountStatus
     {
-        active,
-        inactive,
+        Active,
+        Inactive,
     }
 }

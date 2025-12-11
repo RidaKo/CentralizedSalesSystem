@@ -1,4 +1,5 @@
 using CentralizedSalesSystem.API.Models.Orders.enums;
+using CentralizedSalesSystem.API.Models.Reservations;
 using System.Reflection;
 
 namespace CentralizedSalesSystem.API.Models.Orders
@@ -24,6 +25,8 @@ namespace CentralizedSalesSystem.API.Models.Orders
 		public Table? Table { get; set; }
         public Discount? Discount { get; set; }
         public Reservation? Reservation { get; set; }
+
+        public ICollection<Payment> Payments { get; set; } = new List<Payment>();
 
 
     }

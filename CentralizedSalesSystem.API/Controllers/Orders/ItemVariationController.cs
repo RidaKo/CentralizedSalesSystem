@@ -1,10 +1,12 @@
 using CentralizedSalesSystem.API.Models.Orders.DTOs.ItemVariationDTOs;
 using CentralizedSalesSystem.API.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CentralizedSalesSystem.API.Controllers.Orders
 {
     [ApiController]
+    [Authorize]
     [Route("itemVariations")]
     public class ItemVariationsController : ControllerBase
     {

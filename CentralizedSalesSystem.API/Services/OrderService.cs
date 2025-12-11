@@ -42,6 +42,7 @@ namespace CentralizedSalesSystem.API.Services
                     .ThenInclude(oi => oi.Tax)
                 .Include(o => o.Items)
                     .ThenInclude(oi => oi.ServiceCharge)
+                .Include(o => o.Payments)
                 .AsQueryable();
 
             // Filters
@@ -106,6 +107,7 @@ namespace CentralizedSalesSystem.API.Services
                     .ThenInclude(oi => oi.Tax)
                 .Include(o => o.Items)
                     .ThenInclude(oi => oi.ServiceCharge)
+                .Include(o => o.Payments)
                 .FirstOrDefaultAsync(o => o.Id == id);
 
             if (order == null) return null;
@@ -144,7 +146,7 @@ namespace CentralizedSalesSystem.API.Services
             };
 
             // Assign order-level discount
-            if (discount != null && discount.AppliesTo == DiscountAppliesTo.order)
+            if (discount != null && discount.AppliesTo == DiscountAppliesTo.Order)
                 order.Discount = discount;
 
             _db.Orders.Add(order);
@@ -190,7 +192,7 @@ namespace CentralizedSalesSystem.API.Services
 
             if (order == null) return null;
 
-            if (order.Status == OrderStatus.closed)
+            if (order.Status == OrderStatus.Closed)
                 throw new InvalidOperationException("This order cannot be updated because it is closed");
 
             if (dto.BusinessId.HasValue) order.BusinessId = dto.BusinessId.Value;
@@ -202,7 +204,7 @@ namespace CentralizedSalesSystem.API.Services
             if (dto.DiscountId.HasValue)
             {
                 var discount = await _db.Discounts.FindAsync(dto.DiscountId.Value);
-                if (discount != null && discount.AppliesTo == DiscountAppliesTo.order)
+                if (discount != null && discount.AppliesTo == DiscountAppliesTo.Order)
                 {
                     order.Discount = discount;
                     order.DiscountId = discount.Id;
@@ -234,7 +236,7 @@ namespace CentralizedSalesSystem.API.Services
         // --------------------------------------------------
         // CALCULATE TOTALS
         // --------------------------------------------------
-        private void CalculateOrderTotals(Order order, OrderResponseDto dto)
+        public void CalculateOrderTotals(Order order, OrderResponseDto dto)
         {
             // Subtotal: sum of item base prices × quantity
             dto.Subtotal = order.Items.Sum(i => i.Quantity * i.Item.Price);
@@ -246,8 +248,8 @@ namespace CentralizedSalesSystem.API.Services
                 if (i.Discount == null) return 0m;
 
                 bool applies =
-                    (i.Discount.AppliesTo == DiscountAppliesTo.product && i.Item.Type == ItemType.product) ||
-                    (i.Discount.AppliesTo == DiscountAppliesTo.service && i.Item.Type == ItemType.service);
+                    (i.Discount.AppliesTo == DiscountAppliesTo.Product && i.Item.Type == ItemType.Product) ||
+                    (i.Discount.AppliesTo == DiscountAppliesTo.Service && i.Item.Type == ItemType.Service);
 
                 if (!applies)
                     return 0m;
@@ -257,7 +259,7 @@ namespace CentralizedSalesSystem.API.Services
 
 
             // Order-level discount
-            decimal orderLevelDiscount = order.Discount != null && order.Discount.AppliesTo == DiscountAppliesTo.order
+            decimal orderLevelDiscount = order.Discount != null && order.Discount.AppliesTo == DiscountAppliesTo.Order
                 ? (order.Discount.rate / 100m) * dto.Subtotal
                 : 0m;
 
@@ -272,7 +274,7 @@ namespace CentralizedSalesSystem.API.Services
                     return 0m;
 
                 // Calculate the taxable amount after item-level discount
-                decimal itemDiscount = i.Discount != null && i.Discount.AppliesTo == DiscountAppliesTo.product
+                decimal itemDiscount = i.Discount != null && i.Discount.AppliesTo == DiscountAppliesTo.Product
                     ? (i.Discount.rate / 100m) * i.Quantity * i.Item.Price
                     : 0m;
 
@@ -287,7 +289,7 @@ namespace CentralizedSalesSystem.API.Services
                 if (i.ServiceCharge == null)
                     return 0m;
 
-                decimal itemDiscount = i.Discount != null && i.Discount.AppliesTo == DiscountAppliesTo.product
+                decimal itemDiscount = i.Discount != null && i.Discount.AppliesTo == DiscountAppliesTo.Product
                     ? (i.Discount.rate / 100m) * i.Quantity * i.Item.Price
                     : 0m;
 
@@ -298,7 +300,16 @@ namespace CentralizedSalesSystem.API.Services
 
             // Total including tip
             dto.Total = dto.Subtotal - dto.DiscountTotal + dto.TaxTotal + dto.ServiceChargeTotal + (order.Tip ?? 0);
+            //remaining totals after payments
+            dto.AmountPaid = order.Payments
+            .Where(p => p.Status == PaymentStatus.Completed)
+                .Sum(p => p.Amount);
+
+            dto.Remaining = dto.Total - dto.AmountPaid;
+            dto.Remaining = Math.Max(0, dto.Remaining);
+            dto.ChangeDue = Math.Max(0, dto.AmountPaid - dto.Total);
         }
+
 
 
     }

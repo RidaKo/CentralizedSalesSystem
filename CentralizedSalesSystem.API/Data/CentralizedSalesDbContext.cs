@@ -1,6 +1,8 @@
 ﻿using CentralizedSalesSystem.API.Models;
 using CentralizedSalesSystem.API.Models.Auth;
 using CentralizedSalesSystem.API.Models.Orders;
+using CentralizedSalesSystem.API.Models.Reservations;
+
 
 using Microsoft.EntityFrameworkCore;
 
@@ -25,6 +27,9 @@ namespace CentralizedSalesSystem.API.Data
         public DbSet<Discount> Discounts { get; set; }
         public DbSet<ItemVariation> ItemVariations { get; set; }
         public DbSet<ItemVariationOption> ItemVariationOptions { get; set; }
+        public DbSet<Payment> Payments { get; set; }
+
+
 
 
 

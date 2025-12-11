@@ -4,8 +4,8 @@ namespace CentralizedSalesSystem.API.Models.Orders.enums
 {
     public enum ItemVariationSelection
     {
-        required,
-        optional,
-        multiSelection,
+        Required,
+        Optional,
+        MultiSelection,
     }
 }

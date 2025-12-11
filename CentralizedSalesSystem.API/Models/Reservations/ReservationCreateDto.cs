@@ -1,4 +1,4 @@
-namespace CentralizedSalesSystem.API.Models.DTOs
+namespace CentralizedSalesSystem.API.Models.Reservations
 {
     public class ReservationCreateDto
     {

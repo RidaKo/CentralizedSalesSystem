@@ -1,11 +1,13 @@
 using CentralizedSalesSystem.API.Models.Orders.DTOs.DiscountDTOs;
 using CentralizedSalesSystem.API.Services;
 using CentralizedSalesSystem.API.Models.Orders.enums;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CentralizedSalesSystem.API.Controllers.Orders
 {
     [ApiController]
+    [Authorize]
     [Route("discounts")]
     public class DiscountsController : ControllerBase
     {

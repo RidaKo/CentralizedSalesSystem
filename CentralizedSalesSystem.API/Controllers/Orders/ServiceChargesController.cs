@@ -1,10 +1,12 @@
 using CentralizedSalesSystem.API.Models.Orders.DTOs.ServiceChargeDTOs;
 using CentralizedSalesSystem.API.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace CentralizedSalesSystem.API.Controllers.Orders
 {
     [ApiController]
+    [Authorize]
     [Route("serviceCharges")]
     public class ServiceChargesController : ControllerBase
     {

@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CentralizedSalesSystem.API.Migrations
 {
     [DbContext(typeof(CentralizedSalesDbContext))]
-    [Migration("20251209180231_AddTaxAndServiceChargeToOrderItem")]
-    partial class AddTaxAndServiceChargeToOrderItem
+    [Migration("20251211093500_DeletedUserFromPaymentt")]
+    partial class DeletedUserFromPaymentt
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -368,6 +368,45 @@ namespace CentralizedSalesSystem.API.Migrations
                     b.ToTable("OrderItems");
                 });
 
+            modelBuilder.Entity("CentralizedSalesSystem.API.Models.Orders.Payment", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BussinesId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Currency")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Method")
+                        .HasColumnType("int");
+
+                    b.Property<long>("OrderId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Provider")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTimeOffset>("paidAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderId");
+
+                    b.ToTable("Payments");
+                });
+
             modelBuilder.Entity("CentralizedSalesSystem.API.Models.Orders.ServiceCharge", b =>
                 {
                     b.Property<long>("Id")
@@ -686,6 +725,17 @@ namespace CentralizedSalesSystem.API.Migrations
                     b.Navigation("Tax");
                 });
 
+            modelBuilder.Entity("CentralizedSalesSystem.API.Models.Orders.Payment", b =>
+                {
+                    b.HasOne("CentralizedSalesSystem.API.Models.Orders.Order", "Order")
+                        .WithMany("Payments")
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Order");
+                });
+
             modelBuilder.Entity("CentralizedSalesSystem.API.Models.Reservation", b =>
                 {
                     b.HasOne("CentralizedSalesSystem.API.Models.User", "AssignedEmployeeUser")
@@ -731,6 +781,8 @@ namespace CentralizedSalesSystem.API.Migrations
             modelBuilder.Entity("CentralizedSalesSystem.API.Models.Orders.Order", b =>
                 {
                     b.Navigation("Items");
+
+                    b.Navigation("Payments");
                 });
 
             modelBuilder.Entity("CentralizedSalesSystem.API.Models.Reservation", b =>

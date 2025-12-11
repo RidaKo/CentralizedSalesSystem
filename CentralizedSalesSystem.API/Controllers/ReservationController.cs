@@ -1,4 +1,4 @@
-using CentralizedSalesSystem.API.Models.DTOs;
+using CentralizedSalesSystem.API.Models.Reservations;
 using CentralizedSalesSystem.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

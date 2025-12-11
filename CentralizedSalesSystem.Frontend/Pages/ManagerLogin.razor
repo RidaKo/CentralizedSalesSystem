@@ -1,0 +1,30 @@
+@page "/manager-login"
+@layout LandingLayout
+
+<PageTitle>Manager Sign In</PageTitle>
+
+<MudStack AlignItems="AlignItems.Center" Justify="Justify.Center">
+    <MudPaper Class="landing-card" Elevation="2">
+        <MudStack Spacing="3">
+            <MudStack Spacing="1" AlignItems="AlignItems.Center">
+                <MudText Typo="Typo.h5" Align="Align.Center">Manager / Admin Sign In</MudText>
+                <MudText Typo="Typo.subtitle2" Align="Align.Center">Enter your email and password to continue.</MudText>
+            </MudStack>
+
+            <MudForm>
+                <MudTextField T="string" Label="Email" Required="true" Placeholder="you@example.com" FullWidth="true" />
+                <MudTextField T="string" Label="Password" Required="true" InputType="InputType.Password" FullWidth="true" Class="mt-3" />
+                <MudStack Row="true" Justify="Justify.SpaceBetween" Class="mt-4">
+                    <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="NavigateBack">Back</MudButton>
+                    <MudButton Color="Color.Warning">Sign In</MudButton>
+                </MudStack>
+            </MudForm>
+        </MudStack>
+    </MudPaper>
+</MudStack>
+
+@code {
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+
+    private void NavigateBack() => Navigation.NavigateTo("/");
+}

@@ -1,7 +1,38 @@
-﻿@page "/"
+@page "/"
+@layout LandingLayout
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Centralized Sales System</PageTitle>
 
-<h1>Hello, world!</h1>
+<MudStack Spacing="2" AlignItems="AlignItems.Center" Justify="Justify.Center">
+    <MudText Typo="Typo.h4" Align="Align.Center">Centralized Sales System</MudText>
 
-Welcome to your new app.
+    <MudPaper Class="landing-card" Elevation="2">
+        <MudStack Spacing="3" AlignItems="AlignItems.Center">
+            <MudStack Spacing="1" AlignItems="AlignItems.Center">
+                <MudText Typo="Typo.h4" Align="Align.Center">Welcome!</MudText>
+                <MudText Typo="Typo.subtitle1" Align="Align.Center">Sign in as:</MudText>
+            </MudStack>
+
+            <MudGrid Justify="Justify.Center" Spacing="3">
+                <MudItem xs="12" sm="6">
+                    <MudButton Color="Color.Success" Variant="Variant.Filled" Class="landing-choice-button" Size="Size.Large" OnClick="NavigateToEmployee">
+                        Employee
+                    </MudButton>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudButton Color="Color.Warning" Variant="Variant.Filled" Class="landing-choice-button" Size="Size.Large" OnClick="NavigateToManager">
+                        Manager
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+        </MudStack>
+    </MudPaper>
+</MudStack>
+
+@code {
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+
+    private void NavigateToEmployee() => Navigation.NavigateTo("/employee-login");
+
+    private void NavigateToManager() => Navigation.NavigateTo("/manager-login");
+}

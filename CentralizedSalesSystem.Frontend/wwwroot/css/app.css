@@ -101,3 +101,38 @@ a, .btn-link {
 code {
     color: #c02d76;
 }
+
+.landing-wrapper {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f7f7f7;
+    padding: 2rem;
+}
+
+.landing-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+    text-align: center;
+}
+
+.landing-title {
+    text-align: center;
+}
+
+.landing-card {
+    padding: 2rem;
+    width: min(640px, 100%);
+    margin: 0 auto;
+}
+
+.landing-choice-button {
+    width: 100%;
+    min-height: 96px;
+    font-size: 1.1rem;
+    font-weight: 600;
+}

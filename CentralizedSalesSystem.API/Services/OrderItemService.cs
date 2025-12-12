@@ -59,11 +59,18 @@ namespace CentralizedSalesSystem.API.Services
 
         public async Task<OrderItemResponseDto?> CreateOrderItemAsync(OrderItemCreateDto dto)
         {
-            var item = await _db.Items.FindAsync(dto.ItemId);
-            if (item == null) throw new Exception($"Item {dto.ItemId} not found");
-            if (item.Stock < dto.Quantity) throw new Exception($"Insufficient stock for item {item.Name}");
+            var order = await _db.Orders.FindAsync(dto.OrderId);
+            if (order == null)
+                throw new Exception($"Order {dto.OrderId} not found");
 
-            item.Stock -= dto.Quantity; // reduce stock
+            var item = await _db.Items.FindAsync(dto.ItemId);
+            if (item == null)
+                throw new Exception($"Item {dto.ItemId} not found");
+
+            if (item.Stock < dto.Quantity)
+                throw new Exception($"Insufficient stock for item {item.Name}");
+
+            item.Stock -= dto.Quantity;
 
             var orderItem = new OrderItem
             {
@@ -81,6 +88,7 @@ namespace CentralizedSalesSystem.API.Services
 
             return await GetOrderItemByIdAsync(orderItem.Id);
         }
+
 
         public async Task<OrderItemResponseDto?> UpdateOrderItemAsync(long id, OrderItemUpdateDto dto)
         {

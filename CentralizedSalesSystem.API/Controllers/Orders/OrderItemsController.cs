@@ -14,7 +14,7 @@ using Microsoft.AspNetCore.Authorization;
 namespace CentralizedSalesSystem.API.Controllers.Orders
 {
     [ApiController]
-    //[Authorize]
+    [Authorize]
     [Route("orderItems")]
     public class OrderItemsController : ControllerBase
     {
@@ -53,10 +53,17 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
         [HttpPost]
         public async Task<ActionResult<OrderItemResponseDto>> CreateOrderItem(OrderItemCreateDto dto)
         {
-            var created = await _orderItemService.CreateOrderItemAsync(dto);
-            if (created == null) return BadRequest("Item or Order not found.");
-            return Ok(created);
+            try
+            {
+                var created = await _orderItemService.CreateOrderItemAsync(dto);
+                return Ok(created);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
         }
+
 
         [HttpPatch("{id}")]
         public async Task<ActionResult<OrderItemResponseDto>> UpdateOrderItem(long id, OrderItemUpdateDto dto)

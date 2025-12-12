@@ -161,6 +161,7 @@ namespace CentralizedSalesSystem.API.Services
                 orderDto.AmountPaid = order.Payments
                     .Where(p => p.Status == PaymentStatus.Completed)
                     .Sum(p => p.Amount);
+
             }
 
             return payment.ToDto();

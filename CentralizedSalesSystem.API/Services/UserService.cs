@@ -23,7 +23,8 @@ public class UserService : IUserService
     {
         var query = _db.Users.AsQueryable();
 
-        // Name is not stored in the current model; ignoring filterByName to honor "don't change models".
+        if (!string.IsNullOrWhiteSpace(filterByName))
+            query = query.Where(u => u.Name != null && u.Name.Contains(filterByName));
         if (!string.IsNullOrWhiteSpace(filterByPhone))
             query = query.Where(u => u.Phone.Contains(filterByPhone));
         if (!string.IsNullOrWhiteSpace(filterByEmail))
@@ -39,8 +40,8 @@ public class UserService : IUserService
             ("phone", _) => query.OrderBy(u => u.Phone),
             ("email", "desc") => query.OrderByDescending(u => u.Email),
             ("email", _) => query.OrderBy(u => u.Email),
-            ("name", "desc") => query.OrderByDescending(u => u.Id),
-            ("name", _) => query.OrderBy(u => u.Id),
+            ("name", "desc") => query.OrderByDescending(u => u.Name),
+            ("name", _) => query.OrderBy(u => u.Name),
             _ => query.OrderBy(u => u.Id)
         };
 
@@ -66,6 +67,7 @@ public class UserService : IUserService
         var user = new User
         {
             BusinessId = dto.BusinessId,
+            Name = dto.Name,
             Email = dto.Email,
             Phone = dto.Phone,
             Status = dto.Activity
@@ -84,6 +86,7 @@ public class UserService : IUserService
         if (user == null) return null;
 
         if (dto.BusinessId.HasValue) user.BusinessId = dto.BusinessId.Value;
+        if (!string.IsNullOrWhiteSpace(dto.Name)) user.Name = dto.Name;
         if (!string.IsNullOrWhiteSpace(dto.Email)) user.Email = dto.Email;
         if (!string.IsNullOrWhiteSpace(dto.Phone)) user.Phone = dto.Phone;
         if (dto.Activity.HasValue) user.Status = dto.Activity.Value;
@@ -107,7 +110,7 @@ public class UserService : IUserService
     {
         Id = u.Id,
         BusinessId = u.BusinessId,
-        Name = null, // Name not available in current model; honoring constraint to not change models.
+        Name = u.Name,
         Email = u.Email,
         Phone = u.Phone,
         Activity = u.Status

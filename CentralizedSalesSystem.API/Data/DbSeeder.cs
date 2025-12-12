@@ -40,6 +40,7 @@ namespace CentralizedSalesSystem.API.Data
             // Create a business and user together to satisfy FK constraints
             var adminUser = new User
             {
+                Name = "Admin",
                 Email = "admin@ex.com",
                 Phone = "+10000000000",
                 Status = Status.Active,

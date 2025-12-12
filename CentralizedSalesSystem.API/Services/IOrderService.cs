@@ -1,4 +1,5 @@
 using CentralizedSalesSystem.API.Models.Orders.DTOs.OrderDTOs;
+using CentralizedSalesSystem.API.Models.Orders;
 
 namespace CentralizedSalesSystem.API.Services
 {
@@ -19,6 +20,7 @@ namespace CentralizedSalesSystem.API.Services
         Task<OrderResponseDto> CreateOrderAsync(OrderCreateDto dto);
         Task<OrderResponseDto?> UpdateOrderAsync(long id, OrderUpdateDto dto);
         Task<bool> DeleteOrderAsync(long id);
+        void CalculateOrderTotals(Order order, OrderResponseDto dto);
     }
 }
 

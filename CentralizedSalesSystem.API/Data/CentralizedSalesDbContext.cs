@@ -28,6 +28,7 @@ namespace CentralizedSalesSystem.API.Data
         public DbSet<ItemVariation> ItemVariations { get; set; }
         public DbSet<ItemVariationOption> ItemVariationOptions { get; set; }
         public DbSet<Payment> Payments { get; set; }
+        public DbSet<Refund> Refunds { get; set; }
 
 
 

@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 namespace CentralizedSalesSystem.API.Controllers.Orders
 {
     [ApiController]
-    [Authorize]
+    //[Authorize]
     [Route("payments")]
     public class PaymentController : ControllerBase
     {

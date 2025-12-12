@@ -6,7 +6,7 @@ namespace CentralizedSalesSystem.API.Models.Orders
     public class Refund
     {
         public long Id { get; set; }
-        public decimal amount { get; set; }
+        public decimal Amount { get; set; }
         public DateTimeOffset RefundedAt { get; set; }
         public string? Reason { get; set; }
 
@@ -16,14 +16,6 @@ namespace CentralizedSalesSystem.API.Models.Orders
 
         public long OrderId { get; set; }
         public Order? Order { get; set; }
-
-        public long UserId { get; set; }
-        public User? RefunderBy { get; set; }
-
-        public long PaymentId { get; set; }
-        public Payment? Payment { get; set; }
-
-
 
     }
 }

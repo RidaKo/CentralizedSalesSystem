@@ -1,97 +1,70 @@
+using CentralizedSalesSystem.API.Models.Orders.DTOs.ItemDTOs;
 using CentralizedSalesSystem.API.Models.Orders.enums;
-using CentralizedSalesSystem.API.Models.Orders;
-using CentralizedSalesSystem.API.Data;
-using CentralizedSalesSystem.API.Models.Orders.DTOs;
+using CentralizedSalesSystem.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
-
-namespace CentralizedSalesSystem.API.Controllers.Orders
+namespace CentralizedSalesSystem.API.Controllers.Items
 {
     [ApiController]
     [Authorize]
     [Route("items")]
     public class ItemsController : ControllerBase
     {
-        private readonly CentralizedSalesDbContext _context;
+        private readonly IItemService _itemService;
 
-        public ItemsController(CentralizedSalesDbContext context)
+        public ItemsController(IItemService itemService)
         {
-            _context = context;
+            _itemService = itemService;
         }
 
-        // GET: items
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<ItemReadDto>>> GetItems()
+        public async Task<ActionResult<object>> GetItems(
+            [FromQuery] int page = 1,
+            [FromQuery] int limit = 20,
+            [FromQuery] string? sortBy = null,
+            [FromQuery] string? sortDirection = null,
+            [FromQuery] long? filterByBusinessId = null,
+            [FromQuery] string? filterByName = null,
+            [FromQuery] ItemType? filterByItemType = null,
+            [FromQuery] decimal? minPrice = null,
+            [FromQuery] decimal? maxPrice = null)
         {
-            var items = await _context.Items.ToListAsync();
-
-            var result = items.Select(i => new ItemReadDto
-            {
-                Id = i.Id,
-                Name = i.Name,
-                Description = i.Description,
-                Price = i.Price,
-                Type = i.Type,
-                Stock = i.Stock,
-                BusinessId = i.BusinessId
-            });
+            var result = await _itemService.GetItemsAsync(
+                page, limit, sortBy, sortDirection,
+                filterByBusinessId, filterByName,
+                filterByItemType, minPrice, maxPrice);
 
             return Ok(result);
         }
 
-        // GET: items/{id}
+
         [HttpGet("{id}")]
-        public async Task<ActionResult<ItemReadDto>> GetItem(long id)
+        public async Task<ActionResult<ItemResponseDto>> GetItemById(long id)
         {
-            var item = await _context.Items.FindAsync(id);
-
-            if (item == null)
-                return NotFound();
-
-            return new ItemReadDto
-            {
-                Id = item.Id,
-                Name = item.Name,
-                Description = item.Description,
-                Price = item.Price,
-                Type = item.Type,
-                Stock = item.Stock,
-                BusinessId = item.BusinessId
-            };
+            var item = await _itemService.GetItemByIdAsync(id);
+            return item == null ? NotFound() : Ok(item);
         }
 
-        // POST: items/add
-        [HttpPost("add")]
-        public async Task<ActionResult<ItemReadDto>> CreateItem(ItemCreateDto dto)
+        [HttpPost]
+        public async Task<ActionResult<ItemResponseDto>> CreateItem(ItemCreateDto dto)
         {
-            var item = new Item
-            {
-                Name = dto.Name,
-                Description = dto.Description,
-                Price = dto.Price,
-                Type = dto.Type,
-                Stock = dto.Stock,
-                BusinessId = dto.BusinessId
-            };
+            var created = await _itemService.CreateItemAsync(dto);
+            return Ok(created);
+        }
 
-            _context.Items.Add(item);
-            await _context.SaveChangesAsync();
+        [HttpPatch("{id}")]
+        public async Task<ActionResult<ItemResponseDto>> UpdateItem(long id, ItemUpdateDto dto)
+        {
+            var updated = await _itemService.UpdateItemAsync(id, dto);
+            return updated == null ? NotFound() : Ok(updated);
+        }
 
-            var result = new ItemReadDto
-            {
-                Id = item.Id,
-                Name = item.Name,
-                Description = item.Description,
-                Price = item.Price,
-                Type = item.Type,
-                Stock = item.Stock,
-                BusinessId = item.BusinessId
-            };
-
-            return CreatedAtAction(nameof(GetItem), new { id = item.Id }, result);
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteItem(long id)
+        {
+            var deleted = await _itemService.DeleteItemAsync(id);
+            return deleted ? Ok(new { message = "Successfully deleted item" }) : NotFound();
         }
     }
 }
-

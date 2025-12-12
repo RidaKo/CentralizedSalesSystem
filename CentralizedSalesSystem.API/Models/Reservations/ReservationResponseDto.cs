@@ -1,4 +1,6 @@
-namespace CentralizedSalesSystem.API.Models.DTOs
+using CentralizedSalesSystem.API.Models.Orders.DTOs.OrderItemDTOs;
+namespace CentralizedSalesSystem.API.Models.Reservations
+
 {
     public class ReservationResponseDto
     {

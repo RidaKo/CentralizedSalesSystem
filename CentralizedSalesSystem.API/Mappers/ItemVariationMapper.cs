@@ -1,0 +1,18 @@
+using CentralizedSalesSystem.API.Models.Orders.DTOs.ItemVariationDTOs;
+using CentralizedSalesSystem.API.Models.Orders;
+namespace CentralizedSalesSystem.API.Mappers
+{
+    public static class ItemVariationMapper
+    {
+        public static ItemVariationResponseDto ToDto(this ItemVariation variation)
+        {
+            return new ItemVariationResponseDto
+            {
+                Id = variation.Id,
+                Name = variation.Name,
+                ItemId = variation.ItemId,
+                Selection = variation.Selection
+            };
+        }
+    }
+}

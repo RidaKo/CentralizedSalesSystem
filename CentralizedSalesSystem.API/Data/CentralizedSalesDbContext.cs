@@ -1,6 +1,8 @@
 ﻿using CentralizedSalesSystem.API.Models;
 using CentralizedSalesSystem.API.Models.Auth;
 using CentralizedSalesSystem.API.Models.Orders;
+using CentralizedSalesSystem.API.Models.Reservations;
+
 
 using Microsoft.EntityFrameworkCore;
 
@@ -22,6 +24,15 @@ namespace CentralizedSalesSystem.API.Data
         public DbSet<ServiceCharge> ServiceCharges { get; set; }
         public DbSet<Table> Tables { get; set; }
         public DbSet<Tax> Taxes { get; set; }
+        public DbSet<Discount> Discounts { get; set; }
+        public DbSet<ItemVariation> ItemVariations { get; set; }
+        public DbSet<ItemVariationOption> ItemVariationOptions { get; set; }
+        public DbSet<Payment> Payments { get; set; }
+
+
+
+
+
 
         // Reservations
         public DbSet<Reservation> Reservations { get; set; }
@@ -34,5 +45,7 @@ namespace CentralizedSalesSystem.API.Data
         public CentralizedSalesDbContext(DbContextOptions<CentralizedSalesDbContext> options) : base(options) { 
                 
         }
+
+
     }
 }

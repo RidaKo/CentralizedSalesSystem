@@ -1,7 +1,6 @@
 using CentralizedSalesSystem.API.Data;
 using CentralizedSalesSystem.API.Mappers;
-using CentralizedSalesSystem.API.Models;
-using CentralizedSalesSystem.API.Models.DTOs;
+using CentralizedSalesSystem.API.Models.Reservations;
 using Microsoft.EntityFrameworkCore;
 
 namespace CentralizedSalesSystem.API.Services

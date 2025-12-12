@@ -1,4 +1,4 @@
-namespace CentralizedSalesSystem.API.Models
+namespace CentralizedSalesSystem.API.Models.Reservations
 {
     public enum ReservationStatus
     {

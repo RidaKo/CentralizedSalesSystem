@@ -22,6 +22,15 @@ builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddScoped<IReservationService, ReservationService>();
 builder.Services.AddScoped<ITableService, TableService>();
+builder.Services.AddScoped<IOrderItemService, OrderItemService>();
+builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddScoped<IItemService, ItemService>();
+builder.Services.AddScoped<IItemVariationService, ItemVariationService>();
+builder.Services.AddScoped<ITaxService, TaxService>();
+builder.Services.AddScoped<IDiscountService, DiscountService>();
+builder.Services.AddScoped<IServiceChargeService, ServiceChargeService>();
+builder.Services.AddScoped<IPaymentService, PaymentService>();
+
 
 var jwtSection = builder.Configuration.GetSection("JWT");
 var jwtKey = jwtSection["Key"] ?? throw new InvalidOperationException("JWT: Key is missing in config");

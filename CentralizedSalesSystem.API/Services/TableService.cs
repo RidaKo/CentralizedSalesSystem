@@ -3,7 +3,7 @@ using CentralizedSalesSystem.API.Mappers;
 using CentralizedSalesSystem.API.Models;
 using CentralizedSalesSystem.API.Models.Orders;
 using CentralizedSalesSystem.API.Models.Orders.enums;
-using CentralizedSalesSystem.API.Models.DTOs;
+using CentralizedSalesSystem.API.Models.Orders.DTOs.TableDTOs;
 using Microsoft.EntityFrameworkCore;
 
 namespace CentralizedSalesSystem.API.Services
@@ -110,15 +110,13 @@ namespace CentralizedSalesSystem.API.Services
             if (dto.BusinessId.HasValue) t.BusinessId = dto.BusinessId.Value;
             if (!string.IsNullOrWhiteSpace(dto.Name)) t.Name = dto.Name;
             if (dto.Capacity.HasValue) t.Capacity = dto.Capacity.Value;
-            if (!string.IsNullOrWhiteSpace(dto.Status) && Enum.TryParse<TableStatus>(dto.Status, true, out var statusParsed))
-            {
-                t.Status = statusParsed;
-            }
+            if (dto.Status.HasValue) t.Status = dto.Status.Value;
 
             await _db.SaveChangesAsync();
 
             return t.ToDto();
         }
+
 
         public async Task<bool> DeleteAsync(long tableId)
         {

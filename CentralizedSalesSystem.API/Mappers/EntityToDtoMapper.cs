@@ -1,43 +1,10 @@
-using CentralizedSalesSystem.API.Models.Orders;
-using CentralizedSalesSystem.API.Models.DTOs;
+using CentralizedSalesSystem.API.Models.Reservations;
 
 namespace CentralizedSalesSystem.API.Mappers
 {
     public static class EntityToDtoMapper
     {
-        public static OrderItemResponseDto ToDto(this OrderItem item)
-        {
-            return new OrderItemResponseDto
-            {
-                Id = item.Id,
-                ItemId = item.ItemId,
-                Quantity = item.Quantity,
-                DiscountId = item.DiscountId,
-                Notes = item.Notes,
-                Taxes = item.Taxes?.Select(t => new TaxResponseDto
-                {
-                    Id = t.Id,
-                    BusinessId = t.BusinessId,
-                    Name = t.Name,
-                    Rate = t.Rate,
-                    CreatedAt = t.CreatedAt,
-                    Activity = t.Status.ToString().ToLowerInvariant(),
-                    EffectiveFrom = t.EffectiveFrom,
-                    EffectiveTo = t.EffectiveTo
-                }).ToList(),
-                ServiceCharges = item.ServiceCharges?.Select(s => new ServiceChargeResponseDto
-                {
-                    Id = s.Id,
-                    BusinessId = s.BusinessId,
-                    Name = s.Name,
-                    Rate = s.rate,
-                    CreatedAt = s.CreatedAt,
-                    UpdatedAt = s.UpdatedAt
-                }).ToList()
-            };
-        }
-
-        public static ReservationResponseDto ToDto(this CentralizedSalesSystem.API.Models.Reservation r)
+        public static ReservationResponseDto ToDto(this Reservation r)
         {
             return new ReservationResponseDto
             {
@@ -54,18 +21,6 @@ namespace CentralizedSalesSystem.API.Mappers
                 AssignedEmployee = r.AssignedEmployee,
                 GuestNumber = r.GuestNumber,
                 TableId = r.TableId
-            };
-        }
-
-        public static TableResponseDto ToDto(this Table t)
-        {
-            return new TableResponseDto
-            {
-                Id = t.Id,
-                BusinessId = t.BusinessId,
-                Name = t.Name,
-                Capacity = t.Capacity,
-                Status = t.Status.ToString().ToLowerInvariant()
             };
         }
     }

@@ -1,4 +1,4 @@
-using CentralizedSalesSystem.API.Models.DTOs;
+using CentralizedSalesSystem.API.Models.Orders.DTOs.TableDTOs;
 
 namespace CentralizedSalesSystem.API.Services
 {

@@ -4,9 +4,9 @@ namespace CentralizedSalesSystem.API.Models.Orders.enums
 {
 	public enum OrderStatus
 	{
-		open,
-		pending,
-		closed,
-		refunded,
+		Open,
+		Pending,
+		Closed,
+		Refunded,
 	}
 }

@@ -1,0 +1,176 @@
+@page "/manager/business/{BusinessId:long}"
+@using CentralizedSalesSystem.Frontend.Models
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-8">
+    
+    <!-- back Button -->
+    <MudButton StartIcon="@Icons.Material.Filled.ArrowBack" 
+               href="/manager/dashboard" 
+               Color="Color.Default" 
+               Class="mb-4">
+        Back to Dashboard
+    </MudButton>
+
+    @if (_isLoading)
+    {
+        <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-7" />
+    }
+    else if (_business == null)
+    {
+        <MudAlert Severity="Severity.Error">Business not found.</MudAlert>
+    }
+    else
+    {
+        <!-- header -->
+        <MudGrid>
+            <MudItem xs="12">
+                <MudText Typo="Typo.h4" Class="mb-2">
+                    Service panel: "@_business.Name"
+                </MudText>
+            </MudItem>
+
+            <!-- info card -->
+            <MudItem xs="12" md="6">
+                <MudPaper Class="pa-4" Elevation="3">
+                    <div class="d-flex justify-space-between align-center mb-4">
+                        <MudText Typo="Typo.h6">Info</MudText>
+                        <MudChip T="string" Color="Color.Info" Size="Size.Small">@_business.SubscriptionPlan</MudChip>
+                    </div>
+
+                    <MudList T="string" Dense="true">
+                        <MudListItem Icon="@Icons.Material.Filled.Business">
+                            <MudText Typo="Typo.caption">Company Name</MudText>
+                            <MudText Typo="Typo.body1">@_business.Name</MudText>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.LocationOn">
+                            <MudText Typo="Typo.caption">Address</MudText>
+                            <MudText Typo="Typo.body1">@_business.Address</MudText>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.AttachMoney">
+                            <MudText Typo="Typo.caption">Currency</MudText>
+                            <MudText Typo="Typo.body1">@_business.Currency</MudText>
+                        </MudListItem>
+                    </MudList>
+                    
+                    <div class="mt-4 d-flex gap-2">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small">
+                            Edit Info
+                        </MudButton>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small">
+                            Cancel Plan
+                        </MudButton>
+                    </div>
+                </MudPaper>
+            </MudItem>
+            
+            <!-- working hours (placeholder) -->
+             <MudItem xs="12" md="6">
+                <MudPaper Class="pa-4" Elevation="3">
+                     <MudText Typo="Typo.h6" Class="mb-4">Working Hours</MudText>
+                     <MudText Typo="Typo.body2">
+                         <MudIcon Icon="@Icons.Material.Filled.AccessTime" Size="Size.Small" Class="mr-1"/>
+                         I-V 8:00-22:00
+                     </MudText>
+                     <MudText Typo="Typo.body2" Class="mt-2">
+                         <MudIcon Icon="@Icons.Material.Filled.AccessTime" Size="Size.Small" Class="mr-1"/>
+                         VI-VII 10:00-20:00
+                     </MudText>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+
+        <MudDivider Class="my-8"/>
+
+        <!-- navigation tabs for the "manage" section -->
+        <MudText Typo="Typo.h5" Class="mb-4">Manage</MudText>
+        
+        <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6">
+            <MudTabPanel Text="Items" Icon="@Icons.Material.Filled.Fastfood">
+                <MudText>Item management will go here (Step 5).</MudText>
+            </MudTabPanel>
+            
+            <MudTabPanel Text="Employees" Icon="@Icons.Material.Filled.People">
+                <MudText Class="mb-4">Manage your staff here.</MudText>
+                <!-- this will later link to a table -->
+                <MudButton Variant="Variant.Filled" 
+                           Color="Color.Primary" 
+                           OnClick="@(() => Navigation.NavigateTo($"/manager/business/{BusinessId}/employees"))">
+                    Open Employee Table
+                </MudButton>
+            </MudTabPanel>
+            
+            <MudTabPanel Text="Discounts" Icon="@Icons.Material.Filled.LocalOffer">
+                <MudText>Discounts will go here (Step 4).</MudText>
+            </MudTabPanel>
+            
+            <MudTabPanel Text="Taxes" Icon="@Icons.Material.Filled.RequestQuote">
+                <MudText>Taxes will go here (Step 4).</MudText>
+            </MudTabPanel>
+        </MudTabs>
+    }
+</MudContainer>
+
+@code {
+    [Parameter]
+    public long BusinessId { get; set; }
+
+    private Business? _business;
+    private bool _isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _isLoading = true;
+            
+            // 1. try to get real data from the API
+            _business = await Http.GetFromJsonAsync<Business>($"businesses/{BusinessId}");
+        }
+        // TODO: will remove this block once the API is fully stable in all environments
+        catch (Exception ex)
+        {
+            Console.WriteLine($"API Request failed: {ex.Message}. Loading mock data.");
+            
+            // 2. mock data if API fails
+            LoadMockData();
+            
+            // alert on screen that says we're using mock data
+            Snackbar.Add("Using Mock Data", Severity.Normal);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void LoadMockData()
+    {
+        if (BusinessId == 1)
+        {
+            _business = new Business 
+            { 
+                Id = 1, 
+                Name = "Bucky-cheese restaurant", 
+                Address = "USA, AZ", 
+                SubscriptionPlan = "catering", 
+                Currency = "USD" 
+            };
+        }
+        else
+        {
+            _business = new Business 
+            { 
+                Id = 2, 
+                Name = "Lukovich beauty emporium", 
+                Address = "DE, Street 28", 
+                SubscriptionPlan = "beauty", 
+                Currency = "EUR" 
+            };
+        }
+    }
+}

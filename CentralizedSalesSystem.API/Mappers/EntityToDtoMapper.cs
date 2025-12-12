@@ -16,7 +16,7 @@ namespace CentralizedSalesSystem.API.Mappers
                 AppointmentTime = r.AppointmentTime,
                 CreatedAt = r.CreatedAt,
                 CreatedBy = r.CreatedBy,
-                Status = r.Status.ToString().ToLowerInvariant(),
+                Status = r.Status,
                 Items = r.Items?.Select(i => i.ToDto()).ToList(),
                 AssignedEmployee = r.AssignedEmployee,
                 GuestNumber = r.GuestNumber,

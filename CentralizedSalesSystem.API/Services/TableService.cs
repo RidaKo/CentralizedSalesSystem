@@ -88,13 +88,9 @@ namespace CentralizedSalesSystem.API.Services
             {
                 BusinessId = dto.BusinessId,
                 Name = dto.Name,
-                Capacity = dto.Capacity
+                Capacity = dto.Capacity,
+                Status = dto.Status
             };
-
-            if (!string.IsNullOrWhiteSpace(dto.Status) && Enum.TryParse<TableStatus>(dto.Status, true, out var statusParsed))
-            {
-                table.Status = statusParsed;
-            }
 
             _db.Tables.Add(table);
             await _db.SaveChangesAsync();

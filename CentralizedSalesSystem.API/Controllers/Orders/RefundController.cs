@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace CentralizedSalesSystem.API.Controllers
 {
     [ApiController]
+    [Authorize]
     [Route("api/[controller]")]
     public class RefundsController : ControllerBase
     {

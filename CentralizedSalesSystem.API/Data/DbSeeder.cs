@@ -1,6 +1,7 @@
 using CentralizedSalesSystem.API.Models;
 using CentralizedSalesSystem.API.Models.Auth;
 using CentralizedSalesSystem.API.Models.Auth.enums;
+using CentralizedSalesSystem.API.Models.Business;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -36,36 +37,49 @@ namespace CentralizedSalesSystem.API.Data
                 Status = Status.Active
             };
 
-            var adminRole = new Role
-            {
-                Title = "Admin",
-                Description = "Seeded administrator role",
-                BussinessId = 1,
-                CreatedAt = now,
-                UpdatedAt = now,
-                Status = Status.Active,
-                RolePermissions = new List<RolePermission>()
-            };
-
+            // Create a business and user together to satisfy FK constraints
             var adminUser = new User
             {
+                Name = "Admin",
                 Email = "admin@ex.com",
-                BusinessId = 1,
                 Phone = "+10000000000",
                 Status = Status.Active,
                 UserRoles = new List<UserRole>()
             };
 
+            var business = new Business
+            {
+                Name = "Seed Business",
+                Phone = "+10000000000",
+                Address = "123 Seed St",
+                Email = "owner@ex.com",
+                Country = "N/A",
+                Currency = Currency.EUR,
+                SubscriptionPlan = SubscriptionPlan.Catering,
+                Users = new List<User> { adminUser }
+            };
+
+            adminUser.Business = business;
             adminUser.PasswordHash = passwordHasher.HashPassword(adminUser, "pass");
 
             var rolePermission = new RolePermission
             {
-                Role = adminRole,
+                Role = new Role
+                {
+                    Title = "Admin",
+                    Description = "Seeded administrator role",
+                    BussinessId = 1,
+                    CreatedAt = now,
+                    UpdatedAt = now,
+                    Status = Status.Active,
+                    RolePermissions = new List<RolePermission>()
+                },
                 Permission = manageAllPermission,
                 CreatedAt = now,
                 UpdatedAt = now
             };
 
+            var adminRole = rolePermission.Role;
             adminRole.RolePermissions.Add(rolePermission);
 
             var userRole = new UserRole
@@ -78,11 +92,17 @@ namespace CentralizedSalesSystem.API.Data
             adminUser.UserRoles.Add(userRole);
 
             await context.Permissions.AddAsync(manageAllPermission, cancellationToken);
+            await context.Businesses.AddAsync(business, cancellationToken);
             await context.Roles.AddAsync(adminRole, cancellationToken);
             await context.Users.AddAsync(adminUser, cancellationToken);
             await context.RolePermissions.AddAsync(rolePermission, cancellationToken);
             await context.UserRoles.AddAsync(userRole, cancellationToken);
 
+            await context.SaveChangesAsync(cancellationToken);
+
+            // After IDs are generated, update business owner to break circular insert dependency
+            business.OwnerId = adminUser.Id;
+            context.Businesses.Update(business);
             await context.SaveChangesAsync(cancellationToken);
         }
     }

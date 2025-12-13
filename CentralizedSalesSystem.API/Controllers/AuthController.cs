@@ -1,6 +1,7 @@
 ﻿using CentralizedSalesSystem.API.Data;
 using CentralizedSalesSystem.API.Models;
 using CentralizedSalesSystem.API.Models.Auth;
+using CentralizedSalesSystem.API.Models.Auth.DTOs;
 using CentralizedSalesSystem.API.Models.Auth.enums;
 using CentralizedSalesSystem.API.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -24,13 +25,15 @@ namespace CentralizedSalesSystem.API.Controllers
         private readonly IConfiguration _config;
         private readonly ITokenService _tokenService;
         private readonly IPasswordHasher<User> _passwordHasher;
+        private readonly IOwnerSignupService _ownerSignupService;
 
-        public AuthController(CentralizedSalesDbContext db, IConfiguration config, ITokenService tokenService, IPasswordHasher<User> passwordHasher)
+        public AuthController(CentralizedSalesDbContext db, IConfiguration config, ITokenService tokenService, IPasswordHasher<User> passwordHasher, IOwnerSignupService ownerSignupService)
         {
             _db = db;
             _config = config;
             _tokenService =tokenService;
             _passwordHasher = passwordHasher;
+            _ownerSignupService = ownerSignupService;
         }
 
         [HttpPost("login")]
@@ -81,6 +84,15 @@ namespace CentralizedSalesSystem.API.Controllers
 
             return Ok(new TokenResponse(token));
 
+        }
+
+        [HttpPost("register-owner")]
+        [AllowAnonymous]
+        public async Task<IActionResult> RegisterOwner([FromBody] OwnerSignupRequest dto, CancellationToken cancellationToken)
+        {
+            if (dto == null) return BadRequest();
+            var result = await _ownerSignupService.RegisterOwnerAsync(dto, cancellationToken);
+            return CreatedAtAction(nameof(RegisterOwner), new { businessId = result.BusinessId, ownerUserId = result.OwnerUserId }, result);
         }
 
 

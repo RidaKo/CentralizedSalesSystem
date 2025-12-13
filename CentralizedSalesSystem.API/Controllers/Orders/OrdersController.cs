@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 namespace CentralizedSalesSystem.API.Controllers.Orders
 {
     [ApiController]
-    //[Authorize]
+    [Authorize]
     [Route("orders")]
     public class OrdersController : ControllerBase
     {

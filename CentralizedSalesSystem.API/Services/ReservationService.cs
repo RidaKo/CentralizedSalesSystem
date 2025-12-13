@@ -121,10 +121,7 @@ namespace CentralizedSalesSystem.API.Services
                 TableId = dto.TableId
             };
 
-            if (!string.IsNullOrWhiteSpace(dto.Status) && Enum.TryParse<ReservationStatus>(dto.Status, true, out var statusParsed))
-            {
-                reservation.Status = statusParsed;
-            }
+            reservation.Status = dto.Status;
 
             _db.Reservations.Add(reservation);
             await _db.SaveChangesAsync();
@@ -146,10 +143,7 @@ namespace CentralizedSalesSystem.API.Services
             if (dto.AssignedEmployee.HasValue) r.AssignedEmployee = dto.AssignedEmployee;
             if (dto.GuestNumber.HasValue) r.GuestNumber = dto.GuestNumber.Value;
             if (dto.TableId.HasValue) r.TableId = dto.TableId;
-            if (!string.IsNullOrWhiteSpace(dto.Status) && Enum.TryParse<ReservationStatus>(dto.Status, true, out var parsed))
-            {
-                r.Status = parsed;
-            }
+            if (dto.Status.HasValue) r.Status = dto.Status.Value;
 
             await _db.SaveChangesAsync();
 

@@ -1,22 +1,56 @@
-﻿@inherits LayoutComponentBase
-<MudThemeProvider/>
+@inherits LayoutComponentBase
+@using CentralizedSalesSystem.Frontend.Services
+@using System.Text
+@using System.IdentityModel.Tokens.Jwt;
+@using System.Security.Claims;
+@using System.Text.Json
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Routing
+<MudThemeProvider IsDarkMode="true"/>
 <MudPopoverProvider/>
 <MudDialogProvider/>
 <MudSnackbarProvider/>
 
 <MudLayout>
-    <MudAppBar Elevation="1">
+    <MudAppBar Elevation="1" Color="Color.Primary">
         <MudText Typo="Typo.h6">Centralized Sales</MudText>
         <MudSpacer />
-        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small">
-            Demo User
-        </MudButton>
+        @if (IsAuthenticated)
+        {
+            <MudMenu AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
+                <ActivatorContent>
+                    <MudButton Color="Color.Inherit"
+                               Variant="Variant.Text"
+                               StartIcon="@Icons.Material.Filled.AccountCircle">
+                        @UserEmail
+                    </MudButton>
+                </ActivatorContent>
+                <ChildContent>
+                    <MudMenuItem OnClick="@(() => Navigation.NavigateTo("/profile"))">
+                        Profile
+                    </MudMenuItem>
+                    <MudMenuItem OnClick="@LogoutAsync">
+                        Logout
+                    </MudMenuItem>
+                </ChildContent>
+            </MudMenu>
+        }
+        else
+        {
+            <MudButton Href="/login"
+                       Variant="Variant.Outlined"
+                       Color="Color.Inherit"
+                       StartIcon="@Icons.Material.Filled.Login">
+                Login
+            </MudButton>
+        }
     </MudAppBar>
 
-    <MudDrawer Open="true" Variant="DrawerVariant.Mini">
+    <MudDrawer Open="false" Variant="DrawerVariant.Mini">
         <MudNavMenu>
-            <MudNavLink Href="/" Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
-            <MudNavLink Href="/items" Icon="@Icons.Material.Filled.List">Items</MudNavLink>
+            <MudNavLink Href="/" Icon="@Icons.Material.Filled.Dashboard">Home</MudNavLink>
+            <MudNavLink Href="/manager/dashboard" Icon="@Icons.Material.Filled.BusinessCenter">Manager Dashboard</MudNavLink>
+            <MudNavLink Href="/items" Icon="@Icons.Material.Filled.List">Items (Dev)</MudNavLink>
             <MudNavLink Href="/tables" Icon="@Icons.Material.Filled.TableRestaurant">Tables</MudNavLink>
         </MudNavMenu>
     </MudDrawer>
@@ -27,3 +61,84 @@
         </MudContainer>
     </MudMainContent>
 </MudLayout>
+
+@code{
+    [Inject] public ITokenStore TokenStore { get; set; } = default!;
+    [Inject] public NavigationManager Navigation { get; set; } = default!;
+
+    private string? UserEmail { get; set; }
+    private bool IsAuthenticated => !string.IsNullOrWhiteSpace(UserEmail);
+
+    protected override void OnInitialized()
+    {
+        Navigation.LocationChanged += OnLocationChanged;
+    }
+
+    protected override async Task OnInitializedAsync() => await RefreshAuthStateAsync();
+
+    private static string? ExtractEmailFromJwt(string token)
+    {
+        var parts = token.Split('.');
+        if (parts.Length < 2) return null;
+
+        try
+        {
+            var payload = parts[1];
+            var padded = payload.PadRight(payload.Length + (4 - payload.Length % 4) % 4, '=');
+            var bytes = Convert.FromBase64String(padded.Replace('-', '+').Replace('_', '/'));
+            var json = Encoding.UTF8.GetString(bytes);
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.TryGetProperty("email", out var emailElement))
+            {
+                return emailElement.GetString();
+            }
+            if (doc.RootElement.TryGetProperty("sub", out var subElement))
+            {
+                return subElement.GetString();
+            }
+        }
+        catch
+        {
+            // ignore decode errors; fallback to null
+        }
+
+        return null;
+    }
+
+    private static string? ExtractEmailFromJwtUsingHandler(string token)
+    {
+        var handler = new JwtSecurityTokenHandler();
+        var jwt = handler.ReadJwtToken(token);
+
+        var email =
+        jwt.Claims.FirstOrDefault(c => c.Type == "email")?.Value
+        ?? jwt.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value
+        ?? jwt.Claims.FirstOrDefault(c => c.Type == "sub")?.Value;
+
+        return email;
+    }
+
+    private async Task RefreshAuthStateAsync()
+    {
+        var token = await TokenStore.GetTokenAsync();
+        UserEmail = string.IsNullOrWhiteSpace(token) ? null : ExtractEmailFromJwtUsingHandler(token);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        _ = RefreshAuthStateAsync();
+    }
+
+    private async Task LogoutAsync()
+    {
+        await TokenStore.ClearTokenAsync();
+        UserEmail = null;
+        Navigation.NavigateTo("/login", forceLoad: true);
+    }
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= OnLocationChanged;
+    }
+}

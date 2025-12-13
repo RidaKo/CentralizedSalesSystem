@@ -1,0 +1,132 @@
+@page "/manager/dashboard"
+@using CentralizedSalesSystem.Frontend.Models
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-8">
+    <MudText Typo="Typo.h4" Class="mb-6">Subscriptions and payment</MudText>
+
+    @if (_isLoading)
+    {
+        <div class="d-flex justify-center mt-8">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+        </div>
+    }
+    else
+    {
+        <MudText Typo="Typo.h5" Class="mb-4">Subscriptions</MudText>
+        
+        <MudGrid Spacing="4">
+            @foreach (var business in _businesses)
+            {
+                <MudItem xs="12" md="6">
+                    <MudCard Elevation="3" Class="h-100">
+                        <MudCardHeader>
+                            <CardHeaderAvatar>
+                                <MudAvatar Color="@GetColor(business.SubscriptionPlan)" Variant="Variant.Filled">
+                                    <MudIcon Icon="@GetIcon(business.SubscriptionPlan)" />
+                                </MudAvatar>
+                            </CardHeaderAvatar>
+                            <CardHeaderContent>
+                                <MudText Typo="Typo.h6">@business.Name</MudText>
+                                <MudText Typo="Typo.body2">@GetPlanLabel(business.SubscriptionPlan)</MudText>
+                            </CardHeaderContent>
+                        </MudCardHeader>
+                        
+                        <MudCardContent>
+                            <MudText Typo="Typo.body2" Class="mb-1">
+                                <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" Class="mr-1"/>
+                                @business.Address
+                            </MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                Currency: @business.Currency
+                            </MudText>
+                        </MudCardContent>
+                        
+                        <MudCardActions>
+                            <MudButton Variant="Variant.Filled" 
+                                       Color="Color.Primary" 
+                                       Class="mr-2"
+                                       OnClick="@(() => NavigateToPanel(business.Id))">
+                                Management Panel
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Error">
+                                Plan Settings
+                            </MudButton>
+                        </MudCardActions>
+                    </MudCard>
+                </MudItem>
+            }
+
+            @* Add Plan Button (Visual Placeholder) *@
+            <MudItem xs="12">
+                <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Add" Class="mt-2">
+                    Add Plan
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    }
+</MudContainer>
+
+@code {
+    private List<Business> _businesses = new();
+    private bool _isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // 1. try to fetch from API
+            var response = await Http.GetFromJsonAsync<PaginatedResponse<Business>>("businesses?limit=10");
+            
+            if (response?.Data != null)
+            {
+                _businesses = response.Data;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"API Error: {ex.Message}");
+            // 2. if API is empty or fails, it show mock data
+            if (!_businesses.Any())
+            {
+                _businesses.Add(new Business { Id = 1, Name = "Bucky-cheese restaurant", SubscriptionPlan = "catering", Address = "USA, AZ" });
+                _businesses.Add(new Business { Id = 2, Name = "Lukovich beauty emporium", SubscriptionPlan = "beauty", Address = "DE, Street 28" });
+            }
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    // helpers
+    private string GetIcon(string plan) => plan?.ToLower() switch
+    {
+        "catering" => Icons.Material.Filled.Restaurant,
+        "beauty" => Icons.Material.Filled.Spa,
+        _ => Icons.Material.Filled.Business
+    };
+
+    private Color GetColor(string plan) => plan?.ToLower() switch
+    {
+        "catering" => Color.Warning,
+        "beauty" => Color.Secondary,
+        _ => Color.Default
+    };
+
+    private string GetPlanLabel(string plan) => plan?.ToLower() switch
+    {
+        "catering" => "Food services",
+        "beauty" => "Beauty services",
+        _ => "Standard Plan"
+    };
+
+    private void NavigateToPanel(long businessId)
+    {
+        Navigation.NavigateTo($"/manager/business/{businessId}");
+    }
+}

@@ -1,3 +1,5 @@
+using CentralizedSalesSystem.API.Models.Reservations;
+
 namespace CentralizedSalesSystem.API.Models.Reservations
 {
     public class ReservationCreateDto
@@ -8,7 +10,7 @@ namespace CentralizedSalesSystem.API.Models.Reservations
         public string? CustomerNote { get; set; }
         public DateTimeOffset AppointmentTime { get; set; }
         public long CreatedBy { get; set; }
-        public string? Status { get; set; } = "scheduled";
+        public ReservationStatus Status { get; set; } = ReservationStatus.Scheduled;
         public long? AssignedEmployee { get; set; }
         public int GuestNumber { get; set; }
         public long? TableId { get; set; }

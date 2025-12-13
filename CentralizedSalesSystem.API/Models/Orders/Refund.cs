@@ -17,9 +17,6 @@ namespace CentralizedSalesSystem.API.Models.Orders
         public long OrderId { get; set; }
         public Order? Order { get; set; }
 
-        public long UserId { get; set; }
-        public User? RefunderBy { get; set; }
-
         public long PaymentId { get; set; }
         public Payment? Payment { get; set; }
 

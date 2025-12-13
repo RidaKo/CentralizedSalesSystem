@@ -75,11 +75,6 @@ namespace CentralizedSalesSystem.API.Data
                 .WithMany()
                 .HasForeignKey(r => r.OrderId)
                 .OnDelete(DeleteBehavior.Restrict);
-            modelBuilder.Entity<Refund>()
-                .HasOne(r => r.RefunderBy)
-                .WithMany()
-                .HasForeignKey(r => r.UserId)
-                .OnDelete(DeleteBehavior.Restrict);
 
             // Break cascade path Business -> Orders when Business also cascades via Users
             modelBuilder.Entity<Order>()
@@ -95,6 +90,13 @@ namespace CentralizedSalesSystem.API.Data
                 .HasForeignKey(u => u.BusinessId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            modelBuilder.Entity<Payment>()
+                .HasOne(p => p.GiftCard)
+                .WithMany(g => g.Redemptions)
+                .HasForeignKey(p => p.GiftCardId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+
             // Decimal precision
             modelBuilder.Entity<Item>().Property(i => i.Price).HasColumnType("decimal(18,2)");
             modelBuilder.Entity<ItemVariationOption>().Property(o => o.PriceAdjustment).HasColumnType("decimal(18,2)");
@@ -103,7 +105,7 @@ namespace CentralizedSalesSystem.API.Data
             modelBuilder.Entity<Discount>().Property(d => d.rate).HasColumnType("decimal(18,2)");
             modelBuilder.Entity<Order>().Property(o => o.Tip).HasColumnType("decimal(18,2)");
             modelBuilder.Entity<Payment>().Property(p => p.Amount).HasColumnType("decimal(18,2)");
-            modelBuilder.Entity<Refund>().Property(r => r.amount).HasColumnType("decimal(18,2)");
+            modelBuilder.Entity<Refund>().Property(r => r.Amount).HasColumnType("decimal(18,2)");
             modelBuilder.Entity<GiftCard>().Property(g => g.InitialValue).HasColumnType("decimal(18,2)");
             modelBuilder.Entity<GiftCard>().Property(g => g.CurrentBalance).HasColumnType("decimal(18,2)");
         }

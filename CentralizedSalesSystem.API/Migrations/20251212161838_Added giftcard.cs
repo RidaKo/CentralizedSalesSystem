@@ -74,8 +74,6 @@ namespace CentralizedSalesSystem.API.Migrations
                     Currency = table.Column<int>(type: "int", nullable: false),
                     Status = table.Column<int>(type: "int", nullable: false),
                     OrderId = table.Column<long>(type: "bigint", nullable: false),
-                    UserId = table.Column<long>(type: "bigint", nullable: false),
-                    PaymentId = table.Column<long>(type: "bigint", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -84,18 +82,6 @@ namespace CentralizedSalesSystem.API.Migrations
                         name: "FK_Refunds_Orders_OrderId",
                         column: x => x.OrderId,
                         principalTable: "Orders",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_Refunds_Payments_PaymentId",
-                        column: x => x.PaymentId,
-                        principalTable: "Payments",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_Refunds_Users_UserId",
-                        column: x => x.UserId,
-                        principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                 });
@@ -192,16 +178,6 @@ namespace CentralizedSalesSystem.API.Migrations
                 name: "IX_Refunds_OrderId",
                 table: "Refunds",
                 column: "OrderId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Refunds_PaymentId",
-                table: "Refunds",
-                column: "PaymentId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Refunds_UserId",
-                table: "Refunds",
-                column: "UserId");
 
             migrationBuilder.AddForeignKey(
                 name: "FK_Discounts_Businesses_BusinessId",

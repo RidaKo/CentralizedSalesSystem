@@ -19,6 +19,9 @@ namespace CentralizedSalesSystem.API.Models.Orders
 
         public long BussinesId { get; set; }
 
+        public long? GiftCardId { get; set; }
+        public GiftCard? GiftCard { get; set; }
+
 
 
     }

@@ -13,5 +13,7 @@ public class PaymentCreateDto
 
     public long OrderId { get; set; }
     public long BussinesId { get; set; }
+
+    public long? GiftCardId { get; set; }
 }
 

@@ -32,13 +32,15 @@ builder.Services.AddScoped<ITaxService, TaxService>();
 builder.Services.AddScoped<IDiscountService, DiscountService>();
 builder.Services.AddScoped<IServiceChargeService, ServiceChargeService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
+builder.Services.AddScoped<IOwnerSignupService, OwnerSignupService>();
 builder.Services.AddScoped<IRefundService, RefundService>();
+builder.Services.AddScoped<IGiftCardService, GiftCardService>();
 
 
 var jwtSection = builder.Configuration.GetSection("JWT");
 var jwtKey = jwtSection["Key"] ?? throw new InvalidOperationException("JWT: Key is missing in config");
 
-/*builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
         options.SaveToken = true;
@@ -61,7 +63,7 @@ builder.Services.AddAuthorization(options =>
     options.FallbackPolicy = new AuthorizationPolicyBuilder()
         .RequireAuthenticatedUser()
         .Build();
-});*/
+});
 
 builder.Services.AddControllers().AddJsonOptions(options =>
 {
@@ -130,8 +132,8 @@ app.UseHttpsRedirection();
 
 
 app.UseCors("AllowWasmClient");
-//app.UseAuthentication();
-//app.UseAuthorization();
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
 

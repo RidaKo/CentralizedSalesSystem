@@ -1,8 +1,10 @@
 using CentralizedSalesSystem.API.Models.Orders.DTOs.RefundDTOs;
 using CentralizedSalesSystem.API.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
-namespace CentralizedSalesSystem.API.Controllers
+
+namespace CentralizedSalesSystem.API.Controllers.Orders
 {
     [ApiController]
     [Authorize]

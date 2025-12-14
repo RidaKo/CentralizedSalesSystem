@@ -1,4 +1,5 @@
 @page "/employee/restaurant"
+@namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
 @using CentralizedSalesSystem.Frontend.Models
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize]
@@ -349,160 +350,35 @@
                 </MudItem>
 
                 <MudItem xs="12" md="8">
-                    <MudPaper Elevation="2" Class="pa-3 menu-panel">
-                        <MudGrid>
-                            <MudItem xs="12" md="9">
-                                <MudTextField @bind-Value="SearchText"
-                                              Placeholder="Search menu..."
-                                              Adornment="Adornment.Start"
-                                              AdornmentIcon="@Icons.Material.Filled.Search"
-                                              Class="mb-3"
-                                              Immediate="true"
-                                              Dense="true" />
-
-                                <MudGrid GutterSize="2">
-                                    @if (FilteredMenuItems.Any())
-                                    {
-                                        @foreach (var item in FilteredMenuItems)
-                                        {
-                                            <MudItem xs="12" sm="6" lg="4">
-                                                <MudCard Class="menu-card" @onclick="() => AddItemToOrder(item)">
-                                                    <MudCardContent>
-                                                        <MudText Typo="Typo.subtitle1">@item.Name</MudText>
-                                                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-2">
-                                                            @item.Description
-                                                        </MudText>
-                                                        <MudChip T="string" Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Small">
-                                                            @item.Price.ToString("C")
-                                                        </MudChip>
-                                                    </MudCardContent>
-                                                </MudCard>
-                                            </MudItem>
-                                        }
-                                    }
-                                    else
-                                    {
-                                        <MudItem xs="12">
-                                            <MudAlert Severity="Severity.Info">No dishes match your search.</MudAlert>
-                                        </MudItem>
-                                    }
-                                </MudGrid>
-                            </MudItem>
-                            <MudItem xs="12" md="3">
-                                <MudStack Spacing="1" Class="category-stack">
-                                    @foreach (var category in Categories)
-                                    {
-                                        <MudButton Variant="Variant.Outlined"
-                                                   Color="@GetCategoryColor(category)"
-                                                   FullWidth="true"
-                                                   Class="category-button"
-                                                   OnClick="@(() => SelectCategory(category))">
-                                            @category
-                                        </MudButton>
-                                    }
-                                </MudStack>
-                            </MudItem>
-                        </MudGrid>
-                    </MudPaper>
+                    <RestaurantMenuCatalog MenuItems="FilteredMenuItems"
+                                            Categories="Categories"
+                                            SelectedCategory="SelectedCategory"
+                                            SearchText="SearchText"
+                                            SearchTextChanged="OnSearchChanged"
+                                            OnSelectCategory="SelectCategory"
+                                            OnAddItem="AddItemToOrder" />
                 </MudItem>
             </MudGrid>
         }
         else if (ActiveView == PortalView.Tables)
         {
-            <MudPaper Elevation="2" Class="pa-4">
-                <div class="d-flex align-center justify-space-between mb-4">
-                    <MudText Typo="Typo.h5">Floor: Dining room</MudText>
-                    <MudSelect T="TableStatus?" @bind-Value="TableStatusFilter" Label="Filter" Dense="true" Class="table-filter">
-                        <MudSelectItem T="TableStatus?" Value="@((TableStatus?)null)">All</MudSelectItem>
-                        <MudSelectItem T="TableStatus?" Value="TableStatus.Occupied">Occupied</MudSelectItem>
-                        <MudSelectItem T="TableStatus?" Value="TableStatus.Reserved">Reserved</MudSelectItem>
-                        <MudSelectItem T="TableStatus?" Value="TableStatus.Free">Free</MudSelectItem>
-                    </MudSelect>
-                </div>
-
-                <MudGrid GutterSize="3">
-                    @foreach (var table in FilteredTables)
-                    {
-                        <MudItem xs="6" sm="4" md="3">
-                            <MudPaper Elevation="1"
-                                      Class="@GetTableCardClass(table)"
-                                      @onclick="() => SelectTable(table)">
-                                <MudStack Spacing="1">
-                                    <MudText Typo="Typo.subtitle1">@table.Name</MudText>
-                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Seats @table.Capacity</MudText>
-                                    <MudChip T="TableStatus" Color="@GetTableColor(table.Status)" Variant="Variant.Filled" Size="Size.Small">
-                                        @table.Status
-                                    </MudChip>
-                                    <MudButton Variant="Variant.Text"
-                                               Color="Color.Secondary"
-                                               Disabled="@(table.Status == TableStatus.Occupied)"
-                                               OnClick="@(() => ToggleReservation(table))">
-                                        @(table.Status == TableStatus.Reserved ? "Unreserve" : "Reserve")
-                                    </MudButton>
-                                </MudStack>
-                            </MudPaper>
-                        </MudItem>
-                    }
-                </MudGrid>
-            </MudPaper>
+            <RestaurantTablesView Tables="FilteredTables"
+                                  @bind-Filter="TableStatusFilter"
+                                  OnSelect="SelectTable"
+                                  OnToggleReservation="ToggleReservation"
+                                  SelectedTableId="SelectedTableId" />
         }
         else
         {
-            <MudPaper Elevation="2" Class="pa-4">
-                <div class="d-flex align-center justify-space-between mb-4">
-                    <MudText Typo="Typo.h5">All orders</MudText>
-                    <MudSelect T="OrderStatus?" @bind-Value="OrderStatusFilter" Label="Status" Dense="true" Class="status-filter">
-                        <MudSelectItem T="OrderStatus?" Value="@((OrderStatus?)null)">All</MudSelectItem>
-                        <MudSelectItem T="OrderStatus?" Value="OrderStatus.Open">Open</MudSelectItem>
-                        <MudSelectItem T="OrderStatus?" Value="OrderStatus.Pending">Pending</MudSelectItem>
-                        <MudSelectItem T="OrderStatus?" Value="OrderStatus.Closed">Closed</MudSelectItem>
-                        <MudSelectItem T="OrderStatus?" Value="OrderStatus.Refunded">Refunded</MudSelectItem>
-                    </MudSelect>
-                </div>
-
-                <MudTable Items="FilteredOrders" Hover="true" Dense="true" RowClick="OnOrderRowClick">
-                    <HeaderContent>
-                        <MudTh>ID</MudTh>
-                        <MudTh>Table</MudTh>
-                        <MudTh>Status</MudTh>
-                        <MudTh>Total</MudTh>
-                        <MudTh>Updated</MudTh>
-                        <MudTh Style="width: 200px;">Actions</MudTh>
-                    </HeaderContent>
-                    <RowTemplate>
-                        <MudTd DataLabel="ID">@($"#{context.Id}")</MudTd>
-                        <MudTd DataLabel="Table">@GetTableName(context.TableId)</MudTd>
-                        <MudTd DataLabel="Status">
-                            <MudChip T="OrderStatus" Color="@GetStatusColor(context.Status)" Variant="Variant.Outlined" Size="Size.Small">
-                                @context.Status
-                            </MudChip>
-                        </MudTd>
-                        <MudTd DataLabel="Total">@CalculateTotal(context).ToString("C")</MudTd>
-                        <MudTd DataLabel="Updated">
-                            @((context.UpdatedAt ?? DateTime.UtcNow).ToLocalTime().ToString("g"))
-                        </MudTd>
-                        <MudTd>
-                            <MudStack Row="true" Spacing="1">
-                               <MudButton Variant="Variant.Outlined"
-                                           Color="Color.Default"
-                                           Size="Size.Small"
-                                           OnClick="@(() => ShowReceipt(context))">
-                                   Receipt
-                               </MudButton>
-                                @if (CanRefund(context))
-                                {
-                                    <MudButton Variant="Variant.Outlined"
-                                               Color="Color.Error"
-                                               Size="Size.Small"
-                                               OnClick="@(() => RefundOrder(context))">
-                                        Refund
-                                    </MudButton>
-                                }
-                            </MudStack>
-                        </MudTd>
-                    </RowTemplate>
-                </MudTable>
-            </MudPaper>
+            <RestaurantOrdersView Orders="FilteredOrders"
+                                  @bind-Filter="OrderStatusFilter"
+                                  OnRowClick="OnOrderSelected"
+                                  OnReceipt="ShowReceipt"
+                                  OnRefund="RefundOrder"
+                                  CalculateTotal="CalculateTotal"
+                                  GetTableName="GetTableName"
+                                  GetStatusColor="GetStatusColor"
+                                  CanRefund="CanRefund" />
         }
     }
 

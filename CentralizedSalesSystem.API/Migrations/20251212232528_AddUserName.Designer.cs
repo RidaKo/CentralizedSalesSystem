@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CentralizedSalesSystem.API.Migrations
 {
     [DbContext(typeof(CentralizedSalesDbContext))]
-    [Migration("20251211093500_DeletedUserFromPaymentt")]
-    partial class DeletedUserFromPaymentt
+    [Migration("20251212232528_AddUserName")]
+    partial class AddUserName
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -70,6 +70,9 @@ namespace CentralizedSalesSystem.API.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
+                    b.Property<long?>("BusinessId")
+                        .HasColumnType("bigint");
+
                     b.Property<long>("BussinessId")
                         .HasColumnType("bigint");
 
@@ -93,6 +96,8 @@ namespace CentralizedSalesSystem.API.Migrations
                         .HasColumnType("datetimeoffset");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("BusinessId");
 
                     b.HasIndex("ItemId");
 
@@ -154,6 +159,62 @@ namespace CentralizedSalesSystem.API.Migrations
                     b.ToTable("UserRoles");
                 });
 
+            modelBuilder.Entity("CentralizedSalesSystem.API.Models.Business.Business", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
+
+                    b.Property<string>("Country")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("Currency")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("nvarchar(320)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("NextPaymentDueDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("OwnerId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Phone")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("SubscriptionPlan")
+                        .HasColumnType("int");
+
+                    b.Property<string>("WorkingHours")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerId");
+
+                    b.ToTable("Businesses");
+                });
+
             modelBuilder.Entity("CentralizedSalesSystem.API.Models.Orders.Discount", b =>
                 {
                     b.Property<long>("Id")
@@ -189,7 +250,55 @@ namespace CentralizedSalesSystem.API.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("BusinessId");
+
                     b.ToTable("Discounts");
+                });
+
+            modelBuilder.Entity("CentralizedSalesSystem.API.Models.Orders.GiftCard", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BusinessId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Currency")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("CurrentBalance")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal>("InitialValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTimeOffset>("IssuedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long>("IssuedBy")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("IssuedTo")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BusinessId");
+
+                    b.ToTable("GiftCards");
                 });
 
             modelBuilder.Entity("CentralizedSalesSystem.API.Models.Orders.Item", b =>
@@ -220,6 +329,8 @@ namespace CentralizedSalesSystem.API.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("BusinessId");
 
                     b.ToTable("Items");
                 });
@@ -308,6 +419,8 @@ namespace CentralizedSalesSystem.API.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("BusinessId");
+
                     b.HasIndex("DiscountId");
 
                     b.HasIndex("ReservationId");
@@ -376,11 +489,17 @@ namespace CentralizedSalesSystem.API.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<long>("BussinesId")
                         .HasColumnType("bigint");
 
                     b.Property<int>("Currency")
                         .HasColumnType("int");
+
+                    b.Property<long?>("GiftCardId")
+                        .HasColumnType("bigint");
 
                     b.Property<int>("Method")
                         .HasColumnType("int");
@@ -388,23 +507,68 @@ namespace CentralizedSalesSystem.API.Migrations
                     b.Property<long>("OrderId")
                         .HasColumnType("bigint");
 
+                    b.Property<DateTimeOffset>("PaidAt")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<int>("Provider")
                         .HasColumnType("int");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
 
+                    b.HasKey("Id");
+
+                    b.HasIndex("GiftCardId");
+
+                    b.HasIndex("OrderId");
+
+                    b.ToTable("Payments");
+                });
+
+            modelBuilder.Entity("CentralizedSalesSystem.API.Models.Orders.Refund", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("Currency")
+                        .HasColumnType("int");
+
+                    b.Property<long>("OrderId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("PaymentId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Reason")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("RefundMethod")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("RefundedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint");
+
                     b.Property<decimal>("amount")
                         .HasColumnType("decimal(18,2)");
-
-                    b.Property<DateTimeOffset>("paidAt")
-                        .HasColumnType("datetimeoffset");
 
                     b.HasKey("Id");
 
                     b.HasIndex("OrderId");
 
-                    b.ToTable("Payments");
+                    b.HasIndex("PaymentId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Refunds");
                 });
 
             modelBuilder.Entity("CentralizedSalesSystem.API.Models.Orders.ServiceCharge", b =>
@@ -433,6 +597,8 @@ namespace CentralizedSalesSystem.API.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("BusinessId");
+
                     b.ToTable("ServiceCharges");
                 });
 
@@ -458,6 +624,8 @@ namespace CentralizedSalesSystem.API.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("BusinessId");
 
                     b.ToTable("Tables");
                 });
@@ -494,10 +662,12 @@ namespace CentralizedSalesSystem.API.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("BusinessId");
+
                     b.ToTable("Taxes");
                 });
 
-            modelBuilder.Entity("CentralizedSalesSystem.API.Models.Reservation", b =>
+            modelBuilder.Entity("CentralizedSalesSystem.API.Models.Reservations.Reservation", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
@@ -548,6 +718,8 @@ namespace CentralizedSalesSystem.API.Migrations
 
                     b.HasIndex("AssignedEmployeeUserId");
 
+                    b.HasIndex("BusinessId");
+
                     b.HasIndex("CreatedByUserId");
 
                     b.HasIndex("TableId");
@@ -570,6 +742,9 @@ namespace CentralizedSalesSystem.API.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("Name")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -583,11 +758,17 @@ namespace CentralizedSalesSystem.API.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("BusinessId");
+
                     b.ToTable("Users");
                 });
 
             modelBuilder.Entity("CentralizedSalesSystem.API.Models.Auth.Role", b =>
                 {
+                    b.HasOne("CentralizedSalesSystem.API.Models.Business.Business", null)
+                        .WithMany("Roles")
+                        .HasForeignKey("BusinessId");
+
                     b.HasOne("CentralizedSalesSystem.API.Models.Orders.Item", null)
                         .WithMany("AssociatedRoles")
                         .HasForeignKey("ItemId");
@@ -631,6 +812,43 @@ namespace CentralizedSalesSystem.API.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("CentralizedSalesSystem.API.Models.Business.Business", b =>
+                {
+                    b.HasOne("CentralizedSalesSystem.API.Models.User", "Owner")
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Owner");
+                });
+
+            modelBuilder.Entity("CentralizedSalesSystem.API.Models.Orders.Discount", b =>
+                {
+                    b.HasOne("CentralizedSalesSystem.API.Models.Business.Business", null)
+                        .WithMany("Discounts")
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("CentralizedSalesSystem.API.Models.Orders.GiftCard", b =>
+                {
+                    b.HasOne("CentralizedSalesSystem.API.Models.Business.Business", null)
+                        .WithMany("GiftCards")
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("CentralizedSalesSystem.API.Models.Orders.Item", b =>
+                {
+                    b.HasOne("CentralizedSalesSystem.API.Models.Business.Business", null)
+                        .WithMany("Items")
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("CentralizedSalesSystem.API.Models.Orders.ItemVariation", b =>
                 {
                     b.HasOne("CentralizedSalesSystem.API.Models.Orders.Item", "Item")
@@ -655,11 +873,17 @@ namespace CentralizedSalesSystem.API.Migrations
 
             modelBuilder.Entity("CentralizedSalesSystem.API.Models.Orders.Order", b =>
                 {
+                    b.HasOne("CentralizedSalesSystem.API.Models.Business.Business", null)
+                        .WithMany("Orders")
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("CentralizedSalesSystem.API.Models.Orders.Discount", "Discount")
                         .WithMany()
                         .HasForeignKey("DiscountId");
 
-                    b.HasOne("CentralizedSalesSystem.API.Models.Reservation", "Reservation")
+                    b.HasOne("CentralizedSalesSystem.API.Models.Reservations.Reservation", "Reservation")
                         .WithMany()
                         .HasForeignKey("ReservationId");
 
@@ -700,7 +924,7 @@ namespace CentralizedSalesSystem.API.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("CentralizedSalesSystem.API.Models.Reservation", "Reservation")
+                    b.HasOne("CentralizedSalesSystem.API.Models.Reservations.Reservation", "Reservation")
                         .WithMany("Items")
                         .HasForeignKey("ReservationId");
 
@@ -727,6 +951,10 @@ namespace CentralizedSalesSystem.API.Migrations
 
             modelBuilder.Entity("CentralizedSalesSystem.API.Models.Orders.Payment", b =>
                 {
+                    b.HasOne("CentralizedSalesSystem.API.Models.Orders.GiftCard", null)
+                        .WithMany("Redemptions")
+                        .HasForeignKey("GiftCardId");
+
                     b.HasOne("CentralizedSalesSystem.API.Models.Orders.Order", "Order")
                         .WithMany("Payments")
                         .HasForeignKey("OrderId")
@@ -736,11 +964,71 @@ namespace CentralizedSalesSystem.API.Migrations
                     b.Navigation("Order");
                 });
 
-            modelBuilder.Entity("CentralizedSalesSystem.API.Models.Reservation", b =>
+            modelBuilder.Entity("CentralizedSalesSystem.API.Models.Orders.Refund", b =>
+                {
+                    b.HasOne("CentralizedSalesSystem.API.Models.Orders.Order", "Order")
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CentralizedSalesSystem.API.Models.Orders.Payment", "Payment")
+                        .WithMany()
+                        .HasForeignKey("PaymentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CentralizedSalesSystem.API.Models.User", "RefunderBy")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Order");
+
+                    b.Navigation("Payment");
+
+                    b.Navigation("RefunderBy");
+                });
+
+            modelBuilder.Entity("CentralizedSalesSystem.API.Models.Orders.ServiceCharge", b =>
+                {
+                    b.HasOne("CentralizedSalesSystem.API.Models.Business.Business", null)
+                        .WithMany("ServiceCharges")
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("CentralizedSalesSystem.API.Models.Orders.Table", b =>
+                {
+                    b.HasOne("CentralizedSalesSystem.API.Models.Business.Business", null)
+                        .WithMany("Tables")
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("CentralizedSalesSystem.API.Models.Orders.Tax", b =>
+                {
+                    b.HasOne("CentralizedSalesSystem.API.Models.Business.Business", null)
+                        .WithMany("Taxes")
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("CentralizedSalesSystem.API.Models.Reservations.Reservation", b =>
                 {
                     b.HasOne("CentralizedSalesSystem.API.Models.User", "AssignedEmployeeUser")
                         .WithMany()
                         .HasForeignKey("AssignedEmployeeUserId");
+
+                    b.HasOne("CentralizedSalesSystem.API.Models.Business.Business", null)
+                        .WithMany("Reservations")
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("CentralizedSalesSystem.API.Models.User", "CreatedByUser")
                         .WithMany()
@@ -757,6 +1045,17 @@ namespace CentralizedSalesSystem.API.Migrations
                     b.Navigation("Table");
                 });
 
+            modelBuilder.Entity("CentralizedSalesSystem.API.Models.User", b =>
+                {
+                    b.HasOne("CentralizedSalesSystem.API.Models.Business.Business", "Business")
+                        .WithMany("Users")
+                        .HasForeignKey("BusinessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Business");
+                });
+
             modelBuilder.Entity("CentralizedSalesSystem.API.Models.Auth.Permission", b =>
                 {
                     b.Navigation("RolePermissions");
@@ -767,6 +1066,34 @@ namespace CentralizedSalesSystem.API.Migrations
                     b.Navigation("RolePermissions");
 
                     b.Navigation("UserRoles");
+                });
+
+            modelBuilder.Entity("CentralizedSalesSystem.API.Models.Business.Business", b =>
+                {
+                    b.Navigation("Discounts");
+
+                    b.Navigation("GiftCards");
+
+                    b.Navigation("Items");
+
+                    b.Navigation("Orders");
+
+                    b.Navigation("Reservations");
+
+                    b.Navigation("Roles");
+
+                    b.Navigation("ServiceCharges");
+
+                    b.Navigation("Tables");
+
+                    b.Navigation("Taxes");
+
+                    b.Navigation("Users");
+                });
+
+            modelBuilder.Entity("CentralizedSalesSystem.API.Models.Orders.GiftCard", b =>
+                {
+                    b.Navigation("Redemptions");
                 });
 
             modelBuilder.Entity("CentralizedSalesSystem.API.Models.Orders.Item", b =>
@@ -785,7 +1112,7 @@ namespace CentralizedSalesSystem.API.Migrations
                     b.Navigation("Payments");
                 });
 
-            modelBuilder.Entity("CentralizedSalesSystem.API.Models.Reservation", b =>
+            modelBuilder.Entity("CentralizedSalesSystem.API.Models.Reservations.Reservation", b =>
                 {
                     b.Navigation("Items");
                 });

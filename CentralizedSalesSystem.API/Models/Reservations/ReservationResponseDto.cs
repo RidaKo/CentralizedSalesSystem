@@ -12,7 +12,7 @@ namespace CentralizedSalesSystem.API.Models.Reservations
         public DateTimeOffset AppointmentTime { get; set; }
         public DateTimeOffset CreatedAt { get; set; }
         public long CreatedBy { get; set; }
-        public string Status { get; set; } = "scheduled";
+        public ReservationStatus Status { get; set; } = ReservationStatus.Scheduled;
         public List<OrderItemResponseDto>? Items { get; set; }
         public long? AssignedEmployee { get; set; }
         public int GuestNumber { get; set; }

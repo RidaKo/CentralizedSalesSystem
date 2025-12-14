@@ -200,14 +200,14 @@
 
     private void GoToLogin() => Navigation.NavigateTo("/login");
 
-    private static string GetCurrencyLabel(Currency currency) => currency switch
+    private string GetCurrencyLabel(Currency currency) => currency switch
     {
         Currency.EUR => "EUR (€)",
         Currency.USD => "USD ($)",
         _ => currency.ToString()
     };
 
-    private static string GetPlanLabel(SubscriptionPlan plan) => plan switch
+    private string GetPlanLabel(SubscriptionPlan plan) => plan switch
     {
         SubscriptionPlan.Catering => "Catering",
         SubscriptionPlan.Beauty => "Beauty",

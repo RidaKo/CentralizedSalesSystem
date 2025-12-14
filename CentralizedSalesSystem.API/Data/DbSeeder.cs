@@ -5,20 +5,28 @@ using CentralizedSalesSystem.API.Models.Business;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace CentralizedSalesSystem.API.Data
 {
-    public static class DbSeeder
+    public class DbSeeder
     {
-        public static async Task SeedAsync(IServiceProvider services, CancellationToken cancellationToken = default)
+        private readonly IServiceScopeFactory _scopeFactory;
+
+        public DbSeeder(IServiceScopeFactory scopeFactory)
         {
-            await using var scope = services.CreateAsyncScope();
+            _scopeFactory = scopeFactory;
+        }
+
+        public async Task SeedAsync(CancellationToken cancellationToken = default)
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
             var scopedProvider = scope.ServiceProvider;
             var context = scopedProvider.GetRequiredService<CentralizedSalesDbContext>();
             var passwordHasher = scopedProvider.GetRequiredService<IPasswordHasher<User>>();
             var logger = scopedProvider.GetRequiredService<ILogger<CentralizedSalesDbContext>>();
-
+    
             await MigrateWithRecoveryAsync(context, logger, cancellationToken);
 
             // Seed only when empty to avoid overriding user data.
@@ -111,7 +119,7 @@ namespace CentralizedSalesSystem.API.Data
             await tx.CommitAsync(cancellationToken);
         }
 
-        private static async Task MigrateWithRecoveryAsync(CentralizedSalesDbContext context, ILogger logger, CancellationToken cancellationToken)
+        private async Task MigrateWithRecoveryAsync(CentralizedSalesDbContext context, ILogger logger, CancellationToken cancellationToken)
         {
             try
             {

@@ -157,20 +157,25 @@ namespace CentralizedSalesSystem.API.Services
             var payment = await _db.Payments
                 .Include(p => p.Order)
                     .ThenInclude(o => o.Items)
+                        .ThenInclude(i => i.Item)
+                .Include(p => p.Order)
+                    .ThenInclude(o => o.Items)
+                        .ThenInclude(i => i.Discount)
+                .Include(p => p.Order)
+                    .ThenInclude(o => o.Items)
+                        .ThenInclude(i => i.Tax)
+                .Include(p => p.Order)
+                    .ThenInclude(o => o.Items)
+                        .ThenInclude(i => i.ServiceCharge)
                 .Include(p => p.Order)
                     .ThenInclude(o => o.Discount)
+                .Include(p => p.GiftCard)
                 .FirstOrDefaultAsync(p => p.Id == id);
 
             if (payment == null)
                 return null;
 
-            // Check if status is changing to Completed BEFORE updating it
-            bool completedNow =
-                dto.Status.HasValue &&
-                dto.Status.Value == PaymentStatus.Completed &&
-                payment.Status != PaymentStatus.Completed;
-
-            // Update mutable fields
+            // Update non-status fields first
             if (dto.Amount.HasValue)
                 payment.Amount = dto.Amount.Value;
 
@@ -186,36 +191,32 @@ namespace CentralizedSalesSystem.API.Services
             if (dto.Currency.HasValue)
                 payment.Currency = dto.Currency.Value;
 
-            if (dto.Status.HasValue)
-                payment.Status = dto.Status.Value;
-
-            await _db.SaveChangesAsync();
-
-            // Apply effects if the payment just became Completed
-            if (completedNow)
+            // Handle status change
+            if (dto.Status.HasValue && dto.Status.Value == PaymentStatus.Completed)
             {
-                // Deduct from gift card if applicable
+                // Gift card validation FIRST
                 if (payment.GiftCardId.HasValue)
                 {
-                    var giftCard = await _db.GiftCards.FindAsync(payment.GiftCardId.Value);
-                    if (giftCard == null)
-                        throw new InvalidOperationException("Gift card not found");
+                    var giftCard = payment.GiftCard!;
 
-                    if (giftCard.Status != GiftCardStatus.Valid)
-                        throw new InvalidOperationException("Gift card is not valid");
-
-                    if (giftCard.CurrentBalance < payment.Amount)
-                        throw new InvalidOperationException("Insufficient gift card balance");
+                    if (giftCard.Status != GiftCardStatus.Valid ||
+                        giftCard.CurrentBalance < payment.Amount)
+                    {
+                        payment.Status = PaymentStatus.Failed;
+                        await _db.SaveChangesAsync();
+                        return payment.ToDto();
+                    }
 
                     giftCard.CurrentBalance -= payment.Amount;
 
                     if (giftCard.CurrentBalance == 0)
                         giftCard.Status = GiftCardStatus.Redeemed;
-
-                    await _db.SaveChangesAsync(); // Save gift card changes
                 }
 
-                // Recalculate order totals and remaining amount
+                payment.Status = PaymentStatus.Completed;
+                await _db.SaveChangesAsync();
+
+                // Recalculate order totals
                 var order = payment.Order;
                 var orderDto = order.ToOrderResponse();
                 orderDto.Items = order.Items.Select(i => i.ToDto()).ToList();
@@ -229,14 +230,20 @@ namespace CentralizedSalesSystem.API.Services
                 decimal remaining = orderDto.Total - amountPaid;
 
                 if (remaining <= 0 && order.Status != OrderStatus.Closed)
-                {
                     order.Status = OrderStatus.Closed;
-                    await _db.SaveChangesAsync();
-                }
+
+                await _db.SaveChangesAsync();
+            }
+            else if (dto.Status.HasValue)
+            {
+                // Any other status update
+                payment.Status = dto.Status.Value;
+                await _db.SaveChangesAsync();
             }
 
             return payment.ToDto();
         }
+
 
 
 

@@ -19,8 +19,37 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetGiftCards([FromQuery] int page = 1, [FromQuery] int limit = 20)
-            => Ok(await _service.GetGiftCardsAsync(page, limit, null, null, null, null, null, null, null, null, null, null));
+        public async Task<IActionResult> GetGiftCards(
+            [FromQuery] int page = 1,
+            [FromQuery] int limit = 20,
+            [FromQuery] string? sortBy = null,
+            [FromQuery] string? sortDirection = "asc",
+            [FromQuery] string? filterByCode = null,
+            [FromQuery] PaymentCurrency? filterByCurrency = null,
+            [FromQuery] long? filterByIssuedBy = null,
+            [FromQuery] string? filterByIssuedTo = null,
+            [FromQuery] long? filterByBusinessId = null,
+            [FromQuery] GiftCardStatus? filterByStatus = null,
+            [FromQuery] DateTimeOffset? filterByIssueDate = null,
+            [FromQuery] DateTimeOffset? filterByExpirationDate = null)
+        {
+            var result = await _service.GetGiftCardsAsync(
+                page,
+                limit,
+                sortBy,
+                sortDirection,
+                filterByCode,
+                filterByCurrency,
+                filterByIssuedBy,
+                filterByIssuedTo,
+                filterByBusinessId,
+                filterByStatus,
+                filterByIssueDate,
+                filterByExpirationDate
+            );
+
+            return Ok(result);
+        }
 
         [HttpGet("{id}")]
         public async Task<IActionResult> GetGiftCard(long id)

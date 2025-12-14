@@ -18,71 +18,93 @@ namespace CentralizedSalesSystem.API.Services
         }
 
         public async Task<object> GetGiftCardsAsync(
-            int page,
-            int limit,
-            string? sortBy,
-            string? sortDirection,
-            string? filterByCode,
-            PaymentCurrency? filterByCurrency,
-            long? filterByIssuedBy,
-            string? filterByIssuedTo,
-            long? filterByBusinessId,
-            GiftCardStatus? filterByStatus,
-            DateTimeOffset? filterByIssueDate,
-            DateTimeOffset? filterByExpirationDate)
+    int page,
+    int limit,
+    string? sortBy = null,
+    string? sortDirection = "asc",
+    string? filterByCode = null,
+    PaymentCurrency? filterByCurrency = null,
+    long? filterByIssuedBy = null,
+    string? filterByIssuedTo = null,
+    long? filterByBusinessId = null,
+    GiftCardStatus? filterByStatus = null,
+    DateTimeOffset? filterByIssueDate = null,
+    DateTimeOffset? filterByExpirationDate = null)
         {
             var query = _db.GiftCards.AsQueryable();
 
-            if (!string.IsNullOrEmpty(filterByCode))
+            // ---------- FILTERING ----------
+            if (!string.IsNullOrWhiteSpace(filterByCode))
                 query = query.Where(g => g.Code.Contains(filterByCode));
 
             if (filterByCurrency.HasValue)
-                query = query.Where(g => g.Currency == filterByCurrency);
+                query = query.Where(g => g.Currency == filterByCurrency.Value);
 
             if (filterByIssuedBy.HasValue)
-                query = query.Where(g => g.IssuedBy == filterByIssuedBy);
+                query = query.Where(g => g.IssuedBy == filterByIssuedBy.Value);
 
-            if (!string.IsNullOrEmpty(filterByIssuedTo))
-                query = query.Where(g => g.IssuedTo!.Contains(filterByIssuedTo));
+            if (!string.IsNullOrWhiteSpace(filterByIssuedTo))
+                query = query.Where(g => g.IssuedTo != null && g.IssuedTo.Contains(filterByIssuedTo));
 
             if (filterByBusinessId.HasValue)
-                query = query.Where(g => g.BusinessId == filterByBusinessId);
+                query = query.Where(g => g.BusinessId == filterByBusinessId.Value);
 
             if (filterByStatus.HasValue)
-                query = query.Where(g => g.Status == filterByStatus);
+                query = query.Where(g => g.Status == filterByStatus.Value);
 
             if (filterByIssueDate.HasValue)
-                query = query.Where(g => g.IssuedAt >= filterByIssueDate);
+                query = query.Where(g => g.IssuedAt >= filterByIssueDate.Value);
 
             if (filterByExpirationDate.HasValue)
-                query = query.Where(g => g.ExpiresAt <= filterByExpirationDate);
+                query = query.Where(g => g.ExpiresAt <= filterByExpirationDate.Value);
 
-            bool desc = sortDirection == "desc";
-            query = sortBy switch
+            // ---------- SORTING ----------
+            query = (sortBy?.ToLower(), sortDirection?.ToLower()) switch
             {
-                "initialValue" => desc ? query.OrderByDescending(g => g.InitialValue) : query.OrderBy(g => g.InitialValue),
-                "currentBalance" => desc ? query.OrderByDescending(g => g.CurrentBalance) : query.OrderBy(g => g.CurrentBalance),
-                "issuedAt" => desc ? query.OrderByDescending(g => g.IssuedAt) : query.OrderBy(g => g.IssuedAt),
-                "expiresAt" => desc ? query.OrderByDescending(g => g.ExpiresAt) : query.OrderBy(g => g.ExpiresAt),
-                _ => query
+                ("code", "desc") => query.OrderByDescending(g => g.Code),
+                ("code", _) => query.OrderBy(g => g.Code),
+
+                ("initialvalue", "desc") => query.OrderByDescending(g => g.InitialValue),
+                ("initialvalue", _) => query.OrderBy(g => g.InitialValue),
+
+                ("currentbalance", "desc") => query.OrderByDescending(g => g.CurrentBalance),
+                ("currentbalance", _) => query.OrderBy(g => g.CurrentBalance),
+
+                ("issuedat", "desc") => query.OrderByDescending(g => g.IssuedAt),
+                ("issuedat", _) => query.OrderBy(g => g.IssuedAt),
+
+                ("expiresat", "desc") => query.OrderByDescending(g => g.ExpiresAt),
+                ("expiresat", _) => query.OrderBy(g => g.ExpiresAt),
+
+                ("status", "desc") => query.OrderByDescending(g => g.Status),
+                ("status", _) => query.OrderBy(g => g.Status),
+
+                _ => query.OrderBy(g => g.Id)
             };
 
+            // ---------- PAGINATION ----------
             var total = await query.CountAsync();
-            var data = await query
+            var totalPages = (int)Math.Ceiling(total / (double)limit);
+
+            var giftCards = await query
                 .Skip((page - 1) * limit)
                 .Take(limit)
-                .Select(g => g.ToDto())
                 .ToListAsync();
+
+            // ---------- RESPONSE ----------
+            var result = giftCards.Select(g => g.ToDto());
 
             return new
             {
-                data,
+                data = result,
                 page,
                 limit,
                 total,
-                totalPages = (int)Math.Ceiling(total / (double)limit)
+                totalPages
             };
         }
+
+
 
         public async Task<GiftCardResponseDto?> GetGiftCardByIdAsync(long id)
         {

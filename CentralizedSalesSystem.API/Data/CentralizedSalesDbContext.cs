@@ -66,11 +66,6 @@ namespace CentralizedSalesSystem.API.Data
 
             // Break multiple cascade path for Refunds (Order -> Refund and Order -> Payment -> Refund)
             modelBuilder.Entity<Refund>()
-                .HasOne(r => r.Payment)
-                .WithMany()
-                .HasForeignKey(r => r.PaymentId)
-                .OnDelete(DeleteBehavior.Restrict);
-            modelBuilder.Entity<Refund>()
                 .HasOne(r => r.Order)
                 .WithMany()
                 .HasForeignKey(r => r.OrderId)

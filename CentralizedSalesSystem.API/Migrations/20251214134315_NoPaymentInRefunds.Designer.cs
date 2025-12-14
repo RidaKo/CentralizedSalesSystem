@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CentralizedSalesSystem.API.Migrations
 {
     [DbContext(typeof(CentralizedSalesDbContext))]
-    [Migration("20251213182321_NoUserInRefund")]
-    partial class NoUserInRefund
+    [Migration("20251214134315_NoPaymentInRefunds")]
+    partial class NoPaymentInRefunds
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -966,7 +966,6 @@ namespace CentralizedSalesSystem.API.Migrations
                         .IsRequired();
 
                     b.Navigation("Order");
-
                 });
 
             modelBuilder.Entity("CentralizedSalesSystem.API.Models.Orders.ServiceCharge", b =>

@@ -5,7 +5,7 @@
 namespace CentralizedSalesSystem.API.Migrations
 {
     /// <inheritdoc />
-    public partial class NoPaymentIdInRefunds : Migration
+    public partial class NoPaymentInRefunds : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

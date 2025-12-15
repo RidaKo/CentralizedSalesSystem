@@ -4,19 +4,30 @@ using CentralizedSalesSystem.API.Models.Auth.enums;
 using CentralizedSalesSystem.API.Models.Business;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace CentralizedSalesSystem.API.Data
 {
-    public static class DbSeeder
+    public class DbSeeder
     {
-        public static async Task SeedAsync(IServiceProvider services, CancellationToken cancellationToken = default)
+        private readonly IServiceScopeFactory _scopeFactory;
+
+        public DbSeeder(IServiceScopeFactory scopeFactory)
         {
-            await using var scope = services.CreateAsyncScope();
+            _scopeFactory = scopeFactory;
+        }
+
+        public async Task SeedAsync(CancellationToken cancellationToken = default)
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
             var scopedProvider = scope.ServiceProvider;
             var context = scopedProvider.GetRequiredService<CentralizedSalesDbContext>();
             var passwordHasher = scopedProvider.GetRequiredService<IPasswordHasher<User>>();
-
-            await context.Database.MigrateAsync(cancellationToken);
+            var logger = scopedProvider.GetRequiredService<ILogger<CentralizedSalesDbContext>>();
+    
+            await MigrateWithRecoveryAsync(context, logger, cancellationToken);
 
             // Seed only when empty to avoid overriding user data.
             if (await context.Users.AnyAsync(cancellationToken))
@@ -25,6 +36,8 @@ namespace CentralizedSalesSystem.API.Data
             }
 
             var now = DateTimeOffset.UtcNow;
+
+            await using var tx = await context.Database.BeginTransactionAsync(cancellationToken);
 
             var manageAllPermission = new Permission
             {
@@ -38,15 +51,6 @@ namespace CentralizedSalesSystem.API.Data
             };
 
             // Create a business and user together to satisfy FK constraints
-            var adminUser = new User
-            {
-                Name = "Admin",
-                Email = "admin@ex.com",
-                Phone = "+10000000000",
-                Status = Status.Active,
-                UserRoles = new List<UserRole>()
-            };
-
             var business = new Business
             {
                 Name = "Seed Business",
@@ -55,31 +59,40 @@ namespace CentralizedSalesSystem.API.Data
                 Email = "owner@ex.com",
                 Country = "N/A",
                 Currency = Currency.EUR,
-                SubscriptionPlan = SubscriptionPlan.Catering,
-                Users = new List<User> { adminUser }
+                SubscriptionPlan = SubscriptionPlan.Catering
             };
 
-            adminUser.Business = business;
+            var adminUser = new User
+            {
+                Name = "Admin",
+                Email = "admin@ex.com",
+                Phone = "+10000000000",
+                Status = Status.Active,
+                Business = business,
+                UserRoles = new List<UserRole>()
+            };
+
             adminUser.PasswordHash = passwordHasher.HashPassword(adminUser, "pass");
+
+            var adminRole = new Role
+            {
+                Title = "Admin",
+                Description = "Seeded administrator role",
+                BussinessId = 0, // set after business is persisted
+                CreatedAt = now,
+                UpdatedAt = now,
+                Status = Status.Active,
+                RolePermissions = new List<RolePermission>()
+            };
 
             var rolePermission = new RolePermission
             {
-                Role = new Role
-                {
-                    Title = "Admin",
-                    Description = "Seeded administrator role",
-                    BussinessId = 1,
-                    CreatedAt = now,
-                    UpdatedAt = now,
-                    Status = Status.Active,
-                    RolePermissions = new List<RolePermission>()
-                },
+                Role = adminRole,
                 Permission = manageAllPermission,
                 CreatedAt = now,
                 UpdatedAt = now
             };
 
-            var adminRole = rolePermission.Role;
             adminRole.RolePermissions.Add(rolePermission);
 
             var userRole = new UserRole
@@ -91,19 +104,38 @@ namespace CentralizedSalesSystem.API.Data
 
             adminUser.UserRoles.Add(userRole);
 
-            await context.Permissions.AddAsync(manageAllPermission, cancellationToken);
-            await context.Businesses.AddAsync(business, cancellationToken);
-            await context.Roles.AddAsync(adminRole, cancellationToken);
-            await context.Users.AddAsync(adminUser, cancellationToken);
-            await context.RolePermissions.AddAsync(rolePermission, cancellationToken);
-            await context.UserRoles.AddAsync(userRole, cancellationToken);
-
+            await context.AddRangeAsync(
+                new object[] { manageAllPermission, business, adminRole, adminUser, rolePermission, userRole },
+                cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
 
-            // After IDs are generated, update business owner to break circular insert dependency
+            // Update foreign keys that depend on generated IDs
+            adminRole.BussinessId = business.Id;
             business.OwnerId = adminUser.Id;
+            context.Roles.Update(adminRole);
             context.Businesses.Update(business);
+
             await context.SaveChangesAsync(cancellationToken);
+            await tx.CommitAsync(cancellationToken);
+        }
+
+        private async Task MigrateWithRecoveryAsync(CentralizedSalesDbContext context, ILogger logger, CancellationToken cancellationToken)
+        {
+            try
+            {
+                await context.Database.MigrateAsync(cancellationToken);
+            }
+            catch (SqlException ex) when (ex.Number == 547)
+            {
+                logger.LogWarning(ex, "Migration failed due to FK/data issues. Dropping and recreating database for a clean dev seed.");
+                await context.Database.EnsureDeletedAsync(cancellationToken);
+                await context.Database.MigrateAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Migration failed and recovery was not attempted.");
+                throw;
+            }
         }
     }
 }

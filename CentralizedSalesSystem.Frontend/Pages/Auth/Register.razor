@@ -1,0 +1,216 @@
+@page "/register"
+@using System.ComponentModel.DataAnnotations
+@using CentralizedSalesSystem.Frontend.Models
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-12">
+    <MudPaper Elevation="1" Class="pa-6">
+        <MudText Typo="Typo.h5" Class="mb-2">Create your workspace</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+            Register your business and create the owner account to get started.
+        </MudText>
+
+        <EditForm Model="@Model" OnValidSubmit="@HandleRegister">
+            <DataAnnotationsValidator />
+
+            <MudStack Spacing="3">
+                <MudStack Spacing="1">
+                    <MudText Typo="Typo.subtitle1">Business details</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        These details will be used for billing and management.
+                    </MudText>
+                </MudStack>
+
+                <MudGrid Spacing="3">
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="Model.Business.Name"
+                                      Label="Business name"
+                                      Required="true"
+                                      For="@(() => Model.Business.Name)"
+                                      Disabled="@IsBusy" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="Model.Business.Email"
+                                      Label="Business email"
+                                      Required="true"
+                                      For="@(() => Model.Business.Email)"
+                                      Disabled="@IsBusy" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="Model.Business.Phone"
+                                      Label="Business phone"
+                                      Required="true"
+                                      For="@(() => Model.Business.Phone)"
+                                      Disabled="@IsBusy" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="Model.Business.Address"
+                                      Label="Address"
+                                      Required="true"
+                                      For="@(() => Model.Business.Address)"
+                                      Disabled="@IsBusy" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="Model.Business.Country"
+                                      Label="Country"
+                                      Disabled="@IsBusy" />
+                    </MudItem>
+                    <MudItem xs="12" sm="3">
+                        <MudSelect T="Currency"
+                                   @bind-Value="Model.Business.Currency"
+                                   Label="Currency"
+                                   Disabled="@IsBusy"
+                                   Required="true">
+                            @foreach (var currency in Enum.GetValues<Currency>())
+                            {
+                                <MudSelectItem Value="@currency">@GetCurrencyLabel(currency)</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="3">
+                        <MudSelect T="SubscriptionPlan"
+                                   @bind-Value="Model.Business.SubscriptionPlan"
+                                   Label="Subscription plan"
+                                   Disabled="@IsBusy"
+                                   Required="true">
+                            @foreach (var plan in Enum.GetValues<SubscriptionPlan>())
+                            {
+                                <MudSelectItem Value="@plan">@GetPlanLabel(plan)</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                </MudGrid>
+
+                <MudDivider />
+
+                <MudStack Spacing="1">
+                    <MudText Typo="Typo.subtitle1">Owner account</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        This account will be the primary admin for the business.
+                    </MudText>
+                </MudStack>
+
+                <MudGrid Spacing="3">
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="Model.Owner.Email"
+                                      Label="Owner email"
+                                      Required="true"
+                                      For="@(() => Model.Owner.Email)"
+                                      Disabled="@IsBusy" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="Model.Owner.Phone"
+                                      Label="Owner phone"
+                                      Disabled="@IsBusy" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="Model.Owner.Password"
+                                      Label="Password"
+                                      InputType="InputType.Password"
+                                      Required="true"
+                                      For="@(() => Model.Owner.Password)"
+                                      Disabled="@IsBusy" />
+                    </MudItem>
+                </MudGrid>
+
+                @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+                {
+                    <MudAlert Severity="Severity.Error">@ErrorMessage</MudAlert>
+                }
+
+                @if (CreatedAccount is not null)
+                {
+                    <MudAlert Severity="Severity.Success">
+                        Business created (ID: @CreatedAccount.BusinessId). Owner user ID: @CreatedAccount.OwnerUserId.
+                    </MudAlert>
+                }
+
+                <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                    <MudButton ButtonType="ButtonType.Submit"
+                               Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               Disabled="@IsBusy"
+                               Loading="@IsBusy">
+                        Create account
+                    </MudButton>
+                    <MudButton Variant="Variant.Text"
+                               Color="Color.Secondary"
+                               OnClick="@Reset"
+                               Disabled="@IsBusy">
+                        Clear
+                    </MudButton>
+                    <MudSpacer />
+                    <MudButton Variant="Variant.Text"
+                               Color="Color.Info"
+                               OnClick="@GoToLogin"
+                               Disabled="@IsBusy">
+                        Back to login
+                    </MudButton>
+                </MudStack>
+            </MudStack>
+        </EditForm>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private OwnerSignupRequest Model { get; set; } = new();
+    private bool IsBusy { get; set; }
+    private string? ErrorMessage { get; set; }
+    private OwnerSignupResponse? CreatedAccount { get; set; }
+
+    [Inject] public HttpClient Http { get; set; } = default!;
+    [Inject] public NavigationManager Navigation { get; set; } = default!;
+    [Inject] public ISnackbar Snackbar { get; set; } = default!;
+
+    private async Task HandleRegister()
+    {
+        IsBusy = true;
+        ErrorMessage = null;
+        CreatedAccount = null;
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync("/auth/register-owner", Model);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                ErrorMessage = "Registration failed. Please verify the details and try again.";
+                return;
+            }
+
+            CreatedAccount = await response.Content.ReadFromJsonAsync<OwnerSignupResponse>();
+
+            Snackbar.Add("Registration successful. You can now sign in.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Unable to register: {ex.Message}";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private void Reset()
+    {
+        Model = new OwnerSignupRequest();
+        ErrorMessage = null;
+        CreatedAccount = null;
+    }
+
+    private void GoToLogin() => Navigation.NavigateTo("/login");
+
+    private string GetCurrencyLabel(Currency currency) => currency switch
+    {
+        Currency.EUR => "EUR (€)",
+        Currency.USD => "USD ($)",
+        _ => currency.ToString()
+    };
+
+    private string GetPlanLabel(SubscriptionPlan plan) => plan switch
+    {
+        SubscriptionPlan.Catering => "Catering",
+        SubscriptionPlan.Beauty => "Beauty",
+        _ => plan.ToString()
+    };
+}

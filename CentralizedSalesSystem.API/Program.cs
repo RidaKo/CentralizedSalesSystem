@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Microsoft.Extensions.DependencyInjection;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -35,6 +36,7 @@ builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IOwnerSignupService, OwnerSignupService>();
 builder.Services.AddScoped<IRefundService, RefundService>();
 builder.Services.AddScoped<IGiftCardService, GiftCardService>();
+builder.Services.AddSingleton<DbSeeder>();
 
 
 var jwtSection = builder.Configuration.GetSection("JWT");
@@ -123,7 +125,8 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    await DbSeeder.SeedAsync(app.Services);
+    var dbSeeder = app.Services.GetRequiredService<DbSeeder>();
+    await dbSeeder.SeedAsync();
     app.UseSwagger();
     app.UseSwaggerUI();
 }

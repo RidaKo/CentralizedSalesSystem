@@ -43,6 +43,7 @@
     [Inject] public ITokenStore TokenStore { get; set; } = default!;
     [Inject] public NavigationManager Navigation { get; set; } = default!;
     [Inject] public ISnackbar Snackbar { get; set; } = default!;
+    [Inject] public AuthenticationStateProvider AuthStateProvider { get; set; } = default!;
 
     private void Reset()
     {
@@ -76,6 +77,10 @@
             }
 
             await TokenStore.SetTokenAsync(login.AccessToken);
+            if (AuthStateProvider is ApiAuthStateProvider apiAuthStateProvider)
+            {
+                apiAuthStateProvider.NotifyUserAuthenticated(login.AccessToken);
+            }
             Snackbar.Add("Signed in successfully.", Severity.Success);
             Navigation.NavigateTo("/");
         }

@@ -1,6 +1,6 @@
 @page "/employee/beauty"
 @using Microsoft.AspNetCore.Authorization
-@attribute [Authorize]
+@attribute [Authorize(Roles = "Employee")]
 @inject NavigationManager Navigation
 
 <MudContainer MaxWidth="MaxWidth.Medium" Class="mt-8">

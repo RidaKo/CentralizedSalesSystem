@@ -118,7 +118,11 @@
                                         }
                                         else
                                         {
-                                            <MudText Typo="Typo.body2">@FormatPrice(line, menuItem)</MudText>
+                                            <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center" Class="w-100">
+                                                <MudText Typo="Typo.body2">@($"{line.Quantity} x {(menuItem?.Price ?? 0):C}")</MudText>
+                                                <MudSpacer />
+                                                <MudText Typo="Typo.body2">@FormatPrice(line, menuItem)</MudText>
+                                            </MudStack>
                                         }
                                     </MudListItem>
                                 }

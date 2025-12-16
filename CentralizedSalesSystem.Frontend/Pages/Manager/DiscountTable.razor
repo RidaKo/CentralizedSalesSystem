@@ -1,0 +1,83 @@
+@using CentralizedSalesSystem.Frontend.Models
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+
+<MudTable Items="@_discounts" Hover="true" Striped="true" Dense="true" Elevation="0">
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">Active Discounts</MudText>
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Add" OnClick="AddMockDiscount">
+            Add Discount
+        </MudButton>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>Name</MudTh>
+        <MudTh>Type</MudTh>
+        <MudTh>Value</MudTh>
+        <MudTh>Valid Until</MudTh>
+        <MudTh Style="text-align:right">Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Name">@context.Name</MudTd>
+        <MudTd DataLabel="Type">
+            <MudChip T="string" Color="@(context.Type == "Percentage" ? Color.Info : Color.Warning)" Size="Size.Small">@context.Type</MudChip>
+        </MudTd>
+        <MudTd DataLabel="Value">
+            @(context.Type == "Percentage" ? $"{context.Rate}%" : $"${context.Rate}")
+        </MudTd>
+        <MudTd DataLabel="Valid Until">
+            @(context.ValidTo.HasValue ? context.ValidTo.Value.ToString("yyyy-MM-dd") : "Forever")
+        </MudTd>
+        <MudTd DataLabel="Actions" Style="text-align:right">
+            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => DeleteDiscount(context))" />
+        </MudTd>
+    </RowTemplate>
+    <PagerContent>
+        <MudTablePager />
+    </PagerContent>
+</MudTable>
+
+@code {
+    [Parameter] public long BusinessId { get; set; }
+    private List<Discount> _discounts = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // 1. trying API
+            var response = await Http.GetFromJsonAsync<PaginatedResponse<Discount>>($"discounts?businessId={BusinessId}");
+            if (response?.Data != null) _discounts = response.Data;
+        }
+        catch (Exception ex)
+        {
+            // 2. fallback to mock
+            Console.WriteLine($"API Discount Fetch Failed: {ex.Message}");
+            LoadMockData();
+        }
+    }
+
+    private void LoadMockData()
+    {
+        _discounts = new List<Discount>
+        {
+            new Discount { Id = 1, Name = "Happy Hour", Type = "Percentage", Rate = 15, ValidTo = DateTimeOffset.UtcNow.AddMonths(1) },
+            new Discount { Id = 2, Name = "Lunch Special", Type = "Fixed", Rate = 5.00m, ValidTo = DateTimeOffset.UtcNow.AddDays(7) },
+            new Discount { Id = 3, Name = "Staff Meal", Type = "Percentage", Rate = 50, ValidTo = null }
+        };
+    }
+
+    private void DeleteDiscount(Discount item)
+    {
+        _discounts.Remove(item);
+        Snackbar.Add($"Deleted {item.Name} (Local Only)", Severity.Success);
+    }
+
+    private void AddMockDiscount()
+    {
+        _discounts.Add(new Discount { Id = DateTime.Now.Ticks, Name = "Seasonal Promo", Type = "Percentage", Rate = 10, ValidTo = DateTimeOffset.UtcNow.AddMonths(3) });
+        Snackbar.Add("Discount Added (Local Only)", Severity.Success);
+    }
+}

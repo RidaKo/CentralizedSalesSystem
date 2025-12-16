@@ -1,0 +1,86 @@
+@using CentralizedSalesSystem.Frontend.Models
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+
+<MudTable Items="@_taxes" Hover="true" Striped="true" Dense="true" Elevation="0">
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">Tax Rules</MudText>
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Add" OnClick="AddMockTax">
+            Add Tax
+        </MudButton>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>Name</MudTh>
+        <MudTh>Rate</MudTh>
+        <MudTh>Effective From</MudTh>
+        <MudTh>Status</MudTh>
+        <MudTh Style="text-align:right">Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Name">@context.Name</MudTd>
+        <MudTd DataLabel="Rate">@((context.Rate * 100).ToString("0.##"))%</MudTd>
+        <MudTd DataLabel="Effective">@context.EffectiveFrom.ToString("yyyy-MM-dd")</MudTd>
+        <MudTd DataLabel="Status">
+            @if(context.Status.Equals("Active", StringComparison.OrdinalIgnoreCase))
+            {
+                <MudChip T="string" Color="Color.Success" Size="Size.Small">Active</MudChip>
+            }
+            else
+            {
+                <MudChip T="string" Color="Color.Default" Size="Size.Small">Inactive</MudChip>
+            }
+        </MudTd>
+        <MudTd DataLabel="Actions" Style="text-align:right">
+            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => DeleteTax(context))" />
+        </MudTd>
+    </RowTemplate>
+    <PagerContent>
+        <MudTablePager />
+    </PagerContent>
+</MudTable>
+
+@code {
+    [Parameter] public long BusinessId { get; set; }
+    private List<Tax> _taxes = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // 1. trying API
+            var response = await Http.GetFromJsonAsync<PaginatedResponse<Tax>>($"taxes?businessId={BusinessId}");
+            if (response?.Data != null) _taxes = response.Data;
+        }
+        catch (Exception ex)
+        {
+            // 2. fallback to mock
+            Console.WriteLine($"API Tax Fetch Failed: {ex.Message}");
+            LoadMockData();
+        }
+    }
+
+    private void LoadMockData()
+    {
+        _taxes = new List<Tax>
+        {
+            new Tax { Id = 1, Name = "VAT Standard", Rate = 0.21m, Status = "Active", EffectiveFrom = DateTimeOffset.UtcNow.AddYears(-1) },
+            new Tax { Id = 2, Name = "Reduced Rate", Rate = 0.09m, Status = "Active", EffectiveFrom = DateTimeOffset.UtcNow.AddMonths(-6) },
+            new Tax { Id = 3, Name = "Old Tax", Rate = 0.18m, Status = "Inactive", EffectiveFrom = DateTimeOffset.UtcNow.AddYears(-5), EffectiveTo = DateTimeOffset.UtcNow.AddYears(-1) }
+        };
+    }
+
+    private void DeleteTax(Tax tax)
+    {
+        _taxes.Remove(tax);
+        Snackbar.Add($"Deleted {tax.Name} (Local Only)", Severity.Success);
+    }
+
+    private void AddMockTax()
+    {
+        _taxes.Add(new Tax { Id = DateTime.Now.Ticks, Name = "New Tax Rule", Rate = 0.05m, Status = "Active" });
+        Snackbar.Add("Tax Added (Local Only)", Severity.Success);
+    }
+}

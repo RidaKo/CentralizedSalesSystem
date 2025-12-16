@@ -14,4 +14,7 @@ public class PaymentResponseDto
 
     public long OrderId { get; set; }
     public long BussinesId { get; set; }
+
+    public long? GiftCardId { get; set; }
+    public string? GiftCardCode { get; set; }
 }

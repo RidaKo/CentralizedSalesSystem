@@ -4,7 +4,7 @@ using CentralizedSalesSystem.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace CentralizedSalesSystem.API.Controllers.Items
+namespace CentralizedSalesSystem.API.Controllers.Orders
 {
     [ApiController]
     [Authorize]

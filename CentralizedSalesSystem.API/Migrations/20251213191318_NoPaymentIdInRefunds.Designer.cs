@@ -4,6 +4,7 @@ using CentralizedSalesSystem.API.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CentralizedSalesSystem.API.Migrations
 {
     [DbContext(typeof(CentralizedSalesDbContext))]
-    partial class CentralizedSalesDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251213191318_NoPaymentIdInRefunds")]
+    partial class NoPaymentIdInRefunds
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -963,6 +966,7 @@ namespace CentralizedSalesSystem.API.Migrations
                         .IsRequired();
 
                     b.Navigation("Order");
+
                 });
 
             modelBuilder.Entity("CentralizedSalesSystem.API.Models.Orders.ServiceCharge", b =>

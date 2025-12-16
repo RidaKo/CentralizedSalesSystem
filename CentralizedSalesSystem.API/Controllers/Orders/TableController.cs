@@ -4,7 +4,7 @@ using CentralizedSalesSystem.API.Models.Orders.enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace CentralizedSalesSystem.API.Controllers
+namespace CentralizedSalesSystem.API.Controllers.Orders
 {
     [Route("tables")]
     [Authorize]

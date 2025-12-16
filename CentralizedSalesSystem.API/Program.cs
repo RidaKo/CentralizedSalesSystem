@@ -25,9 +25,6 @@ builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddScoped<IReservationService, ReservationService>();
 builder.Services.AddScoped<ITableService, TableService>();
-builder.Services.AddScoped<IBusinessService, BusinessService>();
-builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<IOwnerSignupService, OwnerSignupService>();
 builder.Services.AddScoped<IOrderItemService, OrderItemService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IItemService, ItemService>();
@@ -36,6 +33,9 @@ builder.Services.AddScoped<ITaxService, TaxService>();
 builder.Services.AddScoped<IDiscountService, DiscountService>();
 builder.Services.AddScoped<IServiceChargeService, ServiceChargeService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
+builder.Services.AddScoped<IOwnerSignupService, OwnerSignupService>();
+builder.Services.AddScoped<IRefundService, RefundService>();
+builder.Services.AddScoped<IGiftCardService, GiftCardService>();
 builder.Services.AddSingleton<DbSeeder>();
 
 

@@ -40,7 +40,7 @@ public class Business
     [Required]
     public SubscriptionPlan SubscriptionPlan { get; set; }
 
-    public DateTime? NextPaymentDueDate { get; set; }
+    public DateTimeOffset? NextPaymentDueDate { get; set; }
 
     [MaxLength(200)]
     public string? WorkingHours { get; set; }

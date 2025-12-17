@@ -1,0 +1,220 @@
+@page "/employee/beauty"
+@using Microsoft.AspNetCore.Authorization
+@using System.Net.Http.Headers
+@using CentralizedSalesSystem.Frontend.Services
+@attribute [Authorize(Roles = "Employee,Admin")]
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject ITokenStore TokenStore
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-6">
+    <MudText Typo="Typo.h3" Class="mb-1">Work portal</MudText>
+    <MudText Typo="Typo.subtitle2" Color="Color.Secondary" Class="mb-4">
+        Beauty salon reservations
+    </MudText>
+
+    @if (IsLoading)
+    {
+        <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
+    }
+    else
+    {
+        @if (CurrentView == PortalView.Reservation)
+        {
+            @if (!IsReservationOpen)
+            {
+                <MudPaper Elevation="1" Class="pa-3 mb-4">
+                    <MudGrid GutterSize="2" AlignItems="AlignItems.Center">
+                        <MudItem xs="12" sm="4">
+                            <MudSelect T="long?" Value="SelectedStaffFilter" ValueChanged="UpdateStaffSelectionFromCalendar" Label="Staff" Dense="true">
+                                <MudSelectItem T="long?" Value="@((long?)null)">Any staff member</MudSelectItem>
+                                @foreach (var staff in Staff)
+                                {
+                                    <MudSelectItem T="long?" Value="@staff.Id">@($"{staff.FirstName} {staff.LastName}")</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12" sm="4" Class="d-flex align-center">
+                            <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" OnClick="@(() => ChangeMonth(-1))" />
+                            <MudText Typo="Typo.subtitle1" Class="mx-2">@CalendarMonth.ToString("MMMM yyyy")</MudText>
+                            <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" OnClick="@(() => ChangeMonth(1))" />
+                        </MudItem>
+                    </MudGrid>
+
+                <MudGrid GutterSize="0" Class="mt-1 calendar-grid">
+                    @foreach (var day in CalendarDays)
+                    {
+                        <MudItem xs="6" sm="3" md="2">
+                            <MudPaper Elevation="0" Class="pa-1 calendar-day" @onclick="@(() => OnDaySelected(day.Date))">
+                                    <MudText Typo="Typo.subtitle2">@($"{day.Date.Day} {day.Date:ddd}")</MudText>
+                                    @{
+                                        var filteredSlots = GetFilteredSlots(day.Date.Date).ToList();
+                                    }
+                                    @if (filteredSlots.Any())
+                                    {
+                                        <div class="available-label">Available times:</div>
+                                        @foreach (var slot in filteredSlots.Take(3))
+                                        {
+                                            <div class="slot-line">@slot</div>
+                                        }
+                                        @if (filteredSlots.Count > 3)
+                                        {
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">+@((filteredSlots.Count - 3)) more</MudText>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mud-text-disabled">No availability</MudText>
+                                    }
+                                </MudPaper>
+                            </MudItem>
+                        }
+                    </MudGrid>
+                </MudPaper>
+            }
+            else
+            {
+                <MudPaper Elevation="1" Class="pa-3 mb-4">
+                    <MudButton StartIcon="@Icons.Material.Filled.ArrowBack" Variant="Variant.Text" Color="Color.Primary" OnClick="ShowCalendar">
+                        Back to calendar
+                    </MudButton>
+
+                    <MudGrid GutterSize="3" Class="mt-2">
+                        <MudItem xs="12" md="4">
+                            <MudText Typo="Typo.subtitle1">Client details</MudText>
+                        <MudTextField @bind-Value="NewReservation.CustomerName" Label="Customer name" Required="true" />
+                        <MudTextField @bind-Value="NewReservation.CustomerPhone" Label="Phone" Required="true" />
+                        <MudTextField @bind-Value="NewReservation.CustomerNote" Label="Notes" Lines="3" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudText Typo="Typo.subtitle1">Staff & service</MudText>
+                            <MudSelect T="long?" Value="SelectedStaffValue" ValueChanged="UpdateStaffSelectionFromForm" Label="Staff" Dense="true" Required="true">
+                                <MudSelectItem T="long?" Value="@((long?)-1)">Any staff member</MudSelectItem>
+                                @foreach (var staff in Staff)
+                                {
+                                    <MudSelectItem T="long?" Value="@staff.Id">@($"{staff.FirstName} {staff.LastName}")</MudSelectItem>
+                                }
+                            </MudSelect>
+                        <MudSelect T="long?" @bind-Value="SelectedServiceId" Label="Service" Dense="true" Required="true">
+                            <MudSelectItem T="long?" Value="@((long?)null)">Select service</MudSelectItem>
+                            @foreach (var service in Services)
+                            {
+                                <MudSelectItem T="long?" Value="@service.Id">@service.Name (@service.Price.ToString("C"))</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                        <MudItem xs="12" md="4">
+                            <MudText Typo="Typo.subtitle1">Date & time</MudText>
+                            <MudDatePicker @bind-Date="SelectedDate" Label="Date" />
+
+                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1">Available slots</MudText>
+                            <MudChipSet T="string">
+                                @foreach (var slot in GetAvailableSlots())
+                                {
+                                    <MudChip T="string"
+                                             Value="@slot"
+                                             OnClick="@(() => SelectSlot(slot))"
+                                             Color="@(SelectedSlot == slot ? Color.Success : Color.Default)"
+                                             Class="slot-chip">
+                                        @slot
+                                    </MudChip>
+                                }
+                            </MudChipSet>
+
+                            <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Schedule" OnClick="@(IsEditing ? SaveEditedReservation : CreateReservation)" Class="mt-2" Disabled="!CanCreate">
+                                @(IsEditing ? "Update reservation" : "Book appointment")
+                            </MudButton>
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+            }
+        }
+        else if (CurrentView == PortalView.Active)
+        {
+            <MudPaper Elevation="1" Class="pa-3 mb-2">
+                <MudTextField @bind-Value="SearchActive" Label="Search by name or ID" Immediate="true" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
+            </MudPaper>
+            <ReservationTable Title="Active reservations"
+                              Reservations="ActiveReservations"
+                              StaffLookup="StaffLookup"
+                              OnStatusChange="CompleteReservation"
+                              OnEdit="BeginEditReservation"
+                              OnDelete="CancelReservation" />
+        }
+        else if (CurrentView == PortalView.History)
+        {
+            <MudPaper Elevation="1" Class="pa-3 mb-2">
+                <MudTextField @bind-Value="SearchHistory" Label="Search by name or ID" Immediate="true" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
+            </MudPaper>
+            <ReservationTable Title="History"
+                              Reservations="HistoricalReservations"
+                              StaffLookup="StaffLookup"
+                              OnStatusChange="EventCallback<ReservationDto>.Empty"
+                              OnEdit="BeginEditReservation"
+                              OnDelete="EventCallback<ReservationDto>.Empty"
+                              ShowDelete="false" />
+        }
+        else if (CurrentView == PortalView.Staff)
+        {
+            <MudPaper Elevation="1" Class="pa-3 mb-2">
+                <MudTextField @bind-Value="SearchStaff" Label="Search staff" Immediate="true" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
+            </MudPaper>
+            <MudPaper Elevation="2" Class="pa-3">
+                <MudTable Items="FilterStaff()" Hover="true" Dense="true" Elevation="0">
+                    <HeaderContent>
+                        <MudTh>Name</MudTh>
+                        <MudTh>Email</MudTh>
+                        <MudTh>Phone</MudTh>
+                        <MudTh>Schedule</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@($"{context.FirstName} {context.LastName}")</MudTd>
+                        <MudTd>@context.Email</MudTd>
+                        <MudTd>@context.Phone</MudTd>
+                        <MudTd>@context.Schedule</MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudPaper>
+        }
+        else if (CurrentView == PortalView.Clients)
+        {
+            <MudPaper Elevation="1" Class="pa-3 mb-2">
+                <MudTextField @bind-Value="SearchClients" Label="Search clients" Immediate="true" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
+            </MudPaper>
+            <MudPaper Elevation="2" Class="pa-3">
+                <MudTable Items="FilterClients()" Hover="true" Dense="true" Elevation="0">
+                    <HeaderContent>
+                        <MudTh>Name</MudTh>
+                        <MudTh>Email</MudTh>
+                        <MudTh>Phone</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@($"{context.FirstName} {context.LastName}")</MudTd>
+                        <MudTd>@context.Email</MudTd>
+                        <MudTd>@context.Phone</MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudPaper>
+        }
+    }
+
+    <MudPaper Elevation="1" Class="pa-2 mt-4">
+        <MudGrid GutterSize="2" Justify="Justify.SpaceEvenly">
+            <MudItem xs="12" sm="6" md="2">
+                <MudButton Variant="Variant.Filled" Color="@GetNavColor(PortalView.Reservation)" FullWidth="true" OnClick="@(() => SetView(PortalView.Reservation))">New reservation</MudButton>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="2">
+                <MudButton Variant="Variant.Outlined" Color="@GetNavColor(PortalView.Active)" FullWidth="true" OnClick="@(() => SetView(PortalView.Active))">Active</MudButton>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="2">
+                <MudButton Variant="Variant.Outlined" Color="@GetNavColor(PortalView.History)" FullWidth="true" OnClick="@(() => SetView(PortalView.History))">History</MudButton>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="2">
+                <MudButton Variant="Variant.Outlined" Color="@GetNavColor(PortalView.Staff)" FullWidth="true" OnClick="@(() => SetView(PortalView.Staff))">Staff</MudButton>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="2">
+                <MudButton Variant="Variant.Outlined" Color="@GetNavColor(PortalView.Clients)" FullWidth="true" OnClick="@(() => SetView(PortalView.Clients))">Clients</MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+</MudContainer>

@@ -1,35 +1,865 @@
 @page "/employee/beauty"
 @using Microsoft.AspNetCore.Authorization
-@attribute [Authorize]
-@inject NavigationManager Navigation
+@using System.Net.Http.Headers
+@using CentralizedSalesSystem.Frontend.Services
+@attribute [Authorize(Roles = "Employee,Admin")]
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject ITokenStore TokenStore
 
-<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-8">
-    <MudText Typo="Typo.h3" Class="mb-2">Work portal</MudText>
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-6">
+    <MudText Typo="Typo.h3" Class="mb-1">Work portal</MudText>
     <MudText Typo="Typo.subtitle2" Color="Color.Secondary" Class="mb-4">
-        Beauty salon employee interface
+        Beauty salon reservations
     </MudText>
 
-    <MudPaper Elevation="2" Class="pa-4 mb-4">
-        <MudText Typo="Typo.h5" Class="mb-2">Coming soon</MudText>
-        <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mb-3">
-            This screen will show stylist appointments, chair status, and upsell items using the same API set
-            (items, orders, reservations, payments). Navigation is wired so you can switch here from the drawer.
-        </MudText>
-        <MudButton Variant="Variant.Filled"
-                   Color="Color.Primary"
-                   StartIcon="@Icons.Material.Filled.ArrowBack"
-                   OnClick="@(() => Navigation.NavigateTo("/employee/restaurant"))">
-            Go to restaurant portal
-        </MudButton>
-    </MudPaper>
+    @if (IsLoading)
+    {
+        <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
+    }
+    else
+    {
+        @if (CurrentView == PortalView.Reservation)
+        {
+            @if (!IsReservationOpen)
+            {
+                <MudPaper Elevation="1" Class="pa-3 mb-4">
+                    <MudGrid GutterSize="2" AlignItems="AlignItems.Center">
+                        <MudItem xs="12" sm="4">
+                            <MudSelect T="long?" Value="SelectedStaffFilter" ValueChanged="UpdateStaffSelectionFromCalendar" Label="Staff" Dense="true">
+                                <MudSelectItem T="long?" Value="@((long?)null)">Any staff member</MudSelectItem>
+                                @foreach (var staff in Staff)
+                                {
+                                    <MudSelectItem T="long?" Value="@staff.Id">@($"{staff.FirstName} {staff.LastName}")</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12" sm="4" Class="d-flex align-center">
+                            <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" OnClick="@(() => ChangeMonth(-1))" />
+                            <MudText Typo="Typo.subtitle1" Class="mx-2">@CalendarMonth.ToString("MMMM yyyy")</MudText>
+                            <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" OnClick="@(() => ChangeMonth(1))" />
+                        </MudItem>
+                    </MudGrid>
 
-    <MudPaper Elevation="1" Class="pa-3">
-        <MudText Typo="Typo.subtitle1" Class="mb-1">Planned modules</MudText>
-        <MudList T="string" Dense="true">
-            <MudListItem T="string">Today’s bookings (reservations endpoint)</MudListItem>
-            <MudListItem T="string">Service catalog & add-ons (items endpoint, type=service)</MudListItem>
-            <MudListItem T="string">Ticket/payments flow (orders & payments endpoints)</MudListItem>
-            <MudListItem T="string">Stylist assignment and room status (tables reused as stations)</MudListItem>
-        </MudList>
+                <MudGrid GutterSize="0" Class="mt-1 calendar-grid">
+                    @foreach (var day in CalendarDays)
+                    {
+                        <MudItem xs="6" sm="3" md="2">
+                            <MudPaper Elevation="0" Class="pa-1 calendar-day" @onclick="@(() => OnDaySelected(day.Date))">
+                                    <MudText Typo="Typo.subtitle2">@($"{day.Date.Day} {day.Date:ddd}")</MudText>
+                                    @{
+                                        var filteredSlots = GetFilteredSlots(day.Date.Date).ToList();
+                                    }
+                                    @if (filteredSlots.Any())
+                                    {
+                                        <div class="available-label">Available times:</div>
+                                        @foreach (var slot in filteredSlots.Take(3))
+                                        {
+                                            <div class="slot-line">@slot</div>
+                                        }
+                                        @if (filteredSlots.Count > 3)
+                                        {
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">+@((filteredSlots.Count - 3)) more</MudText>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mud-text-disabled">No availability</MudText>
+                                    }
+                                </MudPaper>
+                            </MudItem>
+                        }
+                    </MudGrid>
+                </MudPaper>
+            }
+            else
+            {
+                <MudPaper Elevation="1" Class="pa-3 mb-4">
+                    <MudButton StartIcon="@Icons.Material.Filled.ArrowBack" Variant="Variant.Text" Color="Color.Primary" OnClick="ShowCalendar">
+                        Back to calendar
+                    </MudButton>
+
+                    <MudGrid GutterSize="3" Class="mt-2">
+                        <MudItem xs="12" md="4">
+                            <MudText Typo="Typo.subtitle1">Client details</MudText>
+                        <MudTextField @bind-Value="NewReservation.CustomerName" Label="Customer name" Required="true" />
+                        <MudTextField @bind-Value="NewReservation.CustomerPhone" Label="Phone" Required="true" />
+                        <MudTextField @bind-Value="NewReservation.CustomerNote" Label="Notes" Lines="3" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudText Typo="Typo.subtitle1">Staff & service</MudText>
+                            <MudSelect T="long?" Value="SelectedStaffValue" ValueChanged="UpdateStaffSelectionFromForm" Label="Staff" Dense="true" Required="true">
+                                <MudSelectItem T="long?" Value="@((long?)-1)">Any staff member</MudSelectItem>
+                                @foreach (var staff in Staff)
+                                {
+                                    <MudSelectItem T="long?" Value="@staff.Id">@($"{staff.FirstName} {staff.LastName}")</MudSelectItem>
+                                }
+                            </MudSelect>
+                        <MudSelect T="long?" @bind-Value="SelectedServiceId" Label="Service" Dense="true" Required="true">
+                            <MudSelectItem T="long?" Value="@((long?)null)">Select service</MudSelectItem>
+                            @foreach (var service in Services)
+                            {
+                                <MudSelectItem T="long?" Value="@service.Id">@service.Name (@service.Price.ToString("C"))</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                        <MudItem xs="12" md="4">
+                            <MudText Typo="Typo.subtitle1">Date & time</MudText>
+                            <MudDatePicker @bind-Date="SelectedDate" Label="Date" />
+
+                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1">Available slots</MudText>
+                            <MudChipSet T="string">
+                                @foreach (var slot in GetAvailableSlots())
+                                {
+                                    <MudChip T="string"
+                                             Value="@slot"
+                                             OnClick="@(() => SelectSlot(slot))"
+                                             Color="@(SelectedSlot == slot ? Color.Success : Color.Default)"
+                                             Class="slot-chip">
+                                        @slot
+                                    </MudChip>
+                                }
+                            </MudChipSet>
+
+                            <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Schedule" OnClick="@(IsEditing ? SaveEditedReservation : CreateReservation)" Class="mt-2" Disabled="!CanCreate">
+                                @(IsEditing ? "Update reservation" : "Book appointment")
+                            </MudButton>
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+            }
+        }
+        else if (CurrentView == PortalView.Active)
+        {
+            <MudPaper Elevation="1" Class="pa-3 mb-2">
+                <MudTextField @bind-Value="SearchActive" Label="Search by name or ID" Immediate="true" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
+            </MudPaper>
+            <ReservationTable Title="Active reservations"
+                              Reservations="ActiveReservations"
+                              StaffLookup="StaffLookup"
+                              OnStatusChange="CompleteReservation"
+                              OnEdit="BeginEditReservation"
+                              OnDelete="CancelReservation" />
+        }
+        else if (CurrentView == PortalView.History)
+        {
+            <MudPaper Elevation="1" Class="pa-3 mb-2">
+                <MudTextField @bind-Value="SearchHistory" Label="Search by name or ID" Immediate="true" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
+            </MudPaper>
+            <ReservationTable Title="History"
+                              Reservations="HistoricalReservations"
+                              StaffLookup="StaffLookup"
+                              OnStatusChange="EventCallback<ReservationDto>.Empty"
+                              OnEdit="BeginEditReservation"
+                              OnDelete="EventCallback<ReservationDto>.Empty"
+                              ShowDelete="false" />
+        }
+        else if (CurrentView == PortalView.Staff)
+        {
+            <MudPaper Elevation="1" Class="pa-3 mb-2">
+                <MudTextField @bind-Value="SearchStaff" Label="Search staff" Immediate="true" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
+            </MudPaper>
+            <MudPaper Elevation="2" Class="pa-3">
+                <MudTable Items="FilterStaff()" Hover="true" Dense="true" Elevation="0">
+                    <HeaderContent>
+                        <MudTh>Name</MudTh>
+                        <MudTh>Email</MudTh>
+                        <MudTh>Phone</MudTh>
+                        <MudTh>Schedule</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@($"{context.FirstName} {context.LastName}")</MudTd>
+                        <MudTd>@context.Email</MudTd>
+                        <MudTd>@context.Phone</MudTd>
+                        <MudTd>@context.Schedule</MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudPaper>
+        }
+        else if (CurrentView == PortalView.Clients)
+        {
+            <MudPaper Elevation="1" Class="pa-3 mb-2">
+                <MudTextField @bind-Value="SearchClients" Label="Search clients" Immediate="true" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
+            </MudPaper>
+            <MudPaper Elevation="2" Class="pa-3">
+                <MudTable Items="FilterClients()" Hover="true" Dense="true" Elevation="0">
+                    <HeaderContent>
+                        <MudTh>Name</MudTh>
+                        <MudTh>Email</MudTh>
+                        <MudTh>Phone</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@($"{context.FirstName} {context.LastName}")</MudTd>
+                        <MudTd>@context.Email</MudTd>
+                        <MudTd>@context.Phone</MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudPaper>
+        }
+    }
+
+    <MudPaper Elevation="1" Class="pa-2 mt-4">
+        <MudGrid GutterSize="2" Justify="Justify.SpaceEvenly">
+            <MudItem xs="12" sm="6" md="2">
+                <MudButton Variant="Variant.Filled" Color="@GetNavColor(PortalView.Reservation)" FullWidth="true" OnClick="@(() => SetView(PortalView.Reservation))">New reservation</MudButton>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="2">
+                <MudButton Variant="Variant.Outlined" Color="@GetNavColor(PortalView.Active)" FullWidth="true" OnClick="@(() => SetView(PortalView.Active))">Active</MudButton>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="2">
+                <MudButton Variant="Variant.Outlined" Color="@GetNavColor(PortalView.History)" FullWidth="true" OnClick="@(() => SetView(PortalView.History))">History</MudButton>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="2">
+                <MudButton Variant="Variant.Outlined" Color="@GetNavColor(PortalView.Staff)" FullWidth="true" OnClick="@(() => SetView(PortalView.Staff))">Staff</MudButton>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="2">
+                <MudButton Variant="Variant.Outlined" Color="@GetNavColor(PortalView.Clients)" FullWidth="true" OnClick="@(() => SetView(PortalView.Clients))">Clients</MudButton>
+            </MudItem>
+        </MudGrid>
     </MudPaper>
 </MudContainer>
+
+@code {
+    private readonly long BusinessId = 1;
+    private bool IsLoading = true;
+    private PortalView CurrentView = PortalView.Reservation;
+    private bool IsReservationOpen;
+    private bool IsEditing;
+    private long? EditingReservationId;
+    private string? EditingOriginalSlot;
+
+    private List<ReservationDto> Reservations = new();
+    private string SearchActive = string.Empty;
+    private string SearchHistory = string.Empty;
+    private string SearchStaff = string.Empty;
+    private string SearchClients = string.Empty;
+    private List<ReservationDto> ActiveReservations => FilterReservations(Reservations.Where(r => r.Status == ReservationStatus.Scheduled), SearchActive)
+        .OrderBy(r => r.AppointmentTime)
+        .ToList();
+    private List<ReservationDto> HistoricalReservations => FilterReservations(Reservations.Where(r => r.Status != ReservationStatus.Scheduled), SearchHistory)
+        .OrderByDescending(r => r.AppointmentTime)
+        .ToList();
+
+    private List<StaffDto> Staff = new();
+    private List<ClientDto> Clients = new();
+    private List<MenuItemDto> Services = new();
+    private long? SelectedStaffFilter;
+    private DateTime CalendarMonth = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private List<CalendarDay> CalendarDays = new();
+    private Dictionary<DateTime, List<string>> Availability = new();
+    private string? SelectedSlot;
+
+    private ReservationCreateRequest NewReservation = new();
+    private long? SelectedServiceId;
+    private long? SelectedStaffValue;
+    private DateTime? SelectedDate = DateTime.Today;
+    private TimeSpan? SelectedTime;
+
+    private Dictionary<long, string> StaffLookup => Staff.ToDictionary(s => s.Id, s => $"{s.FirstName} {s.LastName}");
+
+    private bool CanCreate =>
+        !string.IsNullOrWhiteSpace(NewReservation.CustomerName) &&
+        !string.IsNullOrWhiteSpace(NewReservation.CustomerPhone) &&
+        SelectedDate.HasValue &&
+        !string.IsNullOrWhiteSpace(SelectedSlot) &&
+        SelectedServiceId.HasValue &&
+        SelectedStaffValue.HasValue;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+        IsLoading = false;
+    }
+
+    private async Task LoadDataAsync()
+    {
+        await Task.WhenAll(LoadReservations(), LoadServices(), LoadStaff(), LoadClients());
+        BuildCalendar();
+        BuildMockAvailability();
+    }
+
+    private async Task LoadReservations()
+    {
+        try
+        {
+            var response = await Http.GetFromJsonAsync<PaginatedResponse<ReservationDto>>($"reservations?limit=200&filterByBusinessId={BusinessId}");
+            Reservations = response?.Data ?? new List<ReservationDto>();
+            if (Reservations.Count == 0)
+            {
+                LoadMockReservations();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to load reservations: {ex.Message}");
+            LoadMockReservations();
+            Snackbar.Add("Using mock reservations", Severity.Info);
+        }
+    }
+
+    private async Task LoadServices()
+    {
+        try
+        {
+            var resp = await Http.GetFromJsonAsync<PaginatedResponse<MenuItemDto>>($"items?limit=200&filterByBusinessId={BusinessId}");
+            Services = resp?.Data?.Where(i => string.Equals(i.Type.ToString(), "Service", StringComparison.OrdinalIgnoreCase) || string.Equals(i.Type.ToString(), "Service", StringComparison.Ordinal)).ToList() ?? new List<MenuItemDto>();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to load services: {ex.Message}");
+            LoadMockServices();
+        }
+        if (Services.Count == 0) LoadMockServices();
+    }
+
+    private async Task LoadStaff()
+    {
+        try
+        {
+            // No dedicated endpoint yet; mock for now
+            if (Staff.Count == 0)
+            {
+                LoadMockStaff();
+            }
+        }
+        catch
+        {
+            LoadMockStaff();
+        }
+    }
+
+    private void BuildCalendar()
+    {
+        CalendarDays.Clear();
+        var start = new DateTime(CalendarMonth.Year, CalendarMonth.Month, 1);
+        var end = start.AddMonths(1).AddDays(-1);
+        for (var day = start; day <= end; day = day.AddDays(1))
+        {
+            CalendarDays.Add(new CalendarDay { Date = day });
+        }
+    }
+
+    private void ChangeMonth(int delta)
+    {
+        CalendarMonth = CalendarMonth.AddMonths(delta);
+        BuildCalendar();
+    }
+
+    private void OnDaySelected(DateTime date)
+    {
+        SelectedDate = date;
+        SelectFirstAvailableSlot(date);
+        IsReservationOpen = true;
+        IsEditing = false;
+        EditingReservationId = null;
+    }
+
+    private IEnumerable<string> GetAvailableSlots()
+    {
+        if (!SelectedDate.HasValue) return Enumerable.Empty<string>();
+        return GetFilteredSlots(SelectedDate.Value.Date);
+    }
+
+    private void SelectSlot(string slot)
+    {
+        SelectedSlot = slot;
+        SelectedTime = ParseSlotStart(slot) ?? TimeSpan.FromHours(10);
+    }
+
+    private void SelectFirstAvailableSlot(DateTime date)
+    {
+        var slots = GetFilteredSlots(date.Date).ToList();
+        if (slots.Any())
+        {
+            var first = slots.First();
+            SelectedSlot = first;
+            SelectedTime = ParseSlotStart(first);
+        }
+    }
+
+    private static TimeSpan? ParseSlotStart(string slot)
+    {
+        if (string.IsNullOrWhiteSpace(slot)) return null;
+        var parts = slot.Split('-', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        return TimeSpan.TryParse(parts.FirstOrDefault(), out var start) ? start : null;
+    }
+
+    private void RemoveSlotFromAvailability(DateTime date, string? slot)
+    {
+        if (string.IsNullOrWhiteSpace(slot)) return;
+        if (Availability.TryGetValue(date.Date, out var slots))
+        {
+            slots.Remove(slot);
+        }
+    }
+
+    private void AddSlotIfMissing(DateTime date, string slot)
+    {
+        if (!Availability.TryGetValue(date.Date, out var slots))
+        {
+            Availability[date.Date] = new List<string> { slot };
+            return;
+        }
+        if (!slots.Contains(slot))
+        {
+            slots.Add(slot);
+        }
+    }
+
+    private IEnumerable<string> GetFilteredSlots(DateTime date)
+    {
+        if (!Availability.TryGetValue(date.Date, out var slots)) return Enumerable.Empty<string>();
+        if (SelectedStaffFilter.HasValue && SelectedStaffFilter.Value != -1)
+        {
+            var staff = Staff.FirstOrDefault(s => s.Id == SelectedStaffFilter.Value);
+            if (staff != null && !IsStaffWorkingOn(staff, date))
+            {
+                return Enumerable.Empty<string>();
+            }
+        }
+        var filtered = slots.AsEnumerable();
+        if (IsEditing && EditingReservationId.HasValue && EditingOriginalSlot != null && SelectedDate.HasValue && SelectedDate.Value.Date == date.Date)
+        {
+            filtered = filtered.Where(s => !string.Equals(s, EditingOriginalSlot, StringComparison.OrdinalIgnoreCase));
+        }
+        return filtered.Distinct();
+    }
+
+    private bool IsStaffWorkingOn(StaffDto staff, DateTime date)
+    {
+        if (string.IsNullOrWhiteSpace(staff.Schedule)) return true;
+        var sched = staff.Schedule.Replace(" ", "");
+        var parts = sched.Split('-', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length != 2) return true;
+        var start = ParseDay(parts[0]);
+        var end = ParseDay(parts[1]);
+        if (start == null || end == null) return true;
+        return InDayRange(start.Value, end.Value, date.DayOfWeek);
+    }
+
+    private static DayOfWeek? ParseDay(string s)
+    {
+        s = s.ToLowerInvariant();
+        return s switch
+        {
+            "mon" => DayOfWeek.Monday,
+            "tue" or "tues" => DayOfWeek.Tuesday,
+            "wed" => DayOfWeek.Wednesday,
+            "thu" or "thur" or "thurs" => DayOfWeek.Thursday,
+            "fri" => DayOfWeek.Friday,
+            "sat" => DayOfWeek.Saturday,
+            "sun" => DayOfWeek.Sunday,
+            _ => null
+        };
+    }
+
+    private static bool InDayRange(DayOfWeek start, DayOfWeek end, DayOfWeek target)
+    {
+        if (start <= end)
+        {
+            return target >= start && target <= end;
+        }
+        return target >= start || target <= end;
+    }
+
+    private void ShowCalendar()
+    {
+        IsReservationOpen = false;
+        SelectedSlot = null;
+        IsEditing = false;
+        EditingReservationId = null;
+    }
+
+    private void SetView(PortalView view)
+    {
+        CurrentView = view;
+        if (view == PortalView.Reservation)
+        {
+            IsReservationOpen = false;
+        }
+    }
+
+    private Color GetNavColor(PortalView view) => CurrentView == view ? Color.Success : Color.Default;
+
+    private long? ResolveStaffValue()
+    {
+        if (!SelectedStaffValue.HasValue) return null;
+        if (SelectedStaffValue == -1) return null; // any staff
+        return SelectedStaffValue;
+    }
+
+    private void UpdateStaffSelectionFromForm(long? value)
+    {
+        SelectedStaffValue = value;
+        SelectedStaffFilter = value;
+        if (SelectedDate.HasValue)
+        {
+            SelectFirstAvailableSlot(SelectedDate.Value);
+        }
+    }
+
+    private void UpdateStaffSelectionFromCalendar(long? value)
+    {
+        SelectedStaffFilter = value;
+        SelectedStaffValue = value;
+        if (SelectedDate.HasValue)
+        {
+            SelectFirstAvailableSlot(SelectedDate.Value);
+        }
+    }
+
+    private IEnumerable<ReservationDto> FilterReservations(IEnumerable<ReservationDto> source, string term)
+    {
+        if (string.IsNullOrWhiteSpace(term)) return source;
+        term = term.ToLowerInvariant();
+        return source.Where(r =>
+            r.CustomerName?.ToLowerInvariant().Contains(term) == true ||
+            r.Id.ToString().Contains(term));
+    }
+
+    private IEnumerable<StaffDto> FilterStaff()
+    {
+        if (string.IsNullOrWhiteSpace(SearchStaff)) return Staff;
+        var term = SearchStaff.ToLowerInvariant();
+        return Staff.Where(s =>
+            $"{s.FirstName} {s.LastName}".ToLowerInvariant().Contains(term) ||
+            s.Id.ToString().Contains(term));
+    }
+
+    private IEnumerable<ClientDto> FilterClients()
+    {
+        if (string.IsNullOrWhiteSpace(SearchClients)) return Clients;
+        var term = SearchClients.ToLowerInvariant();
+        return Clients.Where(c =>
+            $"{c.FirstName} {c.LastName}".ToLowerInvariant().Contains(term) ||
+            c.Id.ToString().Contains(term));
+    }
+
+    private void BuildMockAvailability()
+    {
+        Availability.Clear();
+        var start = new DateTime(CalendarMonth.Year, CalendarMonth.Month, 1);
+        var end = start.AddMonths(1).AddDays(-1);
+        var slots = new[] { "09:00-10:00", "10:00-11:00", "11:00-12:00", "14:00-15:00", "15:00-16:00", "17:00-18:00" };
+        for (var day = start; day <= end; day = day.AddDays(1))
+        {
+            if (day.DayOfWeek == DayOfWeek.Sunday) continue;
+            Availability[day.Date] = slots.ToList();
+        }
+    }
+
+    private async Task LoadClients()
+    {
+        try
+        {
+            // Mock clients (no endpoint yet)
+            if (Clients.Count == 0)
+            {
+                LoadMockClients();
+            }
+        }
+        catch
+        {
+            LoadMockClients();
+        }
+    }
+
+    private async Task CreateReservation()
+    {
+        if (!SelectedDate.HasValue || string.IsNullOrWhiteSpace(SelectedSlot)) return;
+        var appointment = SelectedDate.Value.Date + (SelectedTime ?? TimeSpan.Zero);
+        var payload = new ReservationCreateRequest
+        {
+            BusinessId = BusinessId,
+            CustomerName = NewReservation.CustomerName,
+            CustomerPhone = NewReservation.CustomerPhone,
+            CustomerNote = NewReservation.CustomerNote,
+            AppointmentTime = new DateTimeOffset(appointment, TimeZoneInfo.Local.GetUtcOffset(appointment)),
+            CreatedBy = NewReservation.CreatedBy == 0 ? 1 : NewReservation.CreatedBy,
+            Status = ReservationStatus.Scheduled,
+            AssignedEmployee = ResolveStaffValue(),
+            GuestNumber = NewReservation.GuestNumber,
+            TableId = null
+        };
+
+        var token = await TokenStore.GetTokenAsync();
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            Snackbar.Add("Please sign in to create reservations.", Severity.Warning);
+            return;
+        }
+
+        // Ensure Authorization header is present for this client instance
+        Http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        try
+        {
+            var result = await Http.PostAsJsonAsync("reservations", payload);
+            if (result.IsSuccessStatusCode)
+            {
+                var created = await result.Content.ReadFromJsonAsync<ReservationDto>();
+                if (created != null)
+                {
+                    Reservations.Insert(0, created);
+                    Snackbar.Add("Reservation created", Severity.Success);
+                    RemoveSlotFromAvailability(SelectedDate.Value.Date, SelectedSlot);
+                }
+                ResetForm();
+            }
+            else
+            {
+                if (result.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                {
+                    Snackbar.Add("Session expired. Please sign in again.", Severity.Error);
+                }
+                else
+                {
+                    Snackbar.Add($"Failed to create reservation (API {result.StatusCode}).", Severity.Error);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Create reservation failed: {ex.Message}");
+            var mock = new ReservationDto
+            {
+                Id = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                BusinessId = payload.BusinessId,
+                CustomerName = payload.CustomerName,
+                CustomerPhone = payload.CustomerPhone,
+                CustomerNote = payload.CustomerNote,
+                AppointmentTime = payload.AppointmentTime,
+                CreatedAt = DateTimeOffset.UtcNow,
+                CreatedBy = payload.CreatedBy,
+                Status = payload.Status,
+                AssignedEmployee = payload.AssignedEmployee,
+                GuestNumber = payload.GuestNumber
+            };
+            Reservations.Insert(0, mock);
+            Snackbar.Add("Reservation created (local mock).", Severity.Info);
+            ResetForm();
+        }
+    }
+
+    private async Task SaveEditedReservation()
+    {
+        if (!IsEditing || EditingReservationId == null || !SelectedDate.HasValue || string.IsNullOrWhiteSpace(SelectedSlot)) return;
+        var appointment = SelectedDate.Value.Date + (SelectedTime ?? TimeSpan.Zero);
+        var patch = new ReservationPatchRequest
+        {
+            CustomerName = NewReservation.CustomerName,
+            CustomerPhone = NewReservation.CustomerPhone,
+            CustomerNote = NewReservation.CustomerNote,
+            AppointmentTime = new DateTimeOffset(appointment, TimeZoneInfo.Local.GetUtcOffset(appointment)),
+            AssignedEmployee = ResolveStaffValue(),
+            Status = ReservationStatus.Scheduled
+        };
+
+        var token = await TokenStore.GetTokenAsync();
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            Snackbar.Add("Please sign in to update reservations.", Severity.Warning);
+            return;
+        }
+        Http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        try
+        {
+            var result = await Http.PatchAsJsonAsync($"reservations/{EditingReservationId}", patch);
+            if (result.IsSuccessStatusCode)
+            {
+                var updated = Reservations.FirstOrDefault(r => r.Id == EditingReservationId);
+                if (updated != null)
+                {
+                    updated.CustomerName = patch.CustomerName ?? updated.CustomerName;
+                    updated.CustomerPhone = patch.CustomerPhone ?? updated.CustomerPhone;
+                    updated.CustomerNote = patch.CustomerNote ?? updated.CustomerNote;
+                    updated.AppointmentTime = patch.AppointmentTime ?? updated.AppointmentTime;
+                    updated.AssignedEmployee = patch.AssignedEmployee;
+                    updated.Status = ReservationStatus.Scheduled;
+                    RemoveSlotFromAvailability(SelectedDate.Value.Date, SelectedSlot);
+                }
+                Snackbar.Add("Reservation updated", Severity.Success);
+                ResetForm();
+                IsEditing = false;
+                EditingReservationId = null;
+                IsReservationOpen = false;
+            }
+            else
+            {
+                Snackbar.Add($"Failed to update reservation (API {result.StatusCode}).", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Update reservation failed: {ex.Message}");
+            Snackbar.Add("Failed to update reservation.", Severity.Error);
+        }
+    }
+
+    private void ResetForm()
+    {
+        NewReservation = new ReservationCreateRequest { BusinessId = BusinessId, GuestNumber = 1 };
+        SelectedServiceId = null;
+        SelectedStaffValue = null;
+        SelectedDate = DateTime.Today;
+        SelectedTime = null;
+        SelectedSlot = null;
+        IsReservationOpen = false;
+        EditingOriginalSlot = null;
+    }
+
+    private Task CompleteReservation(ReservationDto reservation)
+    {
+        reservation.Status = ReservationStatus.Completed;
+        return Task.CompletedTask;
+    }
+
+    private void BeginEditReservation(ReservationDto reservation)
+    {
+        CurrentView = PortalView.Reservation;
+        IsReservationOpen = true;
+        IsEditing = true;
+        EditingReservationId = reservation.Id;
+        NewReservation.CustomerName = reservation.CustomerName ?? string.Empty;
+        NewReservation.CustomerPhone = reservation.CustomerPhone ?? string.Empty;
+        NewReservation.CustomerNote = reservation.CustomerNote ?? string.Empty;
+        SelectedStaffValue = reservation.AssignedEmployee ?? -1;
+        SelectedServiceId = null; // service not stored on dto, user must pick
+        var local = reservation.AppointmentTime.ToLocalTime();
+        SelectedDate = local.Date;
+        var slot = FormatSlot(local);
+        SelectedSlot = slot;
+        SelectedTime = local.TimeOfDay;
+        EditingOriginalSlot = slot;
+    }
+
+    private async Task CancelReservation(ReservationDto reservation)
+    {
+        var token = await TokenStore.GetTokenAsync();
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            Snackbar.Add("Please sign in to cancel reservations.", Severity.Warning);
+            return;
+        }
+        Http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var patch = new ReservationPatchRequest { Status = ReservationStatus.Cancelled };
+        try
+        {
+            var result = await Http.PatchAsJsonAsync($"reservations/{reservation.Id}", patch);
+            if (result.IsSuccessStatusCode)
+            {
+                reservation.Status = ReservationStatus.Cancelled;
+                Snackbar.Add("Reservation cancelled.", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add($"Failed to cancel (API {result.StatusCode}).", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Cancel reservation failed: {ex.Message}");
+            Snackbar.Add("Failed to cancel reservation.", Severity.Error);
+        }
+    }
+
+    private string FormatSlot(DateTimeOffset appointment)
+    {
+        var local = appointment.ToLocalTime();
+        var start = local.TimeOfDay;
+        var end = start.Add(TimeSpan.FromMinutes(60));
+        return $"{start:hh\\:mm}-{end:hh\\:mm}";
+    }
+
+    private void LoadMockReservations()
+    {
+        Reservations = new List<ReservationDto>
+        {
+            new()
+            {
+                Id = 7001,
+                BusinessId = BusinessId,
+                CustomerName = "Julia Ceasar",
+                CustomerPhone = "+1 555 111 2222",
+                CustomerNote = "Be gentle",
+                AppointmentTime = DateTimeOffset.UtcNow.AddHours(3),
+                CreatedAt = DateTimeOffset.UtcNow.AddHours(-1),
+                CreatedBy = 1,
+                Status = ReservationStatus.Scheduled,
+                AssignedEmployee = 2
+            },
+            new()
+            {
+                Id = 7002,
+                BusinessId = BusinessId,
+                CustomerName = "Tom Brad",
+                CustomerPhone = "+1 555 333 4444",
+                CustomerNote = "Prefers quiet room",
+                AppointmentTime = DateTimeOffset.UtcNow.AddDays(-1),
+                CreatedAt = DateTimeOffset.UtcNow.AddDays(-2),
+                CreatedBy = 1,
+                Status = ReservationStatus.Completed,
+                AssignedEmployee = 3
+            },
+            new()
+            {
+                Id = 7003,
+                BusinessId = BusinessId,
+                CustomerName = "Amy Adams",
+                CustomerPhone = "+1 555 555 7777",
+                CustomerNote = "Cancelled",
+                AppointmentTime = DateTimeOffset.UtcNow.AddDays(1),
+                CreatedAt = DateTimeOffset.UtcNow.AddDays(-1),
+                CreatedBy = 1,
+                Status = ReservationStatus.Cancelled,
+                AssignedEmployee = 2
+            }
+        };
+    }
+
+    private void LoadMockServices()
+    {
+        Services = new List<MenuItemDto>
+        {
+            new() { Id = 5001, Name = "Haircut", Price = 25m, Tags = new() { "Beauty" } },
+            new() { Id = 5002, Name = "Manicure", Price = 30m, Tags = new() { "Beauty" } },
+            new() { Id = 5003, Name = "Massage", Price = 60m, Tags = new() { "Beauty" } }
+        };
+    }
+
+    private void LoadMockStaff()
+    {
+        Staff = new List<StaffDto>
+        {
+            new() { Id = 1, FirstName = "Amy", LastName = "Adams", Email = "amy@beauty.local", Phone = "+1 555 0100", Schedule = "Mon-Fri" },
+            new() { Id = 2, FirstName = "Ted", LastName = "Smith", Email = "ted@beauty.local", Phone = "+1 555 0101", Schedule = "Tue-Sat" },
+            new() { Id = 3, FirstName = "Louise", LastName = "Graham", Email = "louise@beauty.local", Phone = "+1 555 0102", Schedule = "Wed-Sun" }
+        };
+    }
+
+    private void LoadMockClients()
+    {
+        Clients = new List<ClientDto>
+        {
+            new() { Id = 101, FirstName = "Tom", LastName = "Braddington", Email = "tom@example.com", Phone = "+1 555 0200" },
+            new() { Id = 102, FirstName = "Julia", LastName = "Ceasar", Email = "julia@example.com", Phone = "+1 555 0201" },
+            new() { Id = 103, FirstName = "Gabe", LastName = "Newell", Email = "gabe@example.com", Phone = "+1 555 0202" }
+        };
+    }
+
+    private class CalendarDay
+    {
+        public DateTime Date { get; set; }
+    }
+
+    private enum PortalView
+    {
+        Reservation,
+        Active,
+        History,
+        Staff,
+        Clients
+    }
+}

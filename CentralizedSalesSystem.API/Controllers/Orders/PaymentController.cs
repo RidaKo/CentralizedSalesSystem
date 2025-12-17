@@ -1,3 +1,5 @@
+using CentralizedSalesSystem.API.Authorization;
+using CentralizedSalesSystem.API.Models.Auth.enums;
 using CentralizedSalesSystem.API.Models.Orders.DTOs.PaymentDTOs;
 using CentralizedSalesSystem.API.Models.Orders.enums;
 using CentralizedSalesSystem.API.Services;
@@ -20,6 +22,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
 
         // GET: /payments
         [HttpGet]
+        [AuthorizePermission(nameof(PermissionCode.PAYMENT_VIEW))]
         public async Task<ActionResult<object>> GetPayments(
             [FromQuery] int page = 1,
             [FromQuery] int limit = 20,
@@ -49,6 +52,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
 
         // GET: /payments/{id}
         [HttpGet("{id}")]
+        [AuthorizePermission(nameof(PermissionCode.PAYMENT_VIEW))]
         public async Task<ActionResult<PaymentResponseDto>> GetPaymentById(long id)
         {
             var payment = await _paymentService.GetPaymentByIdAsync(id);
@@ -58,6 +62,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
 
         // POST: /payments
         [HttpPost]
+        [AuthorizePermission(nameof(PermissionCode.PAYMENT_CREATE))]
         public async Task<ActionResult<PaymentResponseDto>> CreatePayment(PaymentCreateDto dto)
         {
             var created = await _paymentService.CreatePaymentAsync(dto);
@@ -69,6 +74,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
 
         // PATCH: /payments/{id}
         [HttpPatch("{id}")]
+        [AuthorizePermission(nameof(PermissionCode.PAYMENT_UPDATE))]
         public async Task<ActionResult<PaymentResponseDto>> UpdatePayment(long id, PaymentUpdateDto dto)
         {
             var updated = await _paymentService.UpdatePaymentAsync(id, dto);
@@ -78,6 +84,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
 
         // DELETE: /payments/{id}
         [HttpDelete("{id}")]
+        [AuthorizePermission(nameof(PermissionCode.PAYMENT_DELETE))]
         public async Task<IActionResult> DeletePayment(long id)
         {
             var deleted = await _paymentService.DeletePaymentAsync(id);

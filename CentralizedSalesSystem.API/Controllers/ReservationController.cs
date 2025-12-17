@@ -1,3 +1,5 @@
+using CentralizedSalesSystem.API.Authorization;
+using CentralizedSalesSystem.API.Models.Auth.enums;
 using CentralizedSalesSystem.API.Models.Reservations;
 using CentralizedSalesSystem.API.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -18,6 +20,7 @@ namespace CentralizedSalesSystem.API.Controllers
         }
 
         [HttpGet]
+        [AuthorizePermission(nameof(PermissionCode.RESERVATION_VIEW))]
         public async Task<IActionResult> GetAll([
             FromQuery] int page = 1,
             [FromQuery] int limit = 20,
@@ -40,6 +43,7 @@ namespace CentralizedSalesSystem.API.Controllers
         }
 
         [HttpPost]
+        [AuthorizePermission(nameof(PermissionCode.RESERVATION_CREATE))]
         public async Task<IActionResult> Create([FromBody] ReservationCreateDto dto)
         {
             if (dto == null) return BadRequest();
@@ -48,6 +52,7 @@ namespace CentralizedSalesSystem.API.Controllers
         }
 
         [HttpGet("{reservationId:long}")]
+        [AuthorizePermission(nameof(PermissionCode.RESERVATION_VIEW))]
         public async Task<IActionResult> GetById([FromRoute] long reservationId)
         {
             var r = await _service.GetByIdAsync(reservationId);
@@ -56,6 +61,7 @@ namespace CentralizedSalesSystem.API.Controllers
         }
 
         [HttpPatch("{reservationId:long}")]
+        [AuthorizePermission(nameof(PermissionCode.RESERVATION_UPDATE))]
         public async Task<IActionResult> Patch([FromRoute] long reservationId, [FromBody] ReservationPatchDto dto)
         {
             if (dto == null) return BadRequest();
@@ -65,6 +71,7 @@ namespace CentralizedSalesSystem.API.Controllers
         }
 
         [HttpDelete("{reservationId:long}")]
+        [AuthorizePermission(nameof(PermissionCode.RESERVATION_CANCEL))]
         public async Task<IActionResult> Delete([FromRoute] long reservationId)
         {
             var ok = await _service.DeleteAsync(reservationId);

@@ -56,7 +56,6 @@
         catch (Exception ex)
         {
             Console.WriteLine($"API Fetch Failed: {ex.Message}");
-            LoadMockData();
         }
     }
 
@@ -105,12 +104,4 @@
         Snackbar.Add($"Deleted {tax.Name}", Severity.Success);
     }
 
-    private void LoadMockData()
-    {
-        _taxes = new List<Tax>
-        {
-            new Tax { Id = 1, Name = "VAT Standard", Rate = 0.21m, Status = TaxStatus.Active },
-            new Tax { Id = 2, Name = "Old Tax", Rate = 0.18m, Status = TaxStatus.Inactive }
-        };
-    }
 }

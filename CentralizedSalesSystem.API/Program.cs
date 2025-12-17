@@ -3,6 +3,7 @@ using CentralizedSalesSystem.API.Models;
 using CentralizedSalesSystem.API.Models.Auth.enums;
 using CentralizedSalesSystem.API.Services;
 using CentralizedSalesSystem.API.Authorization;
+using CentralizedSalesSystem.API.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -15,9 +16,25 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Serilog;
 
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configure Serilog for file logging
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .WriteTo.Console()
+    .WriteTo.File(
+        path: "Logs/app-.log",
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: 7,
+        fileSizeLimitBytes: 10 * 1024 * 1024,
+        rollOnFileSizeLimit: true,
+        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
+    .CreateLogger();
+
+builder.Host.UseSerilog();
 
 builder.Services.AddDbContext<CentralizedSalesDbContext>(options =>
 {
@@ -127,7 +144,8 @@ builder.Services.AddCors(options =>
             .WithOrigins(
                 "https://localhost:5001",
                 "https://localhost:7054",
-                "https://localhost:7051")
+                "https://localhost:7051",
+                "http://localhost:5251")
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
@@ -154,6 +172,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseMiddleware<RequestResponseLoggingMiddleware>();
 
 app.UseCors("AllowWasmClient");
 app.UseAuthentication();

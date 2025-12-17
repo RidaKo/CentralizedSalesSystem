@@ -7,6 +7,8 @@ namespace CentralizedSalesSystem.Frontend.Json
     {
         public static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web)
         {
+            PropertyNameCaseInsensitive = true,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
         };
     }

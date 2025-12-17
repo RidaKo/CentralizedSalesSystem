@@ -1,3 +1,5 @@
+using CentralizedSalesSystem.API.Authorization;
+using CentralizedSalesSystem.API.Models.Auth.enums;
 using CentralizedSalesSystem.API.Models.Orders.DTOs.TableDTOs;
 using CentralizedSalesSystem.API.Services;
 using CentralizedSalesSystem.API.Models.Orders.enums;
@@ -19,6 +21,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
         }
 
         [HttpGet]
+        [AuthorizePermission(nameof(PermissionCode.TABLE_VIEW))]
         public async Task<IActionResult> GetAll([
             FromQuery] int page = 1,
             [FromQuery] int limit = 20,
@@ -37,6 +40,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
         }
 
         [HttpPost]
+        [AuthorizePermission(nameof(PermissionCode.TABLE_MANAGE))]
         public async Task<IActionResult> Create([FromBody] TableCreateDto dto)
         {
             if (dto == null) return BadRequest();
@@ -46,6 +50,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
         }
 
         [HttpGet("{tableId:long}")]
+        [AuthorizePermission(nameof(PermissionCode.TABLE_VIEW))]
         public async Task<IActionResult> GetById([FromRoute] long tableId)
         {
             var t = await _service.GetByIdAsync(tableId);
@@ -54,6 +59,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
         }
 
         [HttpPatch("{tableId:long}")]
+        [AuthorizePermission(nameof(PermissionCode.TABLE_MANAGE))]
         public async Task<IActionResult> Patch([FromRoute] long tableId, [FromBody] TablePatchDto dto)
         {
             if (dto == null) return BadRequest();
@@ -64,6 +70,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
         }
 
         [HttpDelete("{tableId:long}")]
+        [AuthorizePermission(nameof(PermissionCode.TABLE_MANAGE))]
         public async Task<IActionResult> Delete([FromRoute] long tableId)
         {
             var ok = await _service.DeleteAsync(tableId);

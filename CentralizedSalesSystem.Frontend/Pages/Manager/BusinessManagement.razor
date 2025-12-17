@@ -1,10 +1,12 @@
 @page "/manager/business/{BusinessId:long}"
 @using CentralizedSalesSystem.Frontend.Models
 @using Microsoft.AspNetCore.Authorization
-@attribute [Authorize(Roles = "Admin")]
+@using CentralizedSalesSystem.Frontend.Services
+@attribute [Authorize]
 @inject HttpClient Http
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
+@inject BusinessContext BusinessContext
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-8">
     
@@ -128,9 +130,24 @@
         try
         {
             _isLoading = true;
+
+            await BusinessContext.EnsureLoadedAsync();
+            var isSameBusiness = BusinessContext.BusinessId.HasValue && BusinessContext.BusinessId.Value == BusinessId;
+            var hasAccess = BusinessContext.IsSuper || (BusinessContext.IsOwner && isSameBusiness);
+            if (!hasAccess)
+            {
+                Snackbar.Add("Only the business owner or a super admin can access this page.", Severity.Error);
+                _isLoading = false;
+                Navigation.NavigateTo("/", forceLoad: true);
+                return;
+            }
             
             // 1. try to get real data from the API
             _business = await Http.GetFromJsonAsync<Business>($"businesses/{BusinessId}");
+            if (BusinessContext.IsSuper && _business is not null)
+            {
+                BusinessContext.AssumeBusiness(_business.Id, _business.SubscriptionPlan);
+            }
         }
         // TODO: will remove this block once the API is fully stable in all environments
         catch (Exception ex)

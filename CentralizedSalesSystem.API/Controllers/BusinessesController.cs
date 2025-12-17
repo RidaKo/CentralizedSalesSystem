@@ -1,17 +1,20 @@
+using CentralizedSalesSystem.API.Authorization;
+using CentralizedSalesSystem.API.Models.Auth.enums;
 using CentralizedSalesSystem.API.Models.Business;
 using CentralizedSalesSystem.API.Models.Business.DTOs;
 using CentralizedSalesSystem.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace CentralizedSalesSystem.API.Controllers;
 
 [Route("businesses")]
 [Authorize]
 [ApiController]
-public class BusinessesController : ControllerBase
-{
-    private readonly IBusinessService _service;
+    public class BusinessesController : ControllerBase
+    {
+        private readonly IBusinessService _service;
 
     public BusinessesController(IBusinessService service)
     {
@@ -19,6 +22,7 @@ public class BusinessesController : ControllerBase
     }
 
     [HttpGet]
+    [AuthorizePermission(nameof(PermissionCode.BUSINESS_VIEW))]
     public async Task<IActionResult> GetAll(
         [FromQuery] int page = 1,
         [FromQuery] int limit = 20,
@@ -42,6 +46,7 @@ public class BusinessesController : ControllerBase
     }
 
     [HttpPost]
+    [AuthorizePermission(nameof(PermissionCode.BUSINESS_UPDATE))]
     public async Task<IActionResult> Create([FromBody] BusinessCreateDto dto)
     {
         if (dto == null) return BadRequest();
@@ -52,12 +57,23 @@ public class BusinessesController : ControllerBase
     [HttpGet("{businessId:long}")]
     public async Task<IActionResult> GetById([FromRoute] long businessId)
     {
+        // Allow if the caller has BUSINESS_VIEW/MANAGE_ALL, or if they belong to the same business.
+        var user = HttpContext.User;
+        var hasPerm = HasPermission(user, PermissionCode.BUSINESS_VIEW)
+                      || HasPermission(user, PermissionCode.MANAGE_ALL);
+        var isSameBusiness = user.FindFirst("businessId")?.Value == businessId.ToString();
+        if (!hasPerm && !isSameBusiness)
+        {
+            return Forbid();
+        }
+
         var b = await _service.GetByIdAsync(businessId);
         if (b == null) return NotFound();
         return Ok(b);
     }
 
     [HttpPatch("{businessId:long}")]
+    [AuthorizePermission(nameof(PermissionCode.BUSINESS_UPDATE))]
     public async Task<IActionResult> Patch([FromRoute] long businessId, [FromBody] BusinessPatchDto dto)
     {
         if (dto == null) return BadRequest();
@@ -67,10 +83,17 @@ public class BusinessesController : ControllerBase
     }
 
     [HttpDelete("{businessId:long}")]
+    [AuthorizePermission(nameof(PermissionCode.BUSINESS_DELETE))]
     public async Task<IActionResult> Delete([FromRoute] long businessId)
     {
         var ok = await _service.DeleteAsync(businessId);
         if (!ok) return NotFound();
         return Ok();
     }
+
+    private static bool HasPermission(ClaimsPrincipal user, PermissionCode code) =>
+        user.Claims.Any(c =>
+            (c.Type == PermissionAuthorizationHandler.PermissionClaimType
+             || c.Type == PermissionAuthorizationHandler.LegacyPermissionClaimType)
+            && string.Equals(c.Value, code.ToString(), StringComparison.OrdinalIgnoreCase));
 }

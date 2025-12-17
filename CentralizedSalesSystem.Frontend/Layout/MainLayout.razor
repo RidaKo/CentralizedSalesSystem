@@ -5,6 +5,7 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject ITokenStore TokenStore
 @inject NavigationManager Navigation
+@inject BusinessContext BusinessContext
 
 <MudThemeProvider IsDarkMode="true" />
 <MudPopoverProvider />
@@ -48,15 +49,24 @@
 
     <MudDrawer Open="false" Variant="DrawerVariant.Mini">
         <MudNavMenu>
-            <MudNavLink Href="/" Icon="@Icons.Material.Filled.Dashboard">Home</MudNavLink>
-            <AuthorizeView Roles="Admin">
-                <MudNavLink Href="/manager/dashboard" Icon="@Icons.Material.Filled.BusinessCenter">Manager Dashboard</MudNavLink>
-                <MudNavLink Href="/items" Icon="@Icons.Material.Filled.List">Items (Dev)</MudNavLink>
-                <MudNavLink Href="/tables" Icon="@Icons.Material.Filled.TableRestaurant">Tables</MudNavLink>
+            <AuthorizeView>
+                @if ((BusinessContext.IsOwner || BusinessContext.IsSuper) && BusinessContext.BusinessId.HasValue)
+                {
+                    <MudNavLink Href="/manager/dashboard" Icon="@Icons.Material.Filled.BusinessCenter">Manager Dashboard</MudNavLink>
+                    <MudNavLink Href="@($"/manager/business/{BusinessContext.BusinessId.Value}")" Icon="@Icons.Material.Filled.ManageAccounts">
+                        Business Management
+                    </MudNavLink>
+                }
             </AuthorizeView>
             <AuthorizeView>
-                <MudNavLink Href="/employee/restaurant" Icon="@Icons.Material.Filled.RestaurantMenu">Restaurant Portal</MudNavLink>
-                <MudNavLink Href="/employee/beauty" Icon="@Icons.Material.Filled.Spa">Beauty Portal</MudNavLink>
+                @if (BusinessContext.IsRestaurantEnabled)
+                {
+                    <MudNavLink Href="/employee/restaurant" Icon="@Icons.Material.Filled.RestaurantMenu">Restaurant Portal</MudNavLink>
+                }
+                @if (BusinessContext.IsBeautyEnabled)
+                {
+                    <MudNavLink Href="/employee/beauty" Icon="@Icons.Material.Filled.Spa">Beauty Portal</MudNavLink>
+                }
             </AuthorizeView>
         </MudNavMenu>
     </MudDrawer>
@@ -83,7 +93,9 @@
     protected override async Task OnInitializedAsync()
     {
         AuthStateProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
+        BusinessContext.Changed += OnBusinessContextChanged;
         await LoadUserAsync();
+        await BusinessContext.EnsureLoadedAsync();
     }
 
     private async Task LoadUserAsync()
@@ -95,8 +107,14 @@
 
     private void OnAuthenticationStateChanged(Task<AuthenticationState> task)
     {
+        _ = ReloadAsync();
+    }
 
-        _ = LoadUserAsync();
+    private async Task ReloadAsync()
+    {
+        await LoadUserAsync();
+        await BusinessContext.RefreshAsync();
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task LogoutAsync()
@@ -108,11 +126,18 @@
             apiAuthStateProvider.NotifyUserLoggedOut();
         }
 
+        BusinessContext.Reset();
         Navigation.NavigateTo("/login", forceLoad: true);
     }
 
     public void Dispose()
     {
         AuthStateProvider.AuthenticationStateChanged -= OnAuthenticationStateChanged;
+        BusinessContext.Changed -= OnBusinessContextChanged;
+    }
+
+    private void OnBusinessContextChanged()
+    {
+        InvokeAsync(StateHasChanged);
     }
 }

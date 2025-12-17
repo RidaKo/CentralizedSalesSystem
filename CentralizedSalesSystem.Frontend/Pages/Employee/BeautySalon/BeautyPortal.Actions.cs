@@ -1,5 +1,7 @@
+using System.IdentityModel.Tokens.Jwt;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Security.Claims;
 using CentralizedSalesSystem.Frontend.Models;
 using MudBlazor;
 
@@ -15,6 +17,12 @@ public partial class BeautyPortal
             Snackbar.Add("Past dates cannot be booked.", Severity.Warning);
             return;
         }
+        var createdBy = await GetCurrentUserIdAsync();
+        if (!createdBy.HasValue)
+        {
+            Snackbar.Add("Unable to determine the current user. Please sign in again.", Severity.Warning);
+            return;
+        }
         var appointment = SelectedDate.Value.Date + (SelectedTime ?? TimeSpan.Zero);
         var payload = new ReservationCreateRequest
         {
@@ -23,7 +31,7 @@ public partial class BeautyPortal
             CustomerPhone = NewReservation.CustomerPhone,
             CustomerNote = NewReservation.CustomerNote,
             AppointmentTime = new DateTimeOffset(appointment, TimeZoneInfo.Local.GetUtcOffset(appointment)),
-            CreatedBy = NewReservation.CreatedBy == 0 ? 1 : NewReservation.CreatedBy,
+            CreatedBy = createdBy.Value,
             Status = ReservationStatus.Scheduled,
             AssignedEmployee = ResolveStaffValue(),
             GuestNumber = NewReservation.GuestNumber,
@@ -345,5 +353,37 @@ public partial class BeautyPortal
         var start = local.TimeOfDay;
         var end = start.Add(TimeSpan.FromMinutes(60));
         return $"{start:hh\\:mm}-{end:hh\\:mm}";
+    }
+
+    private async Task<long?> GetCurrentUserIdAsync()
+    {
+        var token = await TokenStore.GetTokenAsync();
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return null;
+        }
+
+        try
+        {
+            var jwt = new JwtSecurityTokenHandler().ReadJwtToken(token);
+            foreach (var claim in jwt.Claims)
+            {
+                if (claim.Type == JwtRegisteredClaimNames.Sub ||
+                    claim.Type == ClaimTypes.NameIdentifier ||
+                    string.Equals(claim.Type, "sub", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (long.TryParse(claim.Value, out var userId))
+                    {
+                        return userId;
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // ignore invalid token formats
+        }
+
+        return null;
     }
 }

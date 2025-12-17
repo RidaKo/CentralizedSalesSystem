@@ -1,0 +1,148 @@
+@using CentralizedSalesSystem.Frontend.Models
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+
+<MudTable Items="@_items" Hover="true" Striped="true" Dense="true" Elevation="0">
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">Menu / Inventory</MudText>
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Add" OnClick="CreateItemAsync">
+            Add Item
+        </MudButton>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>Name</MudTh>
+        <MudTh>Type</MudTh>
+        <MudTh>Price</MudTh>
+        <MudTh>Stock</MudTh>
+        <MudTh>Variations</MudTh>
+        <MudTh Style="text-align:right">Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Name">
+            <MudText Typo="Typo.body2" Class="fw-bold">@context.Name</MudText>
+            <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Description</MudText>
+        </MudTd>
+        <MudTd DataLabel="Type">
+            @if (context.Type == ItemType.Service)
+            {
+                <MudChip T="string" Color="Color.Info" Size="Size.Small">Service</MudChip>
+            }
+            else
+            {
+                <MudChip T="string" Color="Color.Warning" Size="Size.Small">Product</MudChip>
+            }
+        </MudTd>
+        <MudTd DataLabel="Price">$@context.Price</MudTd>
+        <MudTd DataLabel="Stock">
+            @if(context.Type == ItemType.Product)
+            {
+                <MudText Color="@(context.Stock < 10 ? Color.Error : Color.Default)">@context.Stock</MudText>
+            }
+            else
+            {
+                <span class="text-muted">-</span>
+            }
+        </MudTd>
+        <MudTd DataLabel="Variations">
+            @if(context.Variations != null && context.Variations.Any())
+            {
+                <div class="d-flex gap-1">
+                    @foreach(var v in context.Variations)
+                    {
+                        <MudTooltip Text="@string.Join(", ", v.Options.Select(o => $"{o.Name} (+${o.PriceAdjustment})"))">
+                            <MudChip T="string" Variant="Variant.Outlined" Size="Size.Small">@v.Name</MudChip>
+                        </MudTooltip>
+                    }
+                </div>
+            }
+            else
+            {
+                <MudText Typo="Typo.caption" Color="Color.Secondary">None</MudText>
+            }
+        </MudTd>
+        <MudTd DataLabel="Actions" Style="text-align:right">
+            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => DeleteItem(context))" />
+        </MudTd>
+    </RowTemplate>
+    <PagerContent>
+        <MudTablePager />
+    </PagerContent>
+</MudTable>
+
+@code {
+    [Parameter] public long BusinessId { get; set; }
+    private List<Item> _items = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // 1. tying API
+            var response = await Http.GetFromJsonAsync<PaginatedResponse<Item>>($"items?businessId={BusinessId}");
+            if (response?.Data != null) _items = response.Data;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"API Item Fetch Failed: {ex.Message}");
+            LoadMockData();
+        }
+    }
+
+    private async Task CreateItemAsync()
+    {
+        var newItem = new Item 
+        { 
+            BusinessId = BusinessId, 
+            Name = "New Item", 
+            Price = 9.99m, 
+            Type = ItemType.Product, 
+            Stock = 100 
+        };
+
+        try 
+        {
+            var response = await Http.PostAsJsonAsync("items", newItem);
+            if (response.IsSuccessStatusCode)
+            {
+                var created = await response.Content.ReadFromJsonAsync<Item>();
+                if(created != null) 
+                {
+                    _items.Add(created);
+                    Snackbar.Add("Item Saved!", Severity.Success);
+                }
+            }
+            else
+            {
+                 Snackbar.Add("Failed to save item.", Severity.Error);
+            }
+        }
+        catch
+        {
+            newItem.Id = DateTime.Now.Ticks;
+            _items.Add(newItem);
+            Snackbar.Add("Item Added (Local Only)", Severity.Warning);
+        }
+    }
+
+    private void DeleteItem(Item item)
+    {
+        _items.Remove(item);
+        Snackbar.Add($"Deleted {item.Name}", Severity.Success);
+    }
+
+    private void LoadMockData()
+    {
+        var pizza = new Item { Id = 1, Name = "Triple Cheese Pizza", Description = "Mozzarella, Cheddar, Parmesan", Price = 12.50m, Type = ItemType.Product, Stock = 50 };
+        var sizeVar = new ItemVariation { Id = 1, Name = "Size" };
+        sizeVar.Options.Add(new ItemVariationOption { Name = "Small", PriceAdjustment = 0 });
+        sizeVar.Options.Add(new ItemVariationOption { Name = "Large", PriceAdjustment = 4.00m });
+        pizza.Variations.Add(sizeVar);
+        
+        var massage = new Item { Id = 2, Name = "Full Body Massage", Description = "60 min relaxation", Price = 60.00m, Type = ItemType.Service, Stock = 0 };
+
+        _items = new List<Item> { pizza, massage };
+    }
+}

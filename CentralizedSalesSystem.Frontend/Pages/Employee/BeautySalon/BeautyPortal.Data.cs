@@ -628,9 +628,9 @@ public partial class BeautyPortal : ComponentBase
     {
         Services = new List<MenuItemDto>
         {
-            new() { Id = 5001, Name = "Haircut", Price = 25m, Tags = new() { "Beauty" } },
-            new() { Id = 5002, Name = "Manicure", Price = 30m, Tags = new() { "Beauty" } },
-            new() { Id = 5003, Name = "Massage", Price = 60m, Tags = new() { "Beauty" } }
+            new() { Id = 5001, Name = "Haircut", Price = 25m },
+            new() { Id = 5002, Name = "Manicure", Price = 30m },
+            new() { Id = 5003, Name = "Massage", Price = 60m }
         };
     }
 

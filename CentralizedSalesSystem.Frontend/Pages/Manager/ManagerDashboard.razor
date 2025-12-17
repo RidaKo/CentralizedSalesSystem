@@ -83,23 +83,25 @@
         try
         {
             await BusinessContext.EnsureLoadedAsync();
-            // 1. try to fetch from API
-            var response = await Http.GetFromJsonAsync<PaginatedResponse<Business>>("businesses?limit=10");
-            
-            if (response?.Data != null)
+            var response = await Http.GetAsync("businesses?limit=10");
+
+            if (response.IsSuccessStatusCode)
             {
-                _businesses = response.Data;
+                var payload = await response.Content.ReadFromJsonAsync<PaginatedResponse<Business>>();
+                if (payload?.Data != null)
+                {
+                    _businesses = payload.Data;
+                }
+            }
+            else
+            {
+                var reason = $"{(int)response.StatusCode} {response.ReasonPhrase}";
+                Snackbar.Add($"Failed to load businesses: {reason}", Severity.Error);
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"API Error: {ex.Message}");
-            // 2. if API is empty or fails, it show mock data
-            if (!_businesses.Any())
-            {
-                _businesses.Add(new Business { Id = 1, Name = "Bucky-cheese restaurant", SubscriptionPlan = "catering", Address = "USA, AZ" });
-                _businesses.Add(new Business { Id = 2, Name = "Lukovich beauty emporium", SubscriptionPlan = "beauty", Address = "DE, Street 28" });
-            }
+            Snackbar.Add($"Unable to load businesses: {ex.Message}", Severity.Error);
         }
         finally
         {

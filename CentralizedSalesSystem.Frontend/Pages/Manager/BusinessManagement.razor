@@ -142,23 +142,25 @@
                 return;
             }
             
-            // 1. try to get real data from the API
-            _business = await Http.GetFromJsonAsync<Business>($"businesses/{BusinessId}");
+            var response = await Http.GetAsync($"businesses/{BusinessId}");
+            if (response.IsSuccessStatusCode)
+            {
+                _business = await response.Content.ReadFromJsonAsync<Business>();
+            }
+            else
+            {
+                var reason = $"{(int)response.StatusCode} {response.ReasonPhrase}";
+                Snackbar.Add($"Failed to load business details: {reason}", Severity.Error);
+            }
+
             if (BusinessContext.IsSuper && _business is not null)
             {
                 BusinessContext.AssumeBusiness(_business.Id, _business.SubscriptionPlan);
             }
         }
-        // TODO: will remove this block once the API is fully stable in all environments
         catch (Exception ex)
         {
-            Console.WriteLine($"API Request failed: {ex.Message}. Loading mock data.");
-            
-            // 2. mock data if API fails
-            LoadMockData();
-            
-            // alert on screen that says we're using mock data
-            Snackbar.Add("Using Mock Data", Severity.Normal);
+            Snackbar.Add($"Unable to load business details: {ex.Message}", Severity.Error);
         }
         finally
         {
@@ -166,29 +168,4 @@
         }
     }
 
-    private void LoadMockData()
-    {
-        if (BusinessId == 1)
-        {
-            _business = new Business 
-            { 
-                Id = 1, 
-                Name = "Bucky-cheese restaurant", 
-                Address = "USA, AZ", 
-                SubscriptionPlan = "catering", 
-                Currency = "USD" 
-            };
-        }
-        else
-        {
-            _business = new Business 
-            { 
-                Id = 2, 
-                Name = "Lukovich beauty emporium", 
-                Address = "DE, Street 28", 
-                SubscriptionPlan = "beauty", 
-                Currency = "EUR" 
-            };
-        }
-    }
 }

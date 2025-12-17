@@ -387,8 +387,7 @@ namespace CentralizedSalesSystem.API.Data
                 Reason = "Customer returned coffee",
                 RefundMethod = PaymentMethod.Card,
                 Currency = PaymentCurrency.USD,
-                Status = PaymentStatus.Refunded,
-                UserId = 0 // set after user save
+                Status = PaymentStatus.Refunded
             };
 
             var sunriseGiftCard = new GiftCard

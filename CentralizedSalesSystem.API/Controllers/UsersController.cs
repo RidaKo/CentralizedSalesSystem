@@ -1,3 +1,4 @@
+using CentralizedSalesSystem.API.Authorization;
 using CentralizedSalesSystem.API.Models.Auth.enums;
 using CentralizedSalesSystem.API.Models.Users;
 using CentralizedSalesSystem.API.Services;
@@ -19,6 +20,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpGet]
+    [AuthorizePermission(nameof(PermissionCode.USER_VIEW))]
     public async Task<IActionResult> GetAll(
         [FromQuery] int page = 1,
         [FromQuery] int limit = 20,
@@ -39,6 +41,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpPost]
+    [AuthorizePermission(nameof(PermissionCode.USER_CREATE))]
     public async Task<IActionResult> Create([FromBody] UserCreateDto dto)
     {
         if (dto == null) return BadRequest();
@@ -47,6 +50,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpGet("{userId:long}")]
+    [AuthorizePermission(nameof(PermissionCode.USER_VIEW))]
     public async Task<IActionResult> GetById([FromRoute] long userId)
     {
         var user = await _service.GetByIdAsync(userId);
@@ -55,6 +59,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpPatch("{userId:long}")]
+    [AuthorizePermission(nameof(PermissionCode.USER_UPDATE))]
     public async Task<IActionResult> Patch([FromRoute] long userId, [FromBody] UserPatchDto dto)
     {
         if (dto == null) return BadRequest();
@@ -64,6 +69,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpDelete("{userId:long}")]
+    [AuthorizePermission(nameof(PermissionCode.USER_DELETE))]
     public async Task<IActionResult> Delete([FromRoute] long userId)
     {
         var ok = await _service.DeleteAsync(userId);

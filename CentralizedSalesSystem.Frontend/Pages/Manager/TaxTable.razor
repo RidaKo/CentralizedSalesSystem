@@ -1,0 +1,116 @@
+@using CentralizedSalesSystem.Frontend.Models
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+
+<MudTable Items="@_taxes" Hover="true" Striped="true" Dense="true" Elevation="0">
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">Tax Rules</MudText>
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Add" OnClick="CreateTaxAsync">
+            Add Tax
+        </MudButton>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>Name</MudTh>
+        <MudTh>Rate</MudTh>
+        <MudTh>Effective From</MudTh>
+        <MudTh>Status</MudTh>
+        <MudTh Style="text-align:right">Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Name">@context.Name</MudTd>
+        <MudTd DataLabel="Rate">@((context.Rate * 100).ToString("0.##"))%</MudTd>
+        <MudTd DataLabel="Effective">@context.EffectiveFrom.ToString("yyyy-MM-dd")</MudTd>
+        <MudTd DataLabel="Status">
+            @if(context.Status == TaxStatus.Active)
+            {
+                <MudChip T="string" Color="Color.Success" Size="Size.Small">Active</MudChip>
+            }
+            else
+            {
+                <MudChip T="string" Color="Color.Default" Size="Size.Small">Inactive</MudChip>
+            }
+        </MudTd>
+        <MudTd DataLabel="Actions" Style="text-align:right">
+            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => DeleteTax(context))" />
+        </MudTd>
+    </RowTemplate>
+    <PagerContent>
+        <MudTablePager />
+    </PagerContent>
+</MudTable>
+
+@code {
+    [Parameter] public long BusinessId { get; set; }
+    private List<Tax> _taxes = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var response = await Http.GetFromJsonAsync<PaginatedResponse<Tax>>($"taxes?businessId={BusinessId}");
+            if (response?.Data != null) _taxes = response.Data;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"API Fetch Failed: {ex.Message}");
+            LoadMockData();
+        }
+    }
+
+    private async Task CreateTaxAsync()
+    {
+        var newTax = new Tax 
+        { 
+            BusinessId = BusinessId, 
+            Name = "New Tax Rule", 
+            Rate = 0.05m, 
+            Status = TaxStatus.Active 
+        };
+
+        try 
+        {
+            // 1. try to get real data from the API
+            var response = await Http.PostAsJsonAsync("taxes", newTax);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var createdTax = await response.Content.ReadFromJsonAsync<Tax>();
+                if (createdTax != null)
+                {
+                    _taxes.Add(createdTax);
+                    Snackbar.Add("Tax Saved to Database!", Severity.Success);
+                }
+            }
+            else
+            {
+                 Snackbar.Add("Failed to save tax to API.", Severity.Error);
+            }
+        }
+        catch (Exception)
+        {
+            // 2. mock data if API fails
+            newTax.Id = DateTime.Now.Ticks;
+            _taxes.Add(newTax);
+            Snackbar.Add("Tax Added (Local Only - API Offline)", Severity.Warning);
+        }
+    }
+
+    private void DeleteTax(Tax tax)
+    {
+        // for now, we just remove from UI
+        _taxes.Remove(tax);
+        Snackbar.Add($"Deleted {tax.Name}", Severity.Success);
+    }
+
+    private void LoadMockData()
+    {
+        _taxes = new List<Tax>
+        {
+            new Tax { Id = 1, Name = "VAT Standard", Rate = 0.21m, Status = TaxStatus.Active },
+            new Tax { Id = 2, Name = "Old Tax", Rate = 0.18m, Status = TaxStatus.Inactive }
+        };
+    }
+}

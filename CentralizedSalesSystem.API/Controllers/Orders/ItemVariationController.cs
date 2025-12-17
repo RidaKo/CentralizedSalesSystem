@@ -1,3 +1,5 @@
+using CentralizedSalesSystem.API.Authorization;
+using CentralizedSalesSystem.API.Models.Auth.enums;
 using CentralizedSalesSystem.API.Models.Orders.DTOs.ItemVariationDTOs;
 using CentralizedSalesSystem.API.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -18,6 +20,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
         }
 
         [HttpGet]
+        [AuthorizePermission(nameof(PermissionCode.ITEM_VIEW))]
         public async Task<ActionResult<object>> GetItemVariations(
             [FromQuery] int page = 1, 
             [FromQuery] int limit = 20, 
@@ -31,6 +34,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
         }
 
         [HttpGet("{id}")]
+        [AuthorizePermission(nameof(PermissionCode.ITEM_VIEW))]
         public async Task<ActionResult<ItemVariationResponseDto>> GetItemVariationById(long id)
         {
             var result = await _service.GetItemVariationByIdAsync(id);
@@ -38,6 +42,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
         }
 
         [HttpPost]
+        [AuthorizePermission(nameof(PermissionCode.ITEM_CREATE))]
         public async Task<ActionResult<ItemVariationResponseDto>> CreateItemVariation(ItemVariationCreateDto dto)
         {
             var created = await _service.CreateItemVariationAsync(dto);
@@ -45,6 +50,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
         }
 
         [HttpPatch("{id}")]
+        [AuthorizePermission(nameof(PermissionCode.ITEM_UPDATE))]
         public async Task<ActionResult<ItemVariationResponseDto>> UpdateItemVariation(long id, ItemVariationUpdateDto dto)
         {
             var updated = await _service.UpdateItemVariationAsync(id, dto);
@@ -52,6 +58,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
         }
 
         [HttpDelete("{id}")]
+        [AuthorizePermission(nameof(PermissionCode.ITEM_DELETE))]
         public async Task<IActionResult> DeleteItemVariation(long id)
         {
             var deleted = await _service.DeleteItemVariationAsync(id);

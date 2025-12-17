@@ -1,3 +1,5 @@
+using CentralizedSalesSystem.API.Authorization;
+using CentralizedSalesSystem.API.Models.Auth.enums;
 using CentralizedSalesSystem.API.Models.Orders.DTOs.TaxDTOs;
 using CentralizedSalesSystem.API.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -18,6 +20,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
         }
 
         [HttpGet]
+        [AuthorizePermission(nameof(PermissionCode.TAX_VIEW))]
         public async Task<ActionResult<object>> GetTaxes(
             [FromQuery] int page = 1,
             [FromQuery] int limit = 20,
@@ -42,6 +45,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
         }
 
         [HttpGet("{id}")]
+        [AuthorizePermission(nameof(PermissionCode.TAX_VIEW))]
         public async Task<ActionResult<TaxResponseDto>> GetTaxById(long id)
         {
             var tax = await _service.GetTaxByIdAsync(id);
@@ -49,6 +53,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
         }
 
         [HttpPost]
+        [AuthorizePermission(nameof(PermissionCode.TAX_MANAGE))]
         public async Task<ActionResult<TaxResponseDto>> CreateTax(TaxCreateDto dto)
         {
             var created = await _service.CreateTaxAsync(dto);
@@ -56,6 +61,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
         }
 
         [HttpPatch("{id}")]
+        [AuthorizePermission(nameof(PermissionCode.TAX_MANAGE))]
         public async Task<ActionResult<TaxResponseDto>> UpdateTax(long id, TaxUpdateDto dto)
         {
             var updated = await _service.UpdateTaxAsync(id, dto);
@@ -63,6 +69,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
         }
 
         [HttpDelete("{id}")]
+        [AuthorizePermission(nameof(PermissionCode.TAX_MANAGE))]
         public async Task<IActionResult> DeleteTax(long id)
         {
             var deleted = await _service.DeleteTaxAsync(id);

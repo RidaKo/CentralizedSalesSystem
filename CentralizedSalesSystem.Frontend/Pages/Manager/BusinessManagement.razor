@@ -1,14 +1,16 @@
 @page "/manager/business/{BusinessId:long}"
 @using CentralizedSalesSystem.Frontend.Models
 @using Microsoft.AspNetCore.Authorization
+@using CentralizedSalesSystem.Frontend.Services
 @attribute [Authorize]
 @inject HttpClient Http
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
+@inject BusinessContext BusinessContext
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-8">
     
-    <!-- back Button -->
+    <!-- back button -->
     <MudButton StartIcon="@Icons.Material.Filled.ArrowBack" 
                href="/manager/dashboard" 
                Color="Color.Default" 
@@ -96,7 +98,6 @@
             
             <MudTabPanel Text="Employees" Icon="@Icons.Material.Filled.People">
                 <MudText Class="mb-4">Manage your staff here.</MudText>
-                <!-- this will later link to a table -->
                 <MudButton Variant="Variant.Filled" 
                            Color="Color.Primary" 
                            OnClick="@(() => Navigation.NavigateTo($"/manager/business/{BusinessId}/employees"))">
@@ -104,12 +105,14 @@
                 </MudButton>
             </MudTabPanel>
             
+            <!-- updates discount tab -->
             <MudTabPanel Text="Discounts" Icon="@Icons.Material.Filled.LocalOffer">
-                <MudText>Discounts will go here (Step 4).</MudText>
+                <DiscountTable BusinessId="@BusinessId" />
             </MudTabPanel>
             
+            <!-- updates tax tab -->
             <MudTabPanel Text="Taxes" Icon="@Icons.Material.Filled.RequestQuote">
-                <MudText>Taxes will go here (Step 4).</MudText>
+                <TaxTable BusinessId="@BusinessId" />
             </MudTabPanel>
         </MudTabs>
     }
@@ -127,20 +130,37 @@
         try
         {
             _isLoading = true;
+
+            await BusinessContext.EnsureLoadedAsync();
+            var isSameBusiness = BusinessContext.BusinessId.HasValue && BusinessContext.BusinessId.Value == BusinessId;
+            var hasAccess = BusinessContext.IsSuper || (BusinessContext.IsOwner && isSameBusiness);
+            if (!hasAccess)
+            {
+                Snackbar.Add("Only the business owner or a super admin can access this page.", Severity.Error);
+                _isLoading = false;
+                Navigation.NavigateTo("/", forceLoad: true);
+                return;
+            }
             
-            // 1. try to get real data from the API
-            _business = await Http.GetFromJsonAsync<Business>($"businesses/{BusinessId}");
+            var response = await Http.GetAsync($"businesses/{BusinessId}");
+            if (response.IsSuccessStatusCode)
+            {
+                _business = await response.Content.ReadFromJsonAsync<Business>();
+            }
+            else
+            {
+                var reason = $"{(int)response.StatusCode} {response.ReasonPhrase}";
+                Snackbar.Add($"Failed to load business details: {reason}", Severity.Error);
+            }
+
+            if (BusinessContext.IsSuper && _business is not null)
+            {
+                BusinessContext.AssumeBusiness(_business.Id, _business.SubscriptionPlan);
+            }
         }
-        // TODO: will remove this block once the API is fully stable in all environments
         catch (Exception ex)
         {
-            Console.WriteLine($"API Request failed: {ex.Message}. Loading mock data.");
-            
-            // 2. mock data if API fails
-            LoadMockData();
-            
-            // alert on screen that says we're using mock data
-            Snackbar.Add("Using Mock Data", Severity.Normal);
+            Snackbar.Add($"Unable to load business details: {ex.Message}", Severity.Error);
         }
         finally
         {
@@ -148,29 +168,4 @@
         }
     }
 
-    private void LoadMockData()
-    {
-        if (BusinessId == 1)
-        {
-            _business = new Business 
-            { 
-                Id = 1, 
-                Name = "Bucky-cheese restaurant", 
-                Address = "USA, AZ", 
-                SubscriptionPlan = "catering", 
-                Currency = "USD" 
-            };
-        }
-        else
-        {
-            _business = new Business 
-            { 
-                Id = 2, 
-                Name = "Lukovich beauty emporium", 
-                Address = "DE, Street 28", 
-                SubscriptionPlan = "beauty", 
-                Currency = "EUR" 
-            };
-        }
-    }
 }

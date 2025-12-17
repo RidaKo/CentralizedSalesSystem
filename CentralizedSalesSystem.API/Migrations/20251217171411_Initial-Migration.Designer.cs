@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CentralizedSalesSystem.API.Migrations
 {
     [DbContext(typeof(CentralizedSalesDbContext))]
-    [Migration("20251213182321_NoUserInRefund")]
-    partial class NoUserInRefund
+    [Migration("20251217171411_Initial-Migration")]
+    partial class InitialMigration
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -190,8 +190,8 @@ namespace CentralizedSalesSystem.API.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
-                    b.Property<DateTime?>("NextPaymentDueDate")
-                        .HasColumnType("datetime2");
+                    b.Property<DateTimeOffset?>("NextPaymentDueDate")
+                        .HasColumnType("datetimeoffset");
 
                     b.Property<long?>("OwnerId")
                         .HasColumnType("bigint");
@@ -966,7 +966,6 @@ namespace CentralizedSalesSystem.API.Migrations
                         .IsRequired();
 
                     b.Navigation("Order");
-
                 });
 
             modelBuilder.Entity("CentralizedSalesSystem.API.Models.Orders.ServiceCharge", b =>

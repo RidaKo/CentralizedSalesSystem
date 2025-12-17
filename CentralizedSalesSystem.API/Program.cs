@@ -1,6 +1,8 @@
 using CentralizedSalesSystem.API.Data;
 using CentralizedSalesSystem.API.Models;
+using CentralizedSalesSystem.API.Models.Auth.enums;
 using CentralizedSalesSystem.API.Services;
+using CentralizedSalesSystem.API.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -8,6 +10,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Microsoft.Extensions.DependencyInjection;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -27,6 +31,7 @@ builder.Services.AddScoped<IReservationService, ReservationService>();
 builder.Services.AddScoped<ITableService, TableService>();
 builder.Services.AddScoped<IOrderItemService, OrderItemService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddScoped<IBusinessService, BusinessService>();
 builder.Services.AddScoped<IItemService, ItemService>();
 builder.Services.AddScoped<IItemVariationService, ItemVariationService>();
 builder.Services.AddScoped<ITaxService, TaxService>();
@@ -37,6 +42,8 @@ builder.Services.AddScoped<IOwnerSignupService, OwnerSignupService>();
 builder.Services.AddScoped<IRefundService, RefundService>();
 builder.Services.AddScoped<IGiftCardService, GiftCardService>();
 builder.Services.AddSingleton<DbSeeder>();
+builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
+builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
 
 
 var jwtSection = builder.Configuration.GetSection("JWT");
@@ -52,6 +59,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
+            RoleClaimType = ClaimTypes.Role,
+            NameClaimType = JwtRegisteredClaimNames.Sub,
 
             ValidIssuer = jwtSection["Issuer"],
             ValidAudience = jwtSection["Audience"],
@@ -61,10 +70,16 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     
 builder.Services.AddAuthorization(options =>
 {
-    // Enforce auth for all endpoints unless explicitly marked with [AllowAnonymous]
     options.FallbackPolicy = new AuthorizationPolicyBuilder()
         .RequireAuthenticatedUser()
         .Build();
+
+    options.AddPolicy("RequireManageAll", policy =>
+        policy.RequireAssertion(ctx =>
+            ctx.User.HasClaim(c =>
+                (c.Type == PermissionAuthorizationHandler.PermissionClaimType
+                 || c.Type == PermissionAuthorizationHandler.LegacyPermissionClaimType)
+                && string.Equals(c.Value, PermissionCode.MANAGE_ALL.ToString(), StringComparison.OrdinalIgnoreCase))));
 });
 
 builder.Services.AddControllers().AddJsonOptions(options =>
@@ -122,13 +137,19 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    var dbSeeder = app.Services.GetRequiredService<DbSeeder>();
-    await dbSeeder.SeedAsync();
     app.UseSwagger();
     app.UseSwaggerUI();
+}
+
+var dbSeeder = app.Services.GetRequiredService<DbSeeder>();
+// Always ensure SuperAdmins exist (idempotent)
+await dbSeeder.SeedSuperAdminsAsync();
+// Full sample seed only in development
+if (app.Environment.IsDevelopment())
+{
+    await dbSeeder.SeedAsync();
 }
 
 app.UseHttpsRedirection();

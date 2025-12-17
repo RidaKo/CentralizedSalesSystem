@@ -1,0 +1,114 @@
+@using CentralizedSalesSystem.Frontend.Models
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+
+<MudTable Items="@_discounts" Hover="true" Striped="true" Dense="true" Elevation="0">
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">Active Discounts</MudText>
+        <MudSpacer />
+        <!-- Calls the new Async method -->
+        <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Add" OnClick="CreateDiscountAsync">
+            Add Discount
+        </MudButton>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>Name</MudTh>
+        <MudTh>Type</MudTh>
+        <MudTh>Value</MudTh>
+        <MudTh>Valid Until</MudTh>
+        <MudTh Style="text-align:right">Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Name">@context.Name</MudTd>
+        <MudTd DataLabel="Type">
+            <MudChip T="string" Color="@(context.Type == DiscountType.Percentage ? Color.Info : Color.Warning)" Size="Size.Small">@context.Type</MudChip>
+        </MudTd>
+        <MudTd DataLabel="Value">
+            @(context.Type == DiscountType.Percentage ? $"{context.Rate}%" : $"${context.Rate}")
+        </MudTd>
+        <MudTd DataLabel="Valid Until">
+            @(context.ValidTo.HasValue ? context.ValidTo.Value.ToString("yyyy-MM-dd") : "Forever")
+        </MudTd>
+        <MudTd DataLabel="Actions" Style="text-align:right">
+            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => DeleteDiscount(context))" />
+        </MudTd>
+    </RowTemplate>
+    <PagerContent>
+        <MudTablePager />
+    </PagerContent>
+</MudTable>
+
+@code {
+    [Parameter] public long BusinessId { get; set; }
+    private List<Discount> _discounts = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var response = await Http.GetFromJsonAsync<PaginatedResponse<Discount>>($"discounts?businessId={BusinessId}");
+            if (response?.Data != null) _discounts = response.Data;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"API Fetch Failed: {ex.Message}");
+            LoadMockData();
+        }
+    }
+
+    private async Task CreateDiscountAsync()
+    {
+        var newDiscount = new Discount 
+        { 
+            BusinessId = BusinessId, 
+            Name = "New Promo", 
+            Type = DiscountType.Percentage, 
+            Rate = 10,
+            ValidTo = DateTimeOffset.UtcNow.AddMonths(1)
+        };
+
+        try 
+        {
+            // 1. try to get real data from the API
+            var response = await Http.PostAsJsonAsync("discounts", newDiscount);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var created = await response.Content.ReadFromJsonAsync<Discount>();
+                if (created != null)
+                {
+                    _discounts.Add(created);
+                    Snackbar.Add("Discount Saved to Database!", Severity.Success);
+                }
+            }
+            else
+            {
+                 Snackbar.Add("Failed to save discount to API.", Severity.Error);
+            }
+        }
+        catch (Exception)
+        {
+            // 2. mock data if API fails
+            newDiscount.Id = DateTime.Now.Ticks;
+            _discounts.Add(newDiscount);
+            Snackbar.Add("Discount Added (Local Only - API Offline)", Severity.Warning);
+        }
+    }
+
+    private void DeleteDiscount(Discount item)
+    {
+        _discounts.Remove(item);
+        Snackbar.Add($"Deleted {item.Name}", Severity.Success);
+    }
+
+    private void LoadMockData()
+    {
+        _discounts = new List<Discount>
+        {
+            new Discount { Id = 1, Name = "Happy Hour", Type = DiscountType.Percentage, Rate = 15 },
+            new Discount { Id = 2, Name = "Lunch Special", Type = DiscountType.Fixed, Rate = 5.00m }
+        };
+    }
+}

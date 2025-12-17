@@ -2,6 +2,7 @@
 @using Microsoft.AspNetCore.Authorization
 @using System.Net.Http.Headers
 @using CentralizedSalesSystem.Frontend.Services
+@using System
 @attribute [Authorize(Roles = "Employee,Admin")]
 @inject HttpClient Http
 @inject ISnackbar Snackbar
@@ -27,49 +28,64 @@
                     <MudGrid GutterSize="2" AlignItems="AlignItems.Center">
                         <MudItem xs="12" sm="4">
                             <MudSelect T="long?" Value="SelectedStaffFilter" ValueChanged="UpdateStaffSelectionFromCalendar" Label="Staff" Dense="true">
-                                <MudSelectItem T="long?" Value="@((long?)null)">Any staff member</MudSelectItem>
+                                <MudSelectItem T="long?" Value="@((long?)-1)">Any staff member</MudSelectItem>
                                 @foreach (var staff in Staff)
                                 {
                                     <MudSelectItem T="long?" Value="@staff.Id">@($"{staff.FirstName} {staff.LastName}")</MudSelectItem>
                                 }
                             </MudSelect>
                         </MudItem>
-                        <MudItem xs="12" sm="4" Class="d-flex align-center">
-                            <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" OnClick="@(() => ChangeMonth(-1))" />
-                            <MudText Typo="Typo.subtitle1" Class="mx-2">@CalendarMonth.ToString("MMMM yyyy")</MudText>
-                            <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" OnClick="@(() => ChangeMonth(1))" />
-                        </MudItem>
                     </MudGrid>
 
-                <MudGrid GutterSize="0" Class="mt-1 calendar-grid">
-                    @foreach (var day in CalendarDays)
-                    {
-                        <MudItem xs="6" sm="3" md="2">
-                            <MudPaper Elevation="0" Class="pa-1 calendar-day" @onclick="@(() => OnDaySelected(day.Date))">
-                                    <MudText Typo="Typo.subtitle2">@($"{day.Date.Day} {day.Date:ddd}")</MudText>
-                                    @{
-                                        var filteredSlots = GetFilteredSlots(day.Date.Date).ToList();
-                                    }
-                                    @if (filteredSlots.Any())
+                    <MudCalendar T="CalendarItem"
+                                 Class="beauty-calendar mt-2"
+                                 Items="CalendarItems"
+                                 CurrentDay="CalendarCurrentDay"
+                                 CurrentDayChanged="OnCalendarCurrentDayChanged"
+                                 View="CurrentCalendarView"
+                                 ViewChanged="OnCalendarViewChanged"
+                                 DateRangeChanged="OnCalendarDateRangeChanged"
+                                 CellClicked="OnCalendarCellClicked"
+                                 ItemClicked="OnCalendarItemClicked"
+                                 ShowDay="true"
+                                 ShowWeek="true"
+                                 ShowWorkWeek="false"
+                                 ShowMonth="true"
+                                 ShowToolbar="true"
+                                 ShowDatePicker="true"
+                                 ShowTodayButton="true"
+                                 ShowPrevNextButtons="true"
+                                 ButtonVariant="Variant.Filled"
+                                 Color="Color.Primary"
+                                 Outlined="false"
+                                 Square="true"
+                                 DayTimeInterval="CalendarTimeInterval.Minutes60"
+                                 DayStartTime="CalendarDayStart"
+                                 MonthCellMinHeight="110"
+                                 Height="560">
+                        <MonthTemplate>
+                            @{
+                                var text = context.Text ?? string.Empty;
+                                var isPastMarker = string.Equals(text, PastMarkerText, StringComparison.Ordinal);
+                                var isMeta = !isPastMarker && (text.StartsWith("+", StringComparison.Ordinal) || text.StartsWith("No ", StringComparison.OrdinalIgnoreCase));
+                                var className = isMeta ? "calendar-meta" : "slot-line";
+                            }
+                            @if (isPastMarker)
+                            {
+                                <div class="calendar-past-marker" aria-hidden="true"></div>
+                            }
+                            else
+                            {
+                                <div class="calendar-item">
+                                    @if (!isMeta)
                                     {
-                                        <div class="available-label">Available times:</div>
-                                        @foreach (var slot in filteredSlots.Take(3))
-                                        {
-                                            <div class="slot-line">@slot</div>
-                                        }
-                                        @if (filteredSlots.Count > 3)
-                                        {
-                                            <MudText Typo="Typo.caption" Color="Color.Secondary">+@((filteredSlots.Count - 3)) more</MudText>
-                                        }
+                                        <MudIcon Icon="@Icons.Material.Filled.Circle" Color="Color.Secondary" Size="Size.Small" Class="calendar-dot" />
                                     }
-                                    else
-                                    {
-                                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mud-text-disabled">No availability</MudText>
-                                    }
-                                </MudPaper>
-                            </MudItem>
-                        }
-                    </MudGrid>
+                                    <span class="@className">@text</span>
+                                </div>
+                            }
+                        </MonthTemplate>
+                    </MudCalendar>
                 </MudPaper>
             }
             else
@@ -105,7 +121,7 @@
                     </MudItem>
                         <MudItem xs="12" md="4">
                             <MudText Typo="Typo.subtitle1">Date & time</MudText>
-                            <MudDatePicker @bind-Date="SelectedDate" Label="Date" />
+                            <MudDatePicker @bind-Date="SelectedDate" Label="Date" IsDateDisabledFunc="IsPastDate" />
 
                             <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1">Available slots</MudText>
                             <MudChipSet T="string">

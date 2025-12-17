@@ -10,6 +10,11 @@ public partial class BeautyPortal
     private async Task CreateReservation()
     {
         if (!SelectedDate.HasValue || string.IsNullOrWhiteSpace(SelectedSlot)) return;
+        if (IsPastDate(SelectedDate.Value))
+        {
+            Snackbar.Add("Past dates cannot be booked.", Severity.Warning);
+            return;
+        }
         var appointment = SelectedDate.Value.Date + (SelectedTime ?? TimeSpan.Zero);
         var payload = new ReservationCreateRequest
         {
@@ -133,6 +138,11 @@ public partial class BeautyPortal
     private async Task SaveEditedReservation()
     {
         if (!IsEditing || EditingReservationId == null || !SelectedDate.HasValue || string.IsNullOrWhiteSpace(SelectedSlot)) return;
+        if (IsPastDate(SelectedDate.Value))
+        {
+            Snackbar.Add("Past dates cannot be booked.", Severity.Warning);
+            return;
+        }
         var appointment = SelectedDate.Value.Date + (SelectedTime ?? TimeSpan.Zero);
         var patch = new ReservationPatchRequest
         {
@@ -250,6 +260,7 @@ public partial class BeautyPortal
         SelectedSlot = null;
         IsReservationOpen = false;
         EditingOriginalSlot = null;
+        RefreshCalendarItemsForRange();
     }
 
     private Task CompleteReservation(ReservationDto reservation)

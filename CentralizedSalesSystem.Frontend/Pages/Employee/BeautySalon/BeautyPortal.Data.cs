@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using MudBlazor;
 using CentralizedSalesSystem.Frontend.Models;
 using CentralizedSalesSystem.Frontend.Services;
+using Heron.MudCalendar;
 using Microsoft.AspNetCore.Components;
 
 namespace CentralizedSalesSystem.Frontend.Pages.Employee.BeautySalon;
@@ -34,9 +35,14 @@ public partial class BeautyPortal : ComponentBase
     private List<ClientDto> Clients = new();
     private List<MenuItemDto> Services = new();
     private long? SelectedStaffFilter;
-    private DateTime CalendarMonth = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
-    private List<CalendarDay> CalendarDays = new();
+    private DateTime CalendarCurrentDay = DateTime.Today;
+    private CalendarView CurrentCalendarView = CalendarView.Month;
+    private static readonly TimeOnly CalendarDayStart = new(9, 0);
+    private DateTime? CalendarVisibleStart;
+    private DateTime? CalendarVisibleEnd;
     private Dictionary<DateTime, List<string>> Availability = new();
+    private List<CalendarItem> CalendarItems = new();
+    private const string PastMarkerText = "__past__";
     private string? SelectedSlot;
 
     private ReservationCreateRequest NewReservation = new();
@@ -51,6 +57,7 @@ public partial class BeautyPortal : ComponentBase
         !string.IsNullOrWhiteSpace(NewReservation.CustomerName) &&
         !string.IsNullOrWhiteSpace(NewReservation.CustomerPhone) &&
         SelectedDate.HasValue &&
+        !IsPastDate(SelectedDate.Value) &&
         !string.IsNullOrWhiteSpace(SelectedSlot) &&
         SelectedServiceId.HasValue &&
         SelectedStaffValue.HasValue;
@@ -64,8 +71,11 @@ public partial class BeautyPortal : ComponentBase
     private async Task LoadDataAsync()
     {
         await Task.WhenAll(LoadReservations(), LoadServices(), LoadStaff(), LoadClients());
-        BuildCalendar();
-        BuildMockAvailability();
+        var (start, end) = GetMonthRange(CalendarCurrentDay);
+        CalendarVisibleStart = start;
+        CalendarVisibleEnd = end;
+        EnsureMockAvailability(start, end);
+        RefreshCalendarItemsForRange();
     }
 
     private async Task LoadReservations()
@@ -130,31 +140,106 @@ public partial class BeautyPortal : ComponentBase
         }
     }
 
-    private void BuildCalendar()
+    private static (DateTime start, DateTime end) GetMonthRange(DateTime date)
     {
-        CalendarDays.Clear();
-        var start = new DateTime(CalendarMonth.Year, CalendarMonth.Month, 1);
+        var start = new DateTime(date.Year, date.Month, 1);
         var end = start.AddMonths(1).AddDays(-1);
-        for (var day = start; day <= end; day = day.AddDays(1))
+        return (start, end);
+    }
+
+    private static bool IsPastDate(DateTime date) => date.Date < DateTime.Today;
+
+    private void OnCalendarDateRangeChanged(DateRange range)
+    {
+        if (range.Start.HasValue && range.End.HasValue)
         {
-            CalendarDays.Add(new CalendarDay { Date = day });
+            CalendarVisibleStart = range.Start.Value.Date;
+            CalendarVisibleEnd = range.End.Value.Date;
+            EnsureMockAvailability(CalendarVisibleStart.Value, CalendarVisibleEnd.Value);
+            RefreshCalendarItemsForRange();
         }
     }
 
-    private void ChangeMonth(int delta)
+    private void OnCalendarCurrentDayChanged(DateTime date)
     {
-        CalendarMonth = CalendarMonth.AddMonths(delta);
-        BuildCalendar();
+        CalendarCurrentDay = date;
+        if (CalendarVisibleStart == null || CalendarVisibleEnd == null)
+        {
+            var (start, end) = GetMonthRange(date);
+            CalendarVisibleStart = start;
+            CalendarVisibleEnd = end;
+            EnsureMockAvailability(start, end);
+            RefreshCalendarItemsForRange();
+        }
+    }
+
+    private void OnCalendarViewChanged(CalendarView view)
+    {
+        CurrentCalendarView = view;
+        if (view == CalendarView.Month)
+        {
+            var (start, end) = GetMonthRange(CalendarCurrentDay);
+            CalendarVisibleStart = start;
+            CalendarVisibleEnd = end;
+        }
+        RefreshCalendarItemsForRange();
     }
 
     private void OnDaySelected(DateTime date)
     {
+        if (IsPastDate(date))
+        {
+            Snackbar.Add("Past dates cannot be booked.", Severity.Info);
+            return;
+        }
         SelectedDate = date;
         SelectFirstAvailableSlot(date);
         IsReservationOpen = true;
         IsEditing = false;
         EditingReservationId = null;
         EditingOriginalSlot = null;
+    }
+
+    private void OnCalendarCellClicked(DateTime date)
+    {
+        if (CurrentCalendarView == CalendarView.Month)
+        {
+            if (date.Month != CalendarCurrentDay.Month || date.Year != CalendarCurrentDay.Year)
+            {
+                return;
+            }
+            OnDaySelected(date.Date);
+            return;
+        }
+
+        OpenReservationForDateTime(date);
+    }
+
+    private void OnCalendarItemClicked(CalendarItem item)
+    {
+        if (item.AllDay) return;
+        if (string.IsNullOrWhiteSpace(item.Text)) return;
+        if (string.Equals(item.Text, PastMarkerText, StringComparison.Ordinal)) return;
+        if (IsPastDate(item.Start))
+        {
+            Snackbar.Add("Past dates cannot be booked.", Severity.Info);
+            return;
+        }
+        if (item.Text.StartsWith("+", StringComparison.Ordinal) || item.Text.StartsWith("No ", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var start = item.Start;
+        var end = item.End ?? item.Start.AddHours(1);
+        var slot = BuildSlotLabel(start, end);
+        if (!GetFilteredSlots(start.Date).Contains(slot))
+        {
+            Snackbar.Add("Selected time is not available.", Severity.Info);
+            return;
+        }
+
+        OpenReservationAtSlot(start.Date, slot);
     }
 
     private IEnumerable<string> GetAvailableSlots()
@@ -167,6 +252,40 @@ public partial class BeautyPortal : ComponentBase
     {
         SelectedSlot = slot;
         SelectedTime = ParseSlotStart(slot) ?? TimeSpan.FromHours(10);
+    }
+
+    private void OpenReservationForDateTime(DateTime dateTime)
+    {
+        if (IsPastDate(dateTime))
+        {
+            Snackbar.Add("Past dates cannot be booked.", Severity.Info);
+            return;
+        }
+        var slotStart = new DateTime(dateTime.Year, dateTime.Month, dateTime.Day, dateTime.Hour, 0, 0);
+        var slotEnd = slotStart.AddHours(1);
+        var slot = BuildSlotLabel(slotStart, slotEnd);
+        if (!GetFilteredSlots(slotStart.Date).Contains(slot))
+        {
+            Snackbar.Add("Selected time is not available.", Severity.Info);
+            return;
+        }
+
+        OpenReservationAtSlot(slotStart.Date, slot);
+    }
+
+    private void OpenReservationAtSlot(DateTime date, string slot)
+    {
+        if (IsPastDate(date))
+        {
+            Snackbar.Add("Past dates cannot be booked.", Severity.Info);
+            return;
+        }
+        SelectedDate = date;
+        SelectSlot(slot);
+        IsReservationOpen = true;
+        IsEditing = false;
+        EditingReservationId = null;
+        EditingOriginalSlot = null;
     }
 
     private void SelectFirstAvailableSlot(DateTime date)
@@ -198,6 +317,7 @@ public partial class BeautyPortal : ComponentBase
         if (Availability.TryGetValue(date.Date, out var slots))
         {
             slots.Remove(slot);
+            RefreshCalendarItemsForRange();
         }
     }
 
@@ -206,16 +326,19 @@ public partial class BeautyPortal : ComponentBase
         if (!Availability.TryGetValue(date.Date, out var slots))
         {
             Availability[date.Date] = new List<string> { slot };
+            RefreshCalendarItemsForRange();
             return;
         }
         if (!slots.Contains(slot))
         {
             slots.Add(slot);
+            RefreshCalendarItemsForRange();
         }
     }
 
     private IEnumerable<string> GetFilteredSlots(DateTime date)
     {
+        if (IsPastDate(date)) return Enumerable.Empty<string>();
         if (!Availability.TryGetValue(date.Date, out var slots)) return Enumerable.Empty<string>();
         if (SelectedStaffFilter.HasValue && SelectedStaffFilter.Value != -1)
         {
@@ -279,6 +402,7 @@ public partial class BeautyPortal : ComponentBase
         IsEditing = false;
         EditingReservationId = null;
         EditingOriginalSlot = null;
+        RefreshCalendarItemsForRange();
     }
 
     private void SetView(PortalView view)
@@ -303,6 +427,7 @@ public partial class BeautyPortal : ComponentBase
     {
         SelectedStaffValue = value;
         SelectedStaffFilter = value;
+        RefreshCalendarItemsForRange();
         if (SelectedDate.HasValue)
         {
             SelectFirstAvailableSlot(SelectedDate.Value);
@@ -313,6 +438,7 @@ public partial class BeautyPortal : ComponentBase
     {
         SelectedStaffFilter = value;
         SelectedStaffValue = value;
+        RefreshCalendarItemsForRange();
         if (SelectedDate.HasValue)
         {
             SelectFirstAvailableSlot(SelectedDate.Value);
@@ -346,18 +472,111 @@ public partial class BeautyPortal : ComponentBase
             c.Id.ToString().Contains(term));
     }
 
-    private void BuildMockAvailability()
+    private void EnsureMockAvailability(DateTime start, DateTime end)
     {
-        Availability.Clear();
-        var start = new DateTime(CalendarMonth.Year, CalendarMonth.Month, 1);
-        var end = start.AddMonths(1).AddDays(-1);
         var slots = new[] { "09:00-10:00", "10:00-11:00", "11:00-12:00", "14:00-15:00", "15:00-16:00", "17:00-18:00" };
         for (var day = start; day <= end; day = day.AddDays(1))
         {
             if (day.DayOfWeek == DayOfWeek.Sunday) continue;
-            Availability[day.Date] = slots.ToList();
+            if (!Availability.ContainsKey(day.Date))
+            {
+                Availability[day.Date] = slots.ToList();
+            }
         }
     }
+
+    private void RefreshCalendarItemsForRange()
+    {
+        var (start, end) = GetMonthRange(CalendarCurrentDay);
+        if (CalendarVisibleStart.HasValue && CalendarVisibleEnd.HasValue)
+        {
+            start = CalendarVisibleStart.Value.Date;
+            end = CalendarVisibleEnd.Value.Date;
+        }
+
+        var items = new List<CalendarItem>();
+        var isMonthView = CurrentCalendarView == CalendarView.Month;
+        for (var day = start.Date; day <= end.Date; day = day.AddDays(1))
+        {
+            if (isMonthView && (day.Month != CalendarCurrentDay.Month || day.Year != CalendarCurrentDay.Year))
+            {
+                continue;
+            }
+
+            if (IsPastDate(day))
+            {
+                if (isMonthView)
+                {
+                    items.Add(new CalendarItem
+                    {
+                        Start = day,
+                        End = day,
+                        Text = PastMarkerText,
+                        AllDay = true
+                    });
+                }
+                continue;
+            }
+
+            var slots = GetFilteredSlots(day).ToList();
+            if (isMonthView && slots.Count == 0)
+            {
+                items.Add(new CalendarItem
+                {
+                    Start = day,
+                    End = day,
+                    Text = "No availability",
+                    AllDay = true
+                });
+                continue;
+            }
+
+            var visibleSlots = isMonthView ? slots.Take(3) : slots;
+            foreach (var slot in visibleSlots)
+            {
+                var item = CreateCalendarItem(day, slot);
+                if (item != null)
+                {
+                    items.Add(item);
+                }
+            }
+
+            if (isMonthView && slots.Count > 3)
+            {
+                items.Add(new CalendarItem
+                {
+                    Start = day.AddHours(23).AddMinutes(59),
+                    End = day.AddHours(23).AddMinutes(59),
+                    Text = $"+{slots.Count - 3} more",
+                    AllDay = true
+                });
+            }
+        }
+
+        CalendarItems = items;
+    }
+
+    private CalendarItem? CreateCalendarItem(DateTime date, string slot)
+    {
+        if (string.IsNullOrWhiteSpace(slot)) return null;
+        var parts = slot.Split('-', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length == 0) return null;
+        if (!TimeSpan.TryParse(parts[0], out var start)) return null;
+        TimeSpan end = start.Add(TimeSpan.FromMinutes(60));
+        if (parts.Length > 1 && TimeSpan.TryParse(parts[1], out var parsedEnd))
+        {
+            end = parsedEnd;
+        }
+        return new CalendarItem
+        {
+            Start = date.Date + start,
+            End = date.Date + end,
+            Text = slot
+        };
+    }
+
+    private static string BuildSlotLabel(DateTime start, DateTime end) =>
+        $"{start:HH:mm}-{end:HH:mm}";
 
     private void LoadMockReservations()
     {
@@ -433,11 +652,6 @@ public partial class BeautyPortal : ComponentBase
             new() { Id = 102, FirstName = "Julia", LastName = "Ceasar", Email = "julia@example.com", Phone = "+1 555 0201" },
             new() { Id = 103, FirstName = "Gabe", LastName = "Newell", Email = "gabe@example.com", Phone = "+1 555 0202" }
         };
-    }
-
-    private class CalendarDay
-    {
-        public DateTime Date { get; set; }
     }
 
     private enum PortalView

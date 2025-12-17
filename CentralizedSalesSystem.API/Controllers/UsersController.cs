@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace CentralizedSalesSystem.API.Controllers;
 
 [Route("users")]
-[Authorize]
+[Authorize(Roles = "Admin")]
 [ApiController]
 public class UsersController : ControllerBase
 {

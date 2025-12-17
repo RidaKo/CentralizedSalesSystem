@@ -19,6 +19,9 @@ namespace CentralizedSalesSystem.API.Mappers
 
                 OrderId = payment.OrderId,
                 BussinesId = payment.BussinesId,
+
+                GiftCardId = payment.GiftCardId,
+                GiftCardCode = payment.GiftCard?.Code
             };
         }
     }

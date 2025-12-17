@@ -8,6 +8,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Microsoft.Extensions.DependencyInjection;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -25,9 +27,6 @@ builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddScoped<IReservationService, ReservationService>();
 builder.Services.AddScoped<ITableService, TableService>();
-builder.Services.AddScoped<IBusinessService, BusinessService>();
-builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<IOwnerSignupService, OwnerSignupService>();
 builder.Services.AddScoped<IOrderItemService, OrderItemService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IItemService, ItemService>();
@@ -36,6 +35,9 @@ builder.Services.AddScoped<ITaxService, TaxService>();
 builder.Services.AddScoped<IDiscountService, DiscountService>();
 builder.Services.AddScoped<IServiceChargeService, ServiceChargeService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
+builder.Services.AddScoped<IOwnerSignupService, OwnerSignupService>();
+builder.Services.AddScoped<IRefundService, RefundService>();
+builder.Services.AddScoped<IGiftCardService, GiftCardService>();
 builder.Services.AddSingleton<DbSeeder>();
 
 
@@ -52,6 +54,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
+            RoleClaimType = ClaimTypes.Role,
+            NameClaimType = JwtRegisteredClaimNames.Sub,
 
             ValidIssuer = jwtSection["Issuer"],
             ValidAudience = jwtSection["Audience"],
@@ -65,6 +69,9 @@ builder.Services.AddAuthorization(options =>
     options.FallbackPolicy = new AuthorizationPolicyBuilder()
         .RequireAuthenticatedUser()
         .Build();
+
+    options.AddPolicy("RequireManageAll", policy =>
+        policy.RequireClaim("permission", "manage_all"));
 });
 
 builder.Services.AddControllers().AddJsonOptions(options =>

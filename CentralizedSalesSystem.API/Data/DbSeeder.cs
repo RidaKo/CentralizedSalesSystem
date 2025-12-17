@@ -296,8 +296,7 @@ namespace CentralizedSalesSystem.API.Data
             var sunriseRefund = new Refund
             {
                 Order = sunriseOrder,
-                Payment = sunrisePayment,
-                amount = 3.50m,
+                Amount = 3.50m,
                 RefundedAt = now.AddMinutes(15),
                 Reason = "Customer returned coffee",
                 RefundMethod = PaymentMethod.Card,
@@ -582,7 +581,6 @@ namespace CentralizedSalesSystem.API.Data
             sunrise.OwnerId = sunriseOwner.Id;
             sunriseReservation.CreatedBy = sunriseOwner.Id;
             sunriseReservation.AssignedEmployee = sunriseStaff.Id;
-            sunriseRefund.UserId = sunriseOwner.Id;
             sunriseGiftCard.IssuedBy = sunriseOwner.Id;
 
             luna.OwnerId = lunaOwner.Id;

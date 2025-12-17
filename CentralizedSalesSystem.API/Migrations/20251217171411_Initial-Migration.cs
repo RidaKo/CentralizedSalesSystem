@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace CentralizedSalesSystem.API.Migrations
 {
     /// <inheritdoc />
-    public partial class Initialmigration : Migration
+    public partial class InitialMigration : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -519,7 +519,8 @@ namespace CentralizedSalesSystem.API.Migrations
                         name: "FK_Payments_GiftCards_GiftCardId",
                         column: x => x.GiftCardId,
                         principalTable: "GiftCards",
-                        principalColumn: "Id");
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_Payments_Orders_OrderId",
                         column: x => x.OrderId,
@@ -534,15 +535,13 @@ namespace CentralizedSalesSystem.API.Migrations
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     RefundedAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
                     Reason = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     RefundMethod = table.Column<int>(type: "int", nullable: false),
                     Currency = table.Column<int>(type: "int", nullable: false),
                     Status = table.Column<int>(type: "int", nullable: false),
-                    OrderId = table.Column<long>(type: "bigint", nullable: false),
-                    UserId = table.Column<long>(type: "bigint", nullable: false),
-                    PaymentId = table.Column<long>(type: "bigint", nullable: false)
+                    OrderId = table.Column<long>(type: "bigint", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -551,18 +550,6 @@ namespace CentralizedSalesSystem.API.Migrations
                         name: "FK_Refunds_Orders_OrderId",
                         column: x => x.OrderId,
                         principalTable: "Orders",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_Refunds_Payments_PaymentId",
-                        column: x => x.PaymentId,
-                        principalTable: "Payments",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_Refunds_Users_UserId",
-                        column: x => x.UserId,
-                        principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                 });
@@ -668,16 +655,6 @@ namespace CentralizedSalesSystem.API.Migrations
                 column: "OrderId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Refunds_PaymentId",
-                table: "Refunds",
-                column: "PaymentId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Refunds_UserId",
-                table: "Refunds",
-                column: "UserId");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_Reservations_AssignedEmployeeUserId",
                 table: "Reservations",
                 column: "AssignedEmployeeUserId");
@@ -770,6 +747,9 @@ namespace CentralizedSalesSystem.API.Migrations
                 name: "OrderItems");
 
             migrationBuilder.DropTable(
+                name: "Payments");
+
+            migrationBuilder.DropTable(
                 name: "Refunds");
 
             migrationBuilder.DropTable(
@@ -788,7 +768,10 @@ namespace CentralizedSalesSystem.API.Migrations
                 name: "Taxes");
 
             migrationBuilder.DropTable(
-                name: "Payments");
+                name: "GiftCards");
+
+            migrationBuilder.DropTable(
+                name: "Orders");
 
             migrationBuilder.DropTable(
                 name: "Permissions");
@@ -797,19 +780,13 @@ namespace CentralizedSalesSystem.API.Migrations
                 name: "Roles");
 
             migrationBuilder.DropTable(
-                name: "GiftCards");
-
-            migrationBuilder.DropTable(
-                name: "Orders");
-
-            migrationBuilder.DropTable(
-                name: "Items");
-
-            migrationBuilder.DropTable(
                 name: "Discounts");
 
             migrationBuilder.DropTable(
                 name: "Reservations");
+
+            migrationBuilder.DropTable(
+                name: "Items");
 
             migrationBuilder.DropTable(
                 name: "Tables");

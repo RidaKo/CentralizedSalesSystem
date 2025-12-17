@@ -1,0 +1,35 @@
+@page "/employee/beauty"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Employee")]
+@inject NavigationManager Navigation
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-8">
+    <MudText Typo="Typo.h3" Class="mb-2">Work portal</MudText>
+    <MudText Typo="Typo.subtitle2" Color="Color.Secondary" Class="mb-4">
+        Beauty salon employee interface
+    </MudText>
+
+    <MudPaper Elevation="2" Class="pa-4 mb-4">
+        <MudText Typo="Typo.h5" Class="mb-2">Coming soon</MudText>
+        <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mb-3">
+            This screen will show stylist appointments, chair status, and upsell items using the same API set
+            (items, orders, reservations, payments). Navigation is wired so you can switch here from the drawer.
+        </MudText>
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.ArrowBack"
+                   OnClick="@(() => Navigation.NavigateTo("/employee/restaurant"))">
+            Go to restaurant portal
+        </MudButton>
+    </MudPaper>
+
+    <MudPaper Elevation="1" Class="pa-3">
+        <MudText Typo="Typo.subtitle1" Class="mb-1">Planned modules</MudText>
+        <MudList T="string" Dense="true">
+            <MudListItem T="string">Today’s bookings (reservations endpoint)</MudListItem>
+            <MudListItem T="string">Service catalog & add-ons (items endpoint, type=service)</MudListItem>
+            <MudListItem T="string">Ticket/payments flow (orders & payments endpoints)</MudListItem>
+            <MudListItem T="string">Stylist assignment and room status (tables reused as stations)</MudListItem>
+        </MudList>
+    </MudPaper>
+</MudContainer>

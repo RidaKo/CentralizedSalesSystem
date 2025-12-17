@@ -8,7 +8,8 @@
     <ToolBarContent>
         <MudText Typo="Typo.h6">Active Discounts</MudText>
         <MudSpacer />
-        <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Add" OnClick="AddMockDiscount">
+        <!-- Calls the new Async method -->
+        <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Add" OnClick="CreateDiscountAsync">
             Add Discount
         </MudButton>
     </ToolBarContent>
@@ -22,10 +23,10 @@
     <RowTemplate>
         <MudTd DataLabel="Name">@context.Name</MudTd>
         <MudTd DataLabel="Type">
-            <MudChip T="string" Color="@(context.Type == "Percentage" ? Color.Info : Color.Warning)" Size="Size.Small">@context.Type</MudChip>
+            <MudChip T="string" Color="@(context.Type == DiscountType.Percentage ? Color.Info : Color.Warning)" Size="Size.Small">@context.Type</MudChip>
         </MudTd>
         <MudTd DataLabel="Value">
-            @(context.Type == "Percentage" ? $"{context.Rate}%" : $"${context.Rate}")
+            @(context.Type == DiscountType.Percentage ? $"{context.Rate}%" : $"${context.Rate}")
         </MudTd>
         <MudTd DataLabel="Valid Until">
             @(context.ValidTo.HasValue ? context.ValidTo.Value.ToString("yyyy-MM-dd") : "Forever")
@@ -47,37 +48,67 @@
     {
         try
         {
-            // 1. trying API
             var response = await Http.GetFromJsonAsync<PaginatedResponse<Discount>>($"discounts?businessId={BusinessId}");
             if (response?.Data != null) _discounts = response.Data;
         }
         catch (Exception ex)
         {
-            // 2. fallback to mock
-            Console.WriteLine($"API Discount Fetch Failed: {ex.Message}");
+            Console.WriteLine($"API Fetch Failed: {ex.Message}");
             LoadMockData();
         }
+    }
+
+    private async Task CreateDiscountAsync()
+    {
+        var newDiscount = new Discount 
+        { 
+            BusinessId = BusinessId, 
+            Name = "New Promo", 
+            Type = DiscountType.Percentage, 
+            Rate = 10,
+            ValidTo = DateTimeOffset.UtcNow.AddMonths(1)
+        };
+
+        try 
+        {
+            // 1. try to get real data from the API
+            var response = await Http.PostAsJsonAsync("discounts", newDiscount);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var created = await response.Content.ReadFromJsonAsync<Discount>();
+                if (created != null)
+                {
+                    _discounts.Add(created);
+                    Snackbar.Add("Discount Saved to Database!", Severity.Success);
+                }
+            }
+            else
+            {
+                 Snackbar.Add("Failed to save discount to API.", Severity.Error);
+            }
+        }
+        catch (Exception)
+        {
+            // 2. mock data if API fails
+            newDiscount.Id = DateTime.Now.Ticks;
+            _discounts.Add(newDiscount);
+            Snackbar.Add("Discount Added (Local Only - API Offline)", Severity.Warning);
+        }
+    }
+
+    private void DeleteDiscount(Discount item)
+    {
+        _discounts.Remove(item);
+        Snackbar.Add($"Deleted {item.Name}", Severity.Success);
     }
 
     private void LoadMockData()
     {
         _discounts = new List<Discount>
         {
-            new Discount { Id = 1, Name = "Happy Hour", Type = "Percentage", Rate = 15, ValidTo = DateTimeOffset.UtcNow.AddMonths(1) },
-            new Discount { Id = 2, Name = "Lunch Special", Type = "Fixed", Rate = 5.00m, ValidTo = DateTimeOffset.UtcNow.AddDays(7) },
-            new Discount { Id = 3, Name = "Staff Meal", Type = "Percentage", Rate = 50, ValidTo = null }
+            new Discount { Id = 1, Name = "Happy Hour", Type = DiscountType.Percentage, Rate = 15 },
+            new Discount { Id = 2, Name = "Lunch Special", Type = DiscountType.Fixed, Rate = 5.00m }
         };
-    }
-
-    private void DeleteDiscount(Discount item)
-    {
-        _discounts.Remove(item);
-        Snackbar.Add($"Deleted {item.Name} (Local Only)", Severity.Success);
-    }
-
-    private void AddMockDiscount()
-    {
-        _discounts.Add(new Discount { Id = DateTime.Now.Ticks, Name = "Seasonal Promo", Type = "Percentage", Rate = 10, ValidTo = DateTimeOffset.UtcNow.AddMonths(3) });
-        Snackbar.Add("Discount Added (Local Only)", Severity.Success);
     }
 }

@@ -5,9 +5,18 @@ namespace CentralizedSalesSystem.Frontend.Models
         public long Id { get; set; }
         public long BusinessId { get; set; }
         public string Name { get; set; } = string.Empty;
-        public decimal Rate { get; set; } // e.g. 0.21
-        public string Status { get; set; } = "Active"; // enum in db, string in json
+        public decimal Rate { get; set; }
+        
+        // changed from string to enum
+        public TaxStatus Status { get; set; } = TaxStatus.Active; 
+        
         public DateTimeOffset EffectiveFrom { get; set; } = DateTimeOffset.UtcNow;
         public DateTimeOffset? EffectiveTo { get; set; }
+    }
+
+    public enum TaxStatus
+    {
+        Active,
+        Inactive
     }
 }

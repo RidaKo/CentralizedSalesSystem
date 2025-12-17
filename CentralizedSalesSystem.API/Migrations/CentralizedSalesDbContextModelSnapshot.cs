@@ -530,13 +530,13 @@ namespace CentralizedSalesSystem.API.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<int>("Currency")
                         .HasColumnType("int");
 
                     b.Property<long>("OrderId")
-                        .HasColumnType("bigint");
-
-                    b.Property<long>("PaymentId")
                         .HasColumnType("bigint");
 
                     b.Property<string>("Reason")
@@ -551,19 +551,9 @@ namespace CentralizedSalesSystem.API.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("int");
 
-                    b.Property<long>("UserId")
-                        .HasColumnType("bigint");
-
-                    b.Property<decimal>("amount")
-                        .HasColumnType("decimal(18,2)");
-
                     b.HasKey("Id");
 
                     b.HasIndex("OrderId");
-
-                    b.HasIndex("PaymentId");
-
-                    b.HasIndex("UserId");
 
                     b.ToTable("Refunds");
                 });
@@ -948,15 +938,18 @@ namespace CentralizedSalesSystem.API.Migrations
 
             modelBuilder.Entity("CentralizedSalesSystem.API.Models.Orders.Payment", b =>
                 {
-                    b.HasOne("CentralizedSalesSystem.API.Models.Orders.GiftCard", null)
+                    b.HasOne("CentralizedSalesSystem.API.Models.Orders.GiftCard", "GiftCard")
                         .WithMany("Redemptions")
-                        .HasForeignKey("GiftCardId");
+                        .HasForeignKey("GiftCardId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("CentralizedSalesSystem.API.Models.Orders.Order", "Order")
                         .WithMany("Payments")
                         .HasForeignKey("OrderId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("GiftCard");
 
                     b.Navigation("Order");
                 });
@@ -969,23 +962,7 @@ namespace CentralizedSalesSystem.API.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("CentralizedSalesSystem.API.Models.Orders.Payment", "Payment")
-                        .WithMany()
-                        .HasForeignKey("PaymentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("CentralizedSalesSystem.API.Models.User", "RefunderBy")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
                     b.Navigation("Order");
-
-                    b.Navigation("Payment");
-
-                    b.Navigation("RefunderBy");
                 });
 
             modelBuilder.Entity("CentralizedSalesSystem.API.Models.Orders.ServiceCharge", b =>

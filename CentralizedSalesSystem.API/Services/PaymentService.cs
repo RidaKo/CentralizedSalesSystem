@@ -10,10 +10,13 @@ namespace CentralizedSalesSystem.API.Services
     public class PaymentService : IPaymentService
     {
         private readonly CentralizedSalesDbContext _db;
+        private readonly IOrderService _orderService;
 
-        public PaymentService(CentralizedSalesDbContext db)
+
+        public PaymentService(CentralizedSalesDbContext db, IOrderService orderService)
         {
             _db = db;
+            _orderService = orderService;
         }
 
         public async Task<object> GetPaymentsAsync(
@@ -91,7 +94,7 @@ namespace CentralizedSalesSystem.API.Services
                 .Include(o => o.Items).ThenInclude(i => i.Discount)
                 .Include(o => o.Items).ThenInclude(i => i.Tax)
                 .Include(o => o.Items).ThenInclude(i => i.ServiceCharge)
-                .Include(o => o.Payments) // load previous payments
+                .Include(o => o.Payments)
                 .FirstOrDefaultAsync(o => o.Id == dto.OrderId);
 
             if (order == null)
@@ -99,7 +102,7 @@ namespace CentralizedSalesSystem.API.Services
 
             var orderDto = order.ToOrderResponse();
             orderDto.Items = order.Items.Select(i => i.ToDto()).ToList();
-            new OrderService(_db).CalculateOrderTotals(order, orderDto);
+            _orderService.CalculateOrderTotals(order, orderDto);
 
             var payment = new Payment
             {
@@ -113,19 +116,40 @@ namespace CentralizedSalesSystem.API.Services
                 BussinesId = dto.BussinesId
             };
 
+            // Attach GiftCard if provided
+            if (dto.GiftCardId.HasValue)
+            {
+                var giftCard = await _db.GiftCards.FindAsync(dto.GiftCardId.Value);
+                if (giftCard == null)
+                    throw new Exception("Gift card not found");
+
+                payment.GiftCardId = giftCard.Id;
+                payment.GiftCard = giftCard;
+            }
+
             _db.Payments.Add(payment);
             await _db.SaveChangesAsync();
 
-            // Apply payment to order if completed
-            if (payment.Status == PaymentStatus.Completed)
+            // If payment is completed, deduct gift card balance and recalc order
+            if (payment.Status == PaymentStatus.Completed && payment.GiftCardId.HasValue)
             {
-                orderDto.AmountPaid = order.Payments
-                    .Where(p => p.Status == PaymentStatus.Completed)
-                    .Sum(p => p.Amount);
+                var giftCard = payment.GiftCard!;
+                if (giftCard.Status != GiftCardStatus.Valid)
+                    throw new InvalidOperationException("Gift card is not valid");
+
+                if (giftCard.CurrentBalance < payment.Amount)
+                    throw new InvalidOperationException("Insufficient gift card balance");
+
+                giftCard.CurrentBalance -= payment.Amount;
+                if (giftCard.CurrentBalance == 0)
+                    giftCard.Status = GiftCardStatus.Redeemed;
+
+                await _db.SaveChangesAsync();
             }
 
             return payment.ToDto();
         }
+
 
 
         public async Task<PaymentResponseDto?> UpdatePaymentAsync(long id, PaymentUpdateDto dto)
@@ -133,39 +157,95 @@ namespace CentralizedSalesSystem.API.Services
             var payment = await _db.Payments
                 .Include(p => p.Order)
                     .ThenInclude(o => o.Items)
+                        .ThenInclude(i => i.Item)
+                .Include(p => p.Order)
+                    .ThenInclude(o => o.Items)
+                        .ThenInclude(i => i.Discount)
+                .Include(p => p.Order)
+                    .ThenInclude(o => o.Items)
+                        .ThenInclude(i => i.Tax)
+                .Include(p => p.Order)
+                    .ThenInclude(o => o.Items)
+                        .ThenInclude(i => i.ServiceCharge)
                 .Include(p => p.Order)
                     .ThenInclude(o => o.Discount)
+                .Include(p => p.GiftCard)
                 .FirstOrDefaultAsync(p => p.Id == id);
 
-            if (payment == null) return null;
+            if (payment == null)
+                return null;
 
-            if (dto.Amount.HasValue) payment.Amount = dto.Amount.Value;
-            if (dto.PaidAt.HasValue) payment.PaidAt = dto.PaidAt.Value;
-            if (dto.Method.HasValue) payment.Method = dto.Method.Value;
-            if (dto.Provider.HasValue) payment.Provider = dto.Provider.Value;
-            if (dto.Currency.HasValue) payment.Currency = dto.Currency.Value;
+            // Update non-status fields first
+            if (dto.Amount.HasValue)
+                payment.Amount = dto.Amount.Value;
 
-            bool statusChangedToCompleted = dto.Status.HasValue && dto.Status.Value == PaymentStatus.Completed && payment.Status != PaymentStatus.Completed;
-            if (dto.Status.HasValue) payment.Status = dto.Status.Value;
+            if (dto.PaidAt.HasValue)
+                payment.PaidAt = dto.PaidAt.Value;
 
-            await _db.SaveChangesAsync();
+            if (dto.Method.HasValue)
+                payment.Method = dto.Method.Value;
 
-            // Apply payment to order if just completed
-            if (statusChangedToCompleted)
+            if (dto.Provider.HasValue)
+                payment.Provider = dto.Provider.Value;
+
+            if (dto.Currency.HasValue)
+                payment.Currency = dto.Currency.Value;
+
+            // Handle status change
+            if (dto.Status.HasValue && dto.Status.Value == PaymentStatus.Completed)
             {
+                // Gift card validation FIRST
+                if (payment.GiftCardId.HasValue)
+                {
+                    var giftCard = payment.GiftCard!;
+
+                    if (giftCard.Status != GiftCardStatus.Valid ||
+                        giftCard.CurrentBalance < payment.Amount)
+                    {
+                        payment.Status = PaymentStatus.Failed;
+                        await _db.SaveChangesAsync();
+                        return payment.ToDto();
+                    }
+
+                    giftCard.CurrentBalance -= payment.Amount;
+
+                    if (giftCard.CurrentBalance == 0)
+                        giftCard.Status = GiftCardStatus.Redeemed;
+                }
+
+                payment.Status = PaymentStatus.Completed;
+                await _db.SaveChangesAsync();
+
+                // Recalculate order totals
                 var order = payment.Order;
                 var orderDto = order.ToOrderResponse();
                 orderDto.Items = order.Items.Select(i => i.ToDto()).ToList();
-                new OrderService(_db).CalculateOrderTotals(order, orderDto);
 
-                orderDto.AmountPaid = order.Payments
+                _orderService.CalculateOrderTotals(order, orderDto);
+
+                decimal amountPaid = order.Payments
                     .Where(p => p.Status == PaymentStatus.Completed)
                     .Sum(p => p.Amount);
 
+                decimal remaining = orderDto.Total - amountPaid;
+
+                if (remaining <= 0 && order.Status != OrderStatus.Closed)
+                    order.Status = OrderStatus.Closed;
+
+                await _db.SaveChangesAsync();
+            }
+            else if (dto.Status.HasValue)
+            {
+                // Any other status update
+                payment.Status = dto.Status.Value;
+                await _db.SaveChangesAsync();
             }
 
             return payment.ToDto();
         }
+
+
+
 
         public async Task<bool> DeletePaymentAsync(long id)
         {

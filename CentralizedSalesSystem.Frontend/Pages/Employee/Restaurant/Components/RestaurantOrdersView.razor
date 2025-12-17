@@ -1,0 +1,77 @@
+@using CentralizedSalesSystem.Frontend.Models
+@namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant.Components
+
+<MudPaper Elevation="2" Class="pa-4">
+    <div class="d-flex align-center justify-space-between mb-4">
+        <MudText Typo="Typo.h5">All orders</MudText>
+        <MudSelect T="OrderStatus?" @bind-Value="Filter" Label="Status" Dense="true" Class="status-filter">
+            <MudSelectItem T="OrderStatus?" Value="@((OrderStatus?)null)">All</MudSelectItem>
+            <MudSelectItem T="OrderStatus?" Value="OrderStatus.Open">Open</MudSelectItem>
+            <MudSelectItem T="OrderStatus?" Value="OrderStatus.Pending">Pending</MudSelectItem>
+            <MudSelectItem T="OrderStatus?" Value="OrderStatus.Closed">Closed</MudSelectItem>
+            <MudSelectItem T="OrderStatus?" Value="OrderStatus.Refunded">Refunded</MudSelectItem>
+        </MudSelect>
+    </div>
+
+    <MudTable Items="Orders" Hover="true" Dense="true" RowClick="HandleRowClick">
+        <HeaderContent>
+            <MudTh>ID</MudTh>
+            <MudTh>Table</MudTh>
+            <MudTh>Status</MudTh>
+            <MudTh>Total</MudTh>
+            <MudTh>Updated</MudTh>
+            <MudTh Style="width: 200px;">Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="ID">@($"#{context.Id}")</MudTd>
+            <MudTd DataLabel="Table">@GetTableName(context.TableId)</MudTd>
+            <MudTd DataLabel="Status">
+                <MudChip T="OrderStatus" Color="@GetStatusColor(context.Status)" Variant="Variant.Outlined" Size="Size.Small">
+                    @context.Status
+                </MudChip>
+            </MudTd>
+            <MudTd DataLabel="Total">@CalculateTotal(context).ToString("C")</MudTd>
+            <MudTd DataLabel="Updated">
+                @((context.UpdatedAt ?? DateTime.UtcNow).ToLocalTime().ToString("g"))
+            </MudTd>
+            <MudTd>
+                <MudStack Row="true" Spacing="1">
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Default"
+                               Size="Size.Small"
+                               OnClick="@(() => OnReceipt.InvokeAsync(context))">
+                        Receipt
+                    </MudButton>
+                    @if (CanRefund(context))
+                    {
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Error"
+                                   Size="Size.Small"
+                                   OnClick="@(() => OnRefund.InvokeAsync(context))">
+                            Refund
+                        </MudButton>
+                    }
+                </MudStack>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+</MudPaper>
+
+@code {
+    [Parameter] public IEnumerable<OrderDto> Orders { get; set; } = Enumerable.Empty<OrderDto>();
+    [Parameter] public OrderStatus? Filter { get; set; }
+    [Parameter] public EventCallback<OrderStatus?> FilterChanged { get; set; }
+    [Parameter] public EventCallback<OrderDto> OnRowClick { get; set; }
+    [Parameter] public EventCallback<OrderDto> OnReceipt { get; set; }
+    [Parameter] public EventCallback<OrderDto> OnRefund { get; set; }
+    [Parameter] public Func<OrderDto, decimal> CalculateTotal { get; set; } = default!;
+    [Parameter] public Func<long?, string> GetTableName { get; set; } = default!;
+    [Parameter] public Func<OrderStatus?, Color> GetStatusColor { get; set; } = default!;
+    [Parameter] public Func<OrderDto, bool> CanRefund { get; set; } = default!;
+
+    private Task HandleRowClick(TableRowClickEventArgs<OrderDto> args)
+    {
+        if (args.Item is null || !OnRowClick.HasDelegate) return Task.CompletedTask;
+        return OnRowClick.InvokeAsync(args.Item);
+    }
+}

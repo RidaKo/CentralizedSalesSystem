@@ -1,6 +1,8 @@
 using CentralizedSalesSystem.API.Data;
 using CentralizedSalesSystem.API.Models;
+using CentralizedSalesSystem.API.Models.Auth.enums;
 using CentralizedSalesSystem.API.Services;
+using CentralizedSalesSystem.API.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -39,6 +41,8 @@ builder.Services.AddScoped<IOwnerSignupService, OwnerSignupService>();
 builder.Services.AddScoped<IRefundService, RefundService>();
 builder.Services.AddScoped<IGiftCardService, GiftCardService>();
 builder.Services.AddSingleton<DbSeeder>();
+builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
+builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
 
 
 var jwtSection = builder.Configuration.GetSection("JWT");
@@ -65,13 +69,16 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     
 builder.Services.AddAuthorization(options =>
 {
-    // Enforce auth for all endpoints unless explicitly marked with [AllowAnonymous]
     options.FallbackPolicy = new AuthorizationPolicyBuilder()
         .RequireAuthenticatedUser()
         .Build();
 
     options.AddPolicy("RequireManageAll", policy =>
-        policy.RequireClaim("permission", "manage_all"));
+        policy.RequireAssertion(ctx =>
+            ctx.User.HasClaim(c =>
+                (c.Type == PermissionAuthorizationHandler.PermissionClaimType
+                 || c.Type == PermissionAuthorizationHandler.LegacyPermissionClaimType)
+                && string.Equals(c.Value, PermissionCode.MANAGE_ALL.ToString(), StringComparison.OrdinalIgnoreCase))));
 });
 
 builder.Services.AddControllers().AddJsonOptions(options =>
@@ -129,13 +136,19 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    var dbSeeder = app.Services.GetRequiredService<DbSeeder>();
-    await dbSeeder.SeedAsync();
     app.UseSwagger();
     app.UseSwaggerUI();
+}
+
+var dbSeeder = app.Services.GetRequiredService<DbSeeder>();
+// Always ensure SuperAdmins exist (idempotent)
+await dbSeeder.SeedSuperAdminsAsync();
+// Full sample seed only in development
+if (app.Environment.IsDevelopment())
+{
+    await dbSeeder.SeedAsync();
 }
 
 app.UseHttpsRedirection();

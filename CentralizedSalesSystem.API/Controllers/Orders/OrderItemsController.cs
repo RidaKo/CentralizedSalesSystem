@@ -1,3 +1,5 @@
+using CentralizedSalesSystem.API.Authorization;
+using CentralizedSalesSystem.API.Models.Auth.enums;
 using CentralizedSalesSystem.API.Models.Orders.DTOs.ItemDTOs;
 using CentralizedSalesSystem.API.Models.Orders.DTOs.DiscountDTOs;
 using CentralizedSalesSystem.API.Models.Orders.DTOs.TaxDTOs;
@@ -26,6 +28,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
         }
 
         [HttpGet]
+        [AuthorizePermission(nameof(PermissionCode.ORDER_VIEW))]
         public async Task<IActionResult> Get(
             [FromQuery] int page = 1,
             [FromQuery] int limit = 20,
@@ -43,6 +46,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
         }
 
         [HttpGet("{id}")]
+        [AuthorizePermission(nameof(PermissionCode.ORDER_VIEW))]
         public async Task<ActionResult<OrderItemResponseDto>> GetOrderItemById(long id)
         {
             var item = await _orderItemService.GetOrderItemByIdAsync(id);
@@ -51,6 +55,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
         }
 
         [HttpPost]
+        [AuthorizePermission(nameof(PermissionCode.ORDER_ITEM_ADD))]
         public async Task<ActionResult<OrderItemResponseDto>> CreateOrderItem(OrderItemCreateDto dto)
         {
             try
@@ -66,6 +71,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
 
 
         [HttpPatch("{id}")]
+        [AuthorizePermission(nameof(PermissionCode.ORDER_ITEM_UPDATE))]
         public async Task<ActionResult<OrderItemResponseDto>> UpdateOrderItem(long id, OrderItemUpdateDto dto)
         {
             var updated = await _orderItemService.UpdateOrderItemAsync(id, dto);
@@ -74,6 +80,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
         }
 
         [HttpDelete("{id}")]
+        [AuthorizePermission(nameof(PermissionCode.ORDER_ITEM_REMOVE))]
         public async Task<IActionResult> DeleteOrderItem(long id)
         {
             var deleted = await _orderItemService.DeleteOrderItemAsync(id);

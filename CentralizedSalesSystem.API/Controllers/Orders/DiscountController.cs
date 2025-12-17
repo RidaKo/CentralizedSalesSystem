@@ -1,3 +1,5 @@
+using CentralizedSalesSystem.API.Authorization;
+using CentralizedSalesSystem.API.Models.Auth.enums;
 using CentralizedSalesSystem.API.Models.Orders.DTOs.DiscountDTOs;
 using CentralizedSalesSystem.API.Services;
 using CentralizedSalesSystem.API.Models.Orders.enums;
@@ -19,6 +21,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
         }
 
         [HttpGet]
+        [AuthorizePermission(nameof(PermissionCode.DISCOUNT_VIEW))]
         public async Task<ActionResult<object>> GetDiscounts(
            [FromQuery] int page = 1,
            [FromQuery] int limit = 20,
@@ -42,6 +45,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
 
 
         [HttpGet("{id}")]
+        [AuthorizePermission(nameof(PermissionCode.DISCOUNT_VIEW))]
         public async Task<ActionResult<DiscountResponseDto>> GetDiscountById(long id)
         {
             var discount = await _service.GetDiscountByIdAsync(id);
@@ -49,6 +53,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
         }
 
         [HttpPost]
+        [AuthorizePermission(nameof(PermissionCode.DISCOUNT_CREATE))]
         public async Task<ActionResult<DiscountResponseDto>> CreateDiscount(DiscountCreateDto dto)
         {
             var created = await _service.CreateDiscountAsync(dto);
@@ -56,6 +61,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
         }
 
         [HttpPatch("{id}")]
+        [AuthorizePermission(nameof(PermissionCode.DISCOUNT_UPDATE))]
         public async Task<ActionResult<DiscountResponseDto>> UpdateDiscount(long id, DiscountUpdateDto dto)
         {
             var updated = await _service.UpdateDiscountAsync(id, dto);
@@ -63,6 +69,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
         }
 
         [HttpDelete("{id}")]
+        [AuthorizePermission(nameof(PermissionCode.DISCOUNT_DELETE))]
         public async Task<IActionResult> DeleteDiscount(long id)
         {
             try

@@ -11,6 +11,8 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 
 builder.Services.AddScoped<ITokenStore, LocalStorageTokenStore>();
 builder.Services.AddScoped<AuthMessageHandler>();
+builder.Services.AddScoped<ApiErrorMessageHandler>();
+builder.Services.AddScoped<BusinessContext>();
 builder.Services.AddScoped<ApiAuthStateProvider>();
 builder.Services.AddScoped<AuthenticationStateProvider>(sp =>
     sp.GetRequiredService<ApiAuthStateProvider>());
@@ -20,7 +22,9 @@ builder.Services.AddMudServices();
 builder.Services.AddHttpClient("Api", client =>
 {
     client.BaseAddress = new Uri("https://localhost:7051");
-}).AddHttpMessageHandler<AuthMessageHandler>();
+})
+    .AddHttpMessageHandler<AuthMessageHandler>()
+    .AddHttpMessageHandler<ApiErrorMessageHandler>();
 
 builder.Services.AddScoped(sp =>
     sp.GetRequiredService<IHttpClientFactory>().CreateClient("Api"));

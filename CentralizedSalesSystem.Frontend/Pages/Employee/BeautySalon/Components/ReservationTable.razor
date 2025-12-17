@@ -24,23 +24,37 @@
                 </MudChip>
             </MudTd>
             <MudTd>
+                @if (OnStatusChange.HasDelegate && context.Status == ReservationStatus.Scheduled)
+                {
+                    <MudTooltip Text="Complete" Delay="1000">
+                        <MudIconButton Icon="@Icons.Material.Filled.CheckCircle"
+                                       Size="Size.Small"
+                                       Color="Color.Success"
+                                       OnClick="@(() => OnStatusChange.InvokeAsync(context))"
+                                       Class="mr-2"
+                                       AriaLabel="Complete reservation" />
+                    </MudTooltip>
+                }
                 @if (OnEdit.HasDelegate)
                 {
-                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" OnClick="@(() => OnEdit.InvokeAsync(context))" Class="mr-2">
-                        Edit
-                    </MudButton>
+                    <MudTooltip Text="Edit" Delay="1000">
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                       Size="Size.Small"
+                                       Color="Color.Primary"
+                                       OnClick="@(() => OnEdit.InvokeAsync(context))"
+                                       Class="mr-2"
+                                       AriaLabel="Edit reservation" />
+                    </MudTooltip>
                 }
                 @if (ShowDelete && OnDelete.HasDelegate)
                 {
-                    <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small" OnClick="@(() => OnDelete.InvokeAsync(context))" Class="mr-2">
-                        Remove
-                    </MudButton>
-                }
-                @if (OnStatusChange.HasDelegate && context.Status == ReservationStatus.Scheduled)
-                {
-                    <MudButton Variant="Variant.Outlined" Color="Color.Success" Size="Size.Small" OnClick="@(() => OnStatusChange.InvokeAsync(context))">
-                        Complete
-                    </MudButton>
+                    <MudTooltip Text="Delete" Delay="1000">
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                       Size="Size.Small"
+                                       Color="Color.Error"
+                                       OnClick="@(() => OnDelete.InvokeAsync(context))"
+                                       AriaLabel="Remove reservation" />
+                    </MudTooltip>
                 }
             </MudTd>
         </RowTemplate>

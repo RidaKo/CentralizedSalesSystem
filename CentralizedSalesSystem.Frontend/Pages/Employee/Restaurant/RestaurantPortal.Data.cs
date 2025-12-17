@@ -62,6 +62,10 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
             {
                 var response = await Http.GetFromJsonAsync<PaginatedResponse<TableDto>>($"tables?limit=200&filterByBusinessId={BusinessId}");
                 Tables = response?.Data ?? new List<TableDto>();
+                if (Tables.Count == 0)
+                {
+                    LoadMockTables();
+                }
             }
             catch (Exception ex)
             {

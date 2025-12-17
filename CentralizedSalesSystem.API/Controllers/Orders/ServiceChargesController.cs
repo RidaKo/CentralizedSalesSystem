@@ -1,3 +1,5 @@
+using CentralizedSalesSystem.API.Authorization;
+using CentralizedSalesSystem.API.Models.Auth.enums;
 using CentralizedSalesSystem.API.Models.Orders.DTOs.ServiceChargeDTOs;
 using CentralizedSalesSystem.API.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -18,6 +20,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
         }
 
         [HttpGet]
+        [AuthorizePermission(nameof(PermissionCode.SERVICE_CHARGE_VIEW))]
         public async Task<ActionResult<object>> GetServiceCharges(
             [FromQuery] int page = 1,
             [FromQuery] int limit = 20,
@@ -35,6 +38,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
         }
 
         [HttpGet("{id}")]
+        [AuthorizePermission(nameof(PermissionCode.SERVICE_CHARGE_VIEW))]
         public async Task<ActionResult<ServiceChargeResponseDto>> GetServiceChargeById(long id)
         {
             var sc = await _service.GetServiceChargeByIdAsync(id);
@@ -42,6 +46,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
         }
 
         [HttpPost]
+        [AuthorizePermission(nameof(PermissionCode.SERVICE_CHARGE_MANAGE))]
         public async Task<ActionResult<ServiceChargeResponseDto>> CreateServiceCharge(ServiceChargeCreateDto dto)
         {
             var sc = await _service.CreateServiceChargeAsync(dto);
@@ -49,6 +54,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
         }
 
         [HttpPatch("{id}")]
+        [AuthorizePermission(nameof(PermissionCode.SERVICE_CHARGE_MANAGE))]
         public async Task<ActionResult<ServiceChargeResponseDto>> UpdateServiceCharge(long id, ServiceChargeUpdateDto dto)
         {
             var sc = await _service.UpdateServiceChargeAsync(id, dto);
@@ -56,6 +62,7 @@ namespace CentralizedSalesSystem.API.Controllers.Orders
         }
 
         [HttpDelete("{id}")]
+        [AuthorizePermission(nameof(PermissionCode.SERVICE_CHARGE_MANAGE))]
         public async Task<IActionResult> DeleteServiceCharge(long id)
         {
             var deleted = await _service.DeleteServiceChargeAsync(id);

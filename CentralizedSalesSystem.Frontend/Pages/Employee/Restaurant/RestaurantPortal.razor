@@ -1,0 +1,413 @@
+@page "/employee/restaurant"
+@namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
+@using CentralizedSalesSystem.Frontend.Models
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<MudContainer MaxWidth="MaxWidth.False" Class="employee-portal mt-6">
+    <MudText Typo="Typo.h3" Class="mb-1">Work portal</MudText>
+    <MudText Typo="Typo.subtitle2" Color="Color.Secondary" Class="mb-4">
+        Restaurant employee interface
+    </MudText>
+
+    @if (IsLoading)
+    {
+        <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-6" />
+    }
+    else
+    {
+        @if (ActiveView == PortalView.CurrentOrder)
+        {
+            <MudGrid GutterSize="3">
+                <MudItem xs="12" md="4">
+                    <MudPaper Elevation="2" Class="pa-3 order-panel">
+                        <div class="d-flex align-center justify-space-between mb-2">
+                            <div>
+                                <MudText Typo="Typo.h6">@CurrentOrderTitle</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    Tap menu items to add. Edit is available only for open orders.
+                                </MudText>
+                            </div>
+                            <MudStack Spacing="1" AlignItems="AlignItems.End">
+                                <MudChip T="OrderStatus"
+                                         Color="@GetStatusColor(ActiveOrder?.Status ?? OrderStatus.Open)"
+                                         Variant="Variant.Outlined"
+                                         Size="Size.Small">
+                                    @(ActiveOrder?.Status ?? OrderStatus.Open)
+                                </MudChip>
+                                @if (IsEditMode && CanModifyActiveOrder)
+                                {
+                                    <MudChip T="string" Color="Color.Info" Variant="Variant.Filled" Size="Size.Small">
+                                        Editing
+                                    </MudChip>
+                                }
+                            </MudStack>
+                        </div>
+
+                        <MudStack Row="true" Spacing="1" AlignItems="AlignItems.End" Class="mb-3">
+                            <MudSelect T="long?"
+                                       Value="SelectedTableForNewOrder"
+                                       ValueChanged="OnTableSelectionChanged"
+                                       ValueExpression="() => SelectedTableForNewOrder"
+                                       Label="Table"
+                                       Dense="true"
+                                       Class="flex-grow-1">
+                                @foreach (var table in Tables)
+                                {
+                                    <MudSelectItem T="long?" Value="@table.Id">
+                                        @table.Name (@table.Status)
+                                    </MudSelectItem>
+                                }
+                            </MudSelect>
+                            @if (CanShowNewOrderButton)
+                            {
+                                <MudButton StartIcon="@Icons.Material.Filled.Add"
+                                           Variant="Variant.Filled"
+                                           Color="Color.Primary"
+                                           OnClick="CreateOrderFromSelection">
+                                    New order
+                                </MudButton>
+                            }
+                        </MudStack>
+
+                        @if (!CanModifyActiveOrder && ActiveOrder is not null)
+                        {
+                            <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-2">
+                                This order is @ActiveOrder.Status; adding or editing items is disabled.
+                            </MudAlert>
+                        }
+
+                        <MudList T="OrderItemDto" Dense="true" Class="order-lines mb-3">
+                            @if (ActiveOrder?.Items?.Any() == true)
+                            {
+                                @foreach (var line in ActiveOrder.Items)
+                                {
+                                    var menuItem = Items.FirstOrDefault(i => i.Id == line.ItemId);
+                                    <MudListItem T="OrderItemDto" Class="order-line">
+                                        <MudIcon Icon="@Icons.Material.Filled.Fastfood" Color="Color.Primary" Class="mr-2" />
+                                        <div class="d-flex flex-column mr-3">
+                                            <MudText Typo="Typo.body2">@((menuItem?.Name) ?? "Item")</MudText>
+                                            @if (!string.IsNullOrWhiteSpace(line.Notes))
+                                            {
+                                                <MudText Typo="Typo.caption" Color="Color.Secondary">@line.Notes</MudText>
+                                            }
+                                        </div>
+                                        <MudSpacer />
+                                        @if (IsEditMode && CanModifyActiveOrder)
+                                        {
+                                            <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                                                <MudIconButton Icon="@Icons.Material.Filled.RemoveCircle"
+                                                               Disabled="@(line.Quantity <= 1)"
+                                                               Color="Color.Default"
+                                                               Size="Size.Small"
+                                                               OnClick="@(() => ChangeQuantity(line, -1))" />
+                                                <MudText Typo="Typo.body2">@line.Quantity</MudText>
+                                                <MudIconButton Icon="@Icons.Material.Filled.AddCircle"
+                                                               Color="Color.Default"
+                                                               Size="Size.Small"
+                                                               Disabled="@(line.Quantity >= 10)"
+                                                               OnClick="@(() => ChangeQuantity(line, 1))" />
+                                                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                               Color="Color.Error"
+                                                               Size="Size.Small"
+                                                               OnClick="@(() => RemoveItem(line))" />
+                                            </MudStack>
+                                        }
+                                        else
+                                        {
+                                            <MudText Typo="Typo.body2">@FormatPrice(line, menuItem)</MudText>
+                                        }
+                                    </MudListItem>
+                                }
+                            }
+                            else if (ActiveOrder is null)
+                            {
+                                <MudListItem T="OrderItemDto">
+                                    <MudIcon Icon="@Icons.Material.Filled.Info" Color="Color.Secondary" Class="mr-2" />
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                        Create a new order to add dishes.
+                                    </MudText>
+                                </MudListItem>
+                            }
+                            else
+                            {
+                                <MudListItem T="OrderItemDto">
+                                    <MudIcon Icon="@Icons.Material.Filled.Info" Color="Color.Secondary" Class="mr-2" />
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                        No items yet. Add dishes to this order.
+                                    </MudText>
+                                </MudListItem>
+                            }
+                        </MudList>
+
+                        <MudPaper Elevation="0" Class="pa-2 mb-2 total-line">
+                            <MudStack>
+                                <div class="d-flex justify-space-between">
+                                    <MudText Typo="Typo.caption">Subtotal</MudText>
+                                    <MudText Typo="Typo.caption">@Subtotal.ToString("C")</MudText>
+                                </div>
+                                <div class="d-flex justify-space-between">
+                                    <MudText Typo="Typo.caption">Discount (@DiscountPercentLabel)</MudText>
+                                    <MudText Typo="Typo.caption">-@DiscountAmount.ToString("C")</MudText>
+                                </div>
+                                <div class="d-flex justify-space-between">
+                                    <MudText Typo="Typo.caption">Tip</MudText>
+                                    <MudText Typo="Typo.caption">@ActiveOrder?.Tip.ToString("C")</MudText>
+                                </div>
+                                <MudDivider Class="my-1" />
+                                <div class="d-flex justify-space-between align-center">
+                                    <MudText Typo="Typo.subtitle2">Total</MudText>
+                                    <MudText Typo="Typo.subtitle2">@CurrentOrderTotal.ToString("C")</MudText>
+                                </div>
+                                <div class="d-flex justify-space-between align-center">
+                                    <MudText Typo="Typo.caption">Paid</MudText>
+                                    <MudText Typo="Typo.caption">@TotalPaid.ToString("C")</MudText>
+                                </div>
+                                <div class="d-flex justify-space-between align-center">
+                                    <MudText Typo="Typo.caption">Remaining</MudText>
+                                    <MudText Typo="Typo.caption" Color="@(RemainingToPay > 0 ? Color.Warning : Color.Success)">
+                                        @RemainingToPay.ToString("C")
+                                    </MudText>
+                                </div>
+                                @if (ChangeAmount > 0)
+                                {
+                                    <div class="d-flex justify-space-between align-center">
+                                        <MudText Typo="Typo.caption">Change</MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Info">@ChangeAmount.ToString("C")</MudText>
+                                    </div>
+                                }
+                            </MudStack>
+                        </MudPaper>
+
+                        <MudGrid GutterSize="2" Class="mt-2">
+                            <MudItem xs="6">
+                                <MudButton Variant="Variant.Outlined"
+                                           Color="Color.Default"
+                                           FullWidth="true"
+                                           Disabled="@(ActiveOrder is null || !CanModifyActiveOrder)"
+                                           OnClick="ToggleEdit">
+                                    @(IsEditMode ? "Done" : "Edit")
+                                </MudButton>
+                            </MudItem>
+                            <MudItem xs="6">
+                                <MudButton Variant="Variant.Outlined"
+                                           Color="Color.Default"
+                                           FullWidth="true"
+                                           Disabled="@(ActiveOrder is null)"
+                                           OnClick="TogglePayments">
+                                    Split bill
+                                </MudButton>
+                            </MudItem>
+                            <MudItem xs="6">
+                                <MudButton Variant="Variant.Filled"
+                                           Color="Color.Primary"
+                                           FullWidth="true"
+                                           Disabled="@(ActiveOrder is null || !CanModifyActiveOrder)"
+                                           OnClick="SendOrder">
+                                    Send
+                                </MudButton>
+                            </MudItem>
+                            <MudItem xs="6">
+                                <MudButton Variant="Variant.Outlined"
+                                           Color="Color.Error"
+                                           FullWidth="true"
+                                           Disabled="@(ActiveOrder is null || !CanModifyActiveOrder)"
+                                           OnClick="CancelOrder">
+                                    Cancel
+                                </MudButton>
+                            </MudItem>
+                            <MudItem xs="6">
+                                <MudButton Variant="Variant.Outlined"
+                                           Color="Color.Secondary"
+                                           FullWidth="true"
+                                           Disabled="@(ActiveOrder is null || !CanModifyActiveOrder)"
+                                           OnClick="ToggleDiscount">
+                                    Discount
+                                </MudButton>
+                            </MudItem>
+                            <MudItem xs="6">
+                                <MudButton Variant="Variant.Outlined"
+                                           Color="Color.Info"
+                                           FullWidth="true"
+                                           Disabled="@(ActiveOrder is null || !CanModifyActiveOrder)"
+                                           OnClick="ToggleTip">
+                                    Tip
+                                </MudButton>
+                            </MudItem>
+                            <MudItem xs="12">
+                                <MudStack Row="true" Spacing="1">
+                                    <MudButton Variant="Variant.Filled"
+                                               Color="Color.Success"
+                                               FullWidth="true"
+                                               Disabled="@(ActiveOrder is null || RemainingToPay <= 0 || !CanModifyActiveOrder)"
+                                               OnClick="PayOrder">
+                                        Pay @if (RemainingToPay > 0) { <span> (@RemainingToPay.ToString("C"))</span> }
+                                    </MudButton>
+                                    @if (ActiveOrder is not null && !IsOpenStatus(ActiveOrder.Status))
+                                    {
+                                        <MudButton Variant="Variant.Outlined"
+                                                   Color="Color.Default"
+                                                   FullWidth="true"
+                                                   OnClick="@(async () => await ShowReceipt())">
+                                            Receipt
+                                        </MudButton>
+                                    }
+                                </MudStack>
+                            </MudItem>
+                        </MudGrid>
+
+                        @if (ShowDiscountPanel && ActiveOrder is not null && CanModifyActiveOrder)
+                        {
+                            <MudPaper Elevation="1" Class="pa-2 mt-2">
+                                <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                                    <MudTextField @bind-Value="DiscountInput"
+                                                  Label="Discount %"
+                                                  Adornment="Adornment.Start"
+                                                  AdornmentIcon="@Icons.Material.Filled.Percent"
+                                                  Dense="true"
+                                                  Immediate="true"
+                                                  Style="max-width:200px;" />
+                                    <MudButton Variant="Variant.Filled" Color="Color.Secondary" OnClick="ApplyDiscountAmount">
+                                        Apply
+                                    </MudButton>
+                                    <MudButton Variant="Variant.Text" OnClick="@(() => ShowDiscountPanel = false)">Close</MudButton>
+                                </MudStack>
+                            </MudPaper>
+                        }
+
+                        @if (ShowTipPanel && ActiveOrder is not null && CanModifyActiveOrder)
+                        {
+                            <MudPaper Elevation="1" Class="pa-2 mt-2">
+                                <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                                    <MudText Typo="Typo.subtitle2" Class="mr-2">Tip</MudText>
+                                    <MudButton Variant="Variant.Outlined" Color="Color.Info" OnClick="@(() => ApplyTipPercent(0.05m))">5%</MudButton>
+                                    <MudButton Variant="Variant.Outlined" Color="Color.Info" OnClick="@(() => ApplyTipPercent(0.10m))">10%</MudButton>
+                                    <MudButton Variant="Variant.Outlined" Color="Color.Info" OnClick="@(() => ApplyTipPercent(0.15m))">15%</MudButton>
+                                    <MudTextField @bind-Value="TipInput"
+                                                  Label="Custom tip"
+                                                  Adornment="Adornment.Start"
+                                                  AdornmentIcon="@Icons.Material.Filled.AttachMoney"
+                                                  Dense="true"
+                                                  Style="max-width:200px;" />
+                                    <MudButton Variant="Variant.Filled" Color="Color.Info" OnClick="ApplyCustomTip">Set</MudButton>
+                                    <MudButton Variant="Variant.Text" OnClick="@(() => ShowTipPanel = false)">Close</MudButton>
+                                </MudStack>
+                            </MudPaper>
+                        }
+
+                        @if (ShowPaymentsPanel && ActiveOrder is not null)
+                        {
+                            <MudPaper Elevation="1" Class="pa-2 mt-3">
+                                <MudText Typo="Typo.subtitle2" Class="mb-2">Payments</MudText>
+                                <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center" Class="mb-2">
+                                    <MudSelect T="PaymentMethod" @bind-Value="NewPaymentMethod" Label="Method" Dense="true" Style="max-width:150px;">
+                                        <MudSelectItem T="PaymentMethod" Value="PaymentMethod.Cash">Cash</MudSelectItem>
+                                        <MudSelectItem T="PaymentMethod" Value="PaymentMethod.Card">Card</MudSelectItem>
+                                        <MudSelectItem T="PaymentMethod" Value="PaymentMethod.GiftCard">Gift Card</MudSelectItem>
+                                    </MudSelect>
+                                    <MudTextField @bind-Value="NewPaymentAmount"
+                                                  Label="Amount"
+                                                  Adornment="Adornment.Start"
+                                                  AdornmentIcon="@Icons.Material.Filled.AttachMoney"
+                                                  Dense="true"
+                                                  Immediate="true"
+                                                  Style="max-width:180px;" />
+                                    <MudButton Variant="Variant.Filled"
+                                               Color="Color.Success"
+                                               Disabled="@(RemainingToPay <= 0 || !CanModifyActiveOrder)"
+                                               OnClick="AddPayment">
+                                        Add payment
+                                    </MudButton>
+                                    <MudButton Variant="Variant.Text" OnClick="@(() => ShowPaymentsPanel = false)">Close</MudButton>
+                                </MudStack>
+                                @if (ActiveOrder.Payments.Any())
+                                {
+                                    <MudTable Items="ActiveOrder.Payments" Dense="true" Hover="true">
+                                        <HeaderContent>
+                                            <MudTh>Method</MudTh>
+                                            <MudTh>Amount</MudTh>
+                                            <MudTh>Status</MudTh>
+                                        </HeaderContent>
+                                        <RowTemplate>
+                                            <MudTd DataLabel="Method">@context.Method</MudTd>
+                                            <MudTd DataLabel="Amount">@context.Amount.ToString("C")</MudTd>
+                                            <MudTd DataLabel="Status">
+                                                <MudChip T="PaymentStatus" Color="Color.Success" Size="Size.Small" Variant="Variant.Outlined">@context.Status</MudChip>
+                                            </MudTd>
+                                        </RowTemplate>
+                                    </MudTable>
+                                }
+                                else
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">No payments yet.</MudText>
+                                }
+                            </MudPaper>
+                        }
+                    </MudPaper>
+                </MudItem>
+
+                <MudItem xs="12" md="8">
+                    <RestaurantMenuCatalog MenuItems="FilteredMenuItems"
+                                            Categories="Categories"
+                                            SelectedCategory="SelectedCategory"
+                                            SearchText="SearchText"
+                                            SearchTextChanged="OnSearchChanged"
+                                            OnSelectCategory="SelectCategory"
+                                            OnAddItem="AddItemToOrder" />
+                </MudItem>
+            </MudGrid>
+        }
+        else if (ActiveView == PortalView.Tables)
+        {
+            <RestaurantTablesView Tables="FilteredTables"
+                                  @bind-Filter="TableStatusFilter"
+                                  OnSelect="SelectTable"
+                                  OnToggleReservation="ToggleReservation"
+                                  SelectedTableId="SelectedTableId" />
+        }
+        else
+        {
+            <RestaurantOrdersView Orders="FilteredOrders"
+                                  @bind-Filter="OrderStatusFilter"
+                                  OnRowClick="OnOrderSelected"
+                                  OnReceipt="ShowReceipt"
+                                  OnRefund="RefundOrder"
+                                  CalculateTotal="CalculateTotal"
+                                  GetTableName="GetTableName"
+                                  GetStatusColor="GetStatusColor"
+                                  CanRefund="CanRefund" />
+        }
+    }
+
+    <MudPaper Elevation="1" Class="pa-2 mt-6 portal-nav">
+        <MudGrid GutterSize="2">
+            <MudItem xs="12" md="4">
+                <MudButton FullWidth="true"
+                           Variant="Variant.Filled"
+                           Color="@GetNavColor(PortalView.CurrentOrder)"
+                           OnClick="@(() => SwitchView(PortalView.CurrentOrder))">
+                    Current order
+                </MudButton>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudButton FullWidth="true"
+                           Variant="Variant.Filled"
+                           Color="@GetNavColor(PortalView.Tables)"
+                           OnClick="@(() => SwitchView(PortalView.Tables))">
+                    Tables
+                </MudButton>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudButton FullWidth="true"
+                           Variant="Variant.Filled"
+                           Color="@GetNavColor(PortalView.AllOrders)"
+                           OnClick="@(() => SwitchView(PortalView.AllOrders))">
+                    All orders
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+</MudContainer>

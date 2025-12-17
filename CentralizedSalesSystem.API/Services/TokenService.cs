@@ -1,4 +1,6 @@
-﻿using CentralizedSalesSystem.API.Models;
+using CentralizedSalesSystem.API.Authorization;
+using CentralizedSalesSystem.API.Models;
+using CentralizedSalesSystem.API.Models.Auth.enums;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -10,6 +12,7 @@ namespace CentralizedSalesSystem.API.Services
     {
         string GenerateAccessToken(User user);
     }
+
     public sealed class TokenService : ITokenService
     {
         private readonly IConfiguration _config;
@@ -35,14 +38,25 @@ namespace CentralizedSalesSystem.API.Services
                 new("businessId", user.BusinessId.ToString())
             };
 
-            foreach (var userRole in user.UserRoles)
+            var activePermissionCodes = user.UserRoles
+                .Select(ur => ur.Role)
+                .Where(r => r.Status == Status.Active)
+                .SelectMany(r => r.RolePermissions)
+                .Where(rp => rp.Permission.Status == Status.Active)
+                .Select(rp => rp.Permission.Code.ToUpperInvariant())
+                .Distinct()
+                .ToList();
+
+            foreach (var userRole in user.UserRoles.Where(ur => ur.Role.Status == Status.Active))
             {
                 claims.Add(new(ClaimTypes.Role, userRole.Role.Title));
+            }
 
-                foreach (var rp in userRole.Role.RolePermissions)
-                {
-                    claims.Add(new("permission", rp.Permission.Code));
-                }
+            foreach (var code in activePermissionCodes)
+            {
+                claims.Add(new(PermissionAuthorizationHandler.PermissionClaimType, code));
+                // Legacy name kept for backward compatibility with any existing consumers
+                claims.Add(new(PermissionAuthorizationHandler.LegacyPermissionClaimType, code));
             }
 
             var token = new JwtSecurityToken(

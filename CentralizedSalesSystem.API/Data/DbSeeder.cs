@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace CentralizedSalesSystem.API.Data
@@ -16,10 +17,12 @@ namespace CentralizedSalesSystem.API.Data
     public class DbSeeder
     {
         private readonly IServiceScopeFactory _scopeFactory;
+        private readonly IConfiguration _configuration;
 
-        public DbSeeder(IServiceScopeFactory scopeFactory)
+        public DbSeeder(IServiceScopeFactory scopeFactory, IConfiguration configuration)
         {
             _scopeFactory = scopeFactory;
+            _configuration = configuration;
         }
 
         public async Task SeedAsync(CancellationToken cancellationToken = default)
@@ -32,64 +35,136 @@ namespace CentralizedSalesSystem.API.Data
 
             await MigrateWithRecoveryAsync(context, logger, cancellationToken);
 
-            // Seed only when empty to avoid overriding user data.
-            if (await context.Users.AnyAsync(cancellationToken))
-                return;
-
             var now = DateTimeOffset.UtcNow;
+
+            var superAdminEmails = (_configuration.GetSection("SuperAdmins").Get<SuperAdminSeed[]>() ?? Array.Empty<SuperAdminSeed>())
+                .Select(sa => sa.Email?.Trim().ToLowerInvariant())
+                .Where(e => !string.IsNullOrWhiteSpace(e))
+                .ToHashSet();
+
+            var hasNonSuperUsers = await context.Users
+                .AnyAsync(u => !superAdminEmails.Contains(u.Email.ToLower()), cancellationToken);
+
+            if (hasNonSuperUsers)
+            {
+                await EnsureSuperAdminsAsync(context, passwordHasher, cancellationToken);
+                return;
+            }
 
             await using var tx = await context.Database.BeginTransactionAsync(cancellationToken);
 
             // -------------------------
-            // 0) CREATE IN-MEMORY OBJECTS (same as your code)
+            // 0) CREATE IN-MEMORY OBJECTS
             // -------------------------
 
-            // Shared permissions
-            var permissions = new List<Permission>
-    {
-        new Permission
-        {
-            Title = "Manage All",
-            Description = "Full access to business resources",
-            Code = "manage_all",
-            Resource = PermissionResource.Business,
-            CreatedAt = now,
-            UpdatedAt = now,
-            Status = Status.Active
-        },
-        new Permission
-        {
-            Title = "Manage Orders",
-            Description = "Can create and update orders",
-            Code = "orders_manage",
-            Resource = PermissionResource.Order,
-            CreatedAt = now,
-            UpdatedAt = now,
-            Status = Status.Active
-        },
-        new Permission
-        {
-            Title = "Manage Products",
-            Description = "Can manage items and variations",
-            Code = "products_manage",
-            Resource = PermissionResource.Product,
-            CreatedAt = now,
-            UpdatedAt = now,
-            Status = Status.Active
-        },
-        new Permission
-        {
-            Title = "Manage Reservations",
-            Description = "Can manage reservations",
-            Code = "reservations_manage",
-            Resource = PermissionResource.Reservation,
-            CreatedAt = now,
-            UpdatedAt = now,
-            Status = Status.Active
-        }
-    };
+            var permissionDefinitions = new (PermissionCode code, string title, string description, PermissionResource resource)[]
+            {
+                (PermissionCode.MANAGE_ALL, "Manage All", "Full access to business resources", PermissionResource.Business),
 
-            // Business 1: Sunrise Cafe (Catering)
+                (PermissionCode.BUSINESS_VIEW, "View business", "View business profile and settings", PermissionResource.Business),
+                (PermissionCode.BUSINESS_UPDATE, "Update business", "Edit business details", PermissionResource.Business),
+                (PermissionCode.BUSINESS_DELETE, "Delete business", "Delete or deactivate business", PermissionResource.Business),
+                (PermissionCode.BUSINESS_SUBSCRIPTION_MANAGE, "Manage subscription", "Change subscription plan or billing settings", PermissionResource.Business),
+
+                (PermissionCode.USER_VIEW, "View users", "View users and staff profiles", PermissionResource.User),
+                (PermissionCode.USER_CREATE, "Create user", "Add new staff or users", PermissionResource.User),
+                (PermissionCode.USER_UPDATE, "Update user", "Edit user details", PermissionResource.User),
+                (PermissionCode.USER_DELETE, "Delete user", "Deactivate or remove a user", PermissionResource.User),
+
+                (PermissionCode.ROLE_VIEW, "View roles", "View roles and assigned permissions", PermissionResource.User),
+                (PermissionCode.ROLE_CREATE, "Create role", "Create a new role", PermissionResource.User),
+                (PermissionCode.ROLE_UPDATE, "Update role", "Edit an existing role", PermissionResource.User),
+                (PermissionCode.ROLE_DELETE, "Delete role", "Delete or deactivate a role", PermissionResource.User),
+
+                (PermissionCode.PERMISSION_VIEW, "View permissions", "View permissions list", PermissionResource.User),
+                (PermissionCode.PERMISSION_ASSIGN, "Assign permissions", "Assign permissions to roles", PermissionResource.User),
+                (PermissionCode.USER_ROLE_ASSIGN, "Assign roles", "Assign roles to users", PermissionResource.User),
+
+                (PermissionCode.ITEM_VIEW, "View items", "View products or services", PermissionResource.Product),
+                (PermissionCode.ITEM_CREATE, "Create item", "Create a new product or service", PermissionResource.Product),
+                (PermissionCode.ITEM_UPDATE, "Update item", "Edit product or service details", PermissionResource.Product),
+                (PermissionCode.ITEM_DELETE, "Delete item", "Deactivate or remove product or service", PermissionResource.Product),
+
+                (PermissionCode.TAX_VIEW, "View tax", "View taxes", PermissionResource.Tax),
+                (PermissionCode.TAX_MANAGE, "Manage tax", "Create, update, or deactivate tax rules", PermissionResource.Tax),
+
+                (PermissionCode.SERVICE_CHARGE_VIEW, "View service charges", "View service charges", PermissionResource.ServiceCharge),
+                (PermissionCode.SERVICE_CHARGE_MANAGE, "Manage service charges", "Create, update, or deactivate service charges", PermissionResource.ServiceCharge),
+
+                (PermissionCode.DISCOUNT_VIEW, "View discounts", "View available discounts", PermissionResource.Discount),
+                (PermissionCode.DISCOUNT_CREATE, "Create discount", "Create new discount", PermissionResource.Discount),
+                (PermissionCode.DISCOUNT_UPDATE, "Update discount", "Modify discount", PermissionResource.Discount),
+                (PermissionCode.DISCOUNT_DELETE, "Delete discount", "Deactivate or remove discount", PermissionResource.Discount),
+                (PermissionCode.DISCOUNT_APPLY, "Apply discount", "Apply discount to an order item or an order", PermissionResource.Discount),
+
+                (PermissionCode.ORDER_VIEW, "View orders", "View order list and details", PermissionResource.Order),
+                (PermissionCode.ORDER_CREATE, "Create order", "Create new order", PermissionResource.Order),
+                (PermissionCode.ORDER_UPDATE, "Update order", "Edit existing order", PermissionResource.Order),
+                (PermissionCode.ORDER_DELETE, "Delete order", "Cancel or delete order", PermissionResource.Order),
+
+                (PermissionCode.ORDER_ITEM_ADD, "Add order item", "Add item to order", PermissionResource.Order),
+                (PermissionCode.ORDER_ITEM_UPDATE, "Update order item", "Modify order item", PermissionResource.Order),
+                (PermissionCode.ORDER_ITEM_REMOVE, "Remove order item", "Remove order item", PermissionResource.Order),
+                (PermissionCode.ORDER_CLOSE, "Close order", "Mark order as closed or paid", PermissionResource.Order),
+
+                (PermissionCode.PAYMENT_VIEW, "View payments", "View payments and their status", PermissionResource.Payment),
+                (PermissionCode.PAYMENT_CREATE, "Create payment", "Record or process a new payment", PermissionResource.Payment),
+                (PermissionCode.PAYMENT_UPDATE, "Update payment", "Modify payment record", PermissionResource.Payment),
+                (PermissionCode.PAYMENT_DELETE, "Delete payment", "Void or cancel payment", PermissionResource.Payment),
+                (PermissionCode.PAYMENT_REFUND, "Refund payment", "Issue refund for a payment", PermissionResource.Payment),
+
+                (PermissionCode.REFUND_VIEW, "View refunds", "View refund history", PermissionResource.Refund),
+                (PermissionCode.REFUND_CREATE, "Create refund", "Create refund record", PermissionResource.Refund),
+                (PermissionCode.REFUND_DELETE, "Delete refund", "Cancel or delete refund record", PermissionResource.Refund),
+
+                (PermissionCode.GIFTCARD_ISSUE, "Issue gift card", "Issue a gift card", PermissionResource.GiftCard),
+                (PermissionCode.GIFTCARD_REDEEM, "Redeem gift card", "Mark gift card as redeemed", PermissionResource.GiftCard),
+                (PermissionCode.GIFTCARD_VOID, "Void gift card", "Void or cancel a gift card", PermissionResource.GiftCard),
+
+                (PermissionCode.RESERVATION_VIEW, "View reservations", "View reservations or appointments", PermissionResource.Reservation),
+                (PermissionCode.RESERVATION_CREATE, "Create reservation", "Add new reservation or appointment", PermissionResource.Reservation),
+                (PermissionCode.RESERVATION_UPDATE, "Update reservation", "Modify existing reservation", PermissionResource.Reservation),
+                (PermissionCode.RESERVATION_CANCEL, "Cancel reservation", "Cancel reservation", PermissionResource.Reservation),
+
+                (PermissionCode.TABLE_VIEW, "View tables", "View tables or seating arrangements", PermissionResource.Table),
+                (PermissionCode.TABLE_MANAGE, "Manage tables", "Create, update, or remove table configurations", PermissionResource.Table),
+            };
+
+            var permissions = permissionDefinitions
+                .Select(p => new Permission
+                {
+                    Title = p.title,
+                    Description = p.description,
+                    Code = p.code.ToString(),
+                    Resource = p.resource,
+                    CreatedAt = now,
+                    UpdatedAt = now,
+                    Status = Status.Active
+                })
+                .ToList();
+
+            var permByCode = permissions.ToDictionary(
+                p => Enum.Parse<PermissionCode>(p.Code, ignoreCase: true),
+                p => p);
+
+            var ownerPermissionCodes = permByCode.Keys
+                .Where(code => code != PermissionCode.MANAGE_ALL)
+                .ToArray();
+
+            List<RolePermission> BuildRolePermissions(Role role, IEnumerable<PermissionCode> codes)
+            {
+                return codes.Select(code => new RolePermission
+                {
+                    Role = role,
+                    Permission = permByCode[code],
+                    CreatedAt = now,
+                    UpdatedAt = now
+                }).ToList();
+            }
+
+            // -------------------------
+            // BUSINESS 1: Sunrise Cafe
+            // -------------------------
             var sunrise = new Business
             {
                 Name = "Sunrise Cafe",
@@ -108,7 +183,8 @@ namespace CentralizedSalesSystem.API.Data
                 Name = "Sarah Sunrise",
                 Email = "sarah@sunrisecafe.com",
                 Phone = "+15550002222",
-                Status = Status.Active
+                Status = Status.Active,
+                Business = sunrise
             };
             sunriseOwner.PasswordHash = passwordHasher.HashPassword(sunriseOwner, "owner123");
 
@@ -117,7 +193,8 @@ namespace CentralizedSalesSystem.API.Data
                 Name = "Omar Waits",
                 Email = "omar@sunrisecafe.com",
                 Phone = "+15550003333",
-                Status = Status.Active
+                Status = Status.Active,
+                Business = sunrise
             };
             sunriseStaff.PasswordHash = passwordHasher.HashPassword(sunriseStaff, "staff123");
 
@@ -125,6 +202,7 @@ namespace CentralizedSalesSystem.API.Data
             {
                 Title = "Cafe Owner",
                 Description = "Owner with full permissions",
+                BussinessId = 0, // set after Business save
                 CreatedAt = now,
                 UpdatedAt = now,
                 Status = Status.Active
@@ -134,46 +212,51 @@ namespace CentralizedSalesSystem.API.Data
             {
                 Title = "Cafe Staff",
                 Description = "Staff who manage orders and reservations",
+                BussinessId = 0, // set after Business save
                 CreatedAt = now,
                 UpdatedAt = now,
                 Status = Status.Active
             };
 
-            var sunriseRolePermissions = new List<RolePermission>
-    {
-        new RolePermission { Role = sunriseOwnerRole, Permission = permissions[0], CreatedAt = now, UpdatedAt = now },
-        new RolePermission { Role = sunriseOwnerRole, Permission = permissions[1], CreatedAt = now, UpdatedAt = now },
-        new RolePermission { Role = sunriseOwnerRole, Permission = permissions[2], CreatedAt = now, UpdatedAt = now },
-        new RolePermission { Role = sunriseOwnerRole, Permission = permissions[3], CreatedAt = now, UpdatedAt = now },
-        new RolePermission { Role = sunriseStaffRole, Permission = permissions[1], CreatedAt = now, UpdatedAt = now },
-        new RolePermission { Role = sunriseStaffRole, Permission = permissions[3], CreatedAt = now, UpdatedAt = now }
-    };
+            var sunriseOwnerRolePermissions = BuildRolePermissions(
+                sunriseOwnerRole,
+                ownerPermissionCodes);
+
+            var sunriseStaffRolePermissions = BuildRolePermissions(
+                sunriseStaffRole,
+                new[]
+                {
+                    PermissionCode.ORDER_VIEW, PermissionCode.ORDER_CREATE, PermissionCode.ORDER_UPDATE, PermissionCode.ORDER_DELETE,
+                    PermissionCode.ORDER_ITEM_ADD, PermissionCode.ORDER_ITEM_UPDATE, PermissionCode.ORDER_ITEM_REMOVE, PermissionCode.ORDER_CLOSE,
+                    PermissionCode.RESERVATION_VIEW, PermissionCode.RESERVATION_CREATE, PermissionCode.RESERVATION_UPDATE, PermissionCode.RESERVATION_CANCEL,
+                    PermissionCode.ITEM_VIEW, PermissionCode.DISCOUNT_APPLY, PermissionCode.TABLE_VIEW
+                });
 
             var sunriseUserRoles = new List<UserRole>
-    {
-        new UserRole { User = sunriseOwner, Role = sunriseOwnerRole, AssignedAt = now },
-        new UserRole { User = sunriseStaff, Role = sunriseStaffRole, AssignedAt = now }
-    };
+            {
+                new UserRole { User = sunriseOwner, Role = sunriseOwnerRole, AssignedAt = now },
+                new UserRole { User = sunriseStaff, Role = sunriseStaffRole, AssignedAt = now }
+            };
 
             var sunriseItems = new List<Item>
-    {
-        new Item
-        {
-            Name = "House Coffee",
-            Description = "Freshly brewed arabica",
-            Price = 3.50m,
-            Stock = 120,
-            Type = ItemType.Product
-        },
-        new Item
-        {
-            Name = "Buttermilk Pancakes",
-            Description = "Stack of 3 with butter and syrup",
-            Price = 7.50m,
-            Stock = 60,
-            Type = ItemType.Product
-        }
-    };
+            {
+                new Item
+                {
+                    Name = "House Coffee",
+                    Description = "Freshly brewed arabica",
+                    Price = 3.50m,
+                    Stock = 120,
+                    Type = ItemType.Product
+                },
+                new Item
+                {
+                    Name = "Buttermilk Pancakes",
+                    Description = "Stack of 3 with butter and syrup",
+                    Price = 7.50m,
+                    Stock = 60,
+                    Type = ItemType.Product
+                }
+            };
 
             var coffeeVariation = new ItemVariation
             {
@@ -182,10 +265,10 @@ namespace CentralizedSalesSystem.API.Data
                 Item = sunriseItems[0]
             };
             var coffeeVariationOptions = new List<ItemVariationOption>
-    {
-        new ItemVariationOption { Name = "Small", PriceAdjustment = 0m, ItemVariation = coffeeVariation },
-        new ItemVariationOption { Name = "Large", PriceAdjustment = 1.00m, ItemVariation = coffeeVariation }
-    };
+            {
+                new ItemVariationOption { Name = "Small", PriceAdjustment = 0m, ItemVariation = coffeeVariation },
+                new ItemVariationOption { Name = "Large", PriceAdjustment = 1.00m, ItemVariation = coffeeVariation }
+            };
 
             var pancakeVariation = new ItemVariation
             {
@@ -194,24 +277,24 @@ namespace CentralizedSalesSystem.API.Data
                 Item = sunriseItems[1]
             };
             var pancakeVariationOptions = new List<ItemVariationOption>
-    {
-        new ItemVariationOption { Name = "Fresh Berries", PriceAdjustment = 2.00m, ItemVariation = pancakeVariation },
-        new ItemVariationOption { Name = "Chocolate Chips", PriceAdjustment = 1.50m, ItemVariation = pancakeVariation }
-    };
+            {
+                new ItemVariationOption { Name = "Fresh Berries", PriceAdjustment = 2.00m, ItemVariation = pancakeVariation },
+                new ItemVariationOption { Name = "Chocolate Chips", PriceAdjustment = 1.50m, ItemVariation = pancakeVariation }
+            };
 
             var sunriseTax = new Tax
             {
-                Name = "City VAT",
-                Rate = 10.0m,
-                CreatedAt = now,
-                EffectiveFrom = now.AddDays(-30),
-                Status = TaxStatus.Active
-            };
+            Name = "City VAT",
+            Rate = 10.0m,
+            CreatedAt = now,
+            EffectiveFrom = now.AddDays(-30),
+            Status = TaxStatus.Active
+            };  
 
             var sunriseDiscount = new Discount
             {
                 Name = "Morning Promo",
-                rate = 10m,
+                        rate = 10m,
                 ValidFrom = now.AddDays(-7),
                 ValidTo = now.AddDays(7),
                 Type = DiscountType.Percentage,
@@ -228,10 +311,10 @@ namespace CentralizedSalesSystem.API.Data
             };
 
             var sunriseTables = new List<Table>
-    {
-        new Table { Name = "A1", Capacity = 4, Status = TableStatus.Free },
-        new Table { Name = "A2", Capacity = 2, Status = TableStatus.Reserved }
-    };
+            {
+                new Table { Name = "A1", Capacity = 4, Status = TableStatus.Free },
+                new Table { Name = "A2", Capacity = 2, Status = TableStatus.Reserved }
+            };
 
             var sunriseReservation = new Reservation
             {
@@ -239,10 +322,12 @@ namespace CentralizedSalesSystem.API.Data
                 CustomerPhone = "+15559998888",
                 CustomerNote = "Window seat, lactose free milk",
                 AppointmentTime = now.AddHours(2),
-                CreatedAt = now.AddHours(-1),
-                Status = ReservationStatus.Scheduled,
-                GuestNumber = 2,
-                Table = sunriseTables[0]
+                        CreatedAt = now.AddHours(-1),
+                        CreatedBy = 0,          // set after user save
+                        AssignedEmployee = 0,   // set after user save
+                        Status = ReservationStatus.Scheduled,
+                        GuestNumber = 2,
+                        Table = sunriseTables[0]
             };
 
             var sunriseOrder = new Order
@@ -251,36 +336,36 @@ namespace CentralizedSalesSystem.API.Data
                 UpdatedAt = now,
                 Status = OrderStatus.Closed,
                 User = sunriseStaff,
-                Table = sunriseTables[0],
-                Discount = sunriseDiscount,
-                Reservation = sunriseReservation
-            };
+                        Table = sunriseTables[0],
+                        Discount = sunriseDiscount,
+                        Reservation = sunriseReservation
+                    };
 
             var sunriseOrderItems = new List<OrderItem>
-    {
-        new OrderItem
-        {
-            Order = sunriseOrder,
-            Item = sunriseItems[0],
-            Quantity = 2,
-            Notes = "One large, one small",
-            Tax = sunriseTax,
-            ServiceCharge = sunriseServiceCharge,
-            Discount = sunriseDiscount,
-            Reservation = sunriseReservation
-        },
-        new OrderItem
-        {
-            Order = sunriseOrder,
-            Item = sunriseItems[1],
-            Quantity = 1,
-            Notes = "Add berries",
-            Tax = sunriseTax,
-            ServiceCharge = sunriseServiceCharge,
-            Discount = null,
-            Reservation = sunriseReservation
-        }
-    };
+            {
+                new OrderItem
+                {
+                    Order = sunriseOrder,
+                    Item = sunriseItems[0],
+                    Quantity = 2,
+                    Notes = "One large, one small",
+                    Tax = sunriseTax,
+                    ServiceCharge = sunriseServiceCharge,
+                    Discount = sunriseDiscount,
+                    Reservation = sunriseReservation
+                },
+                new OrderItem
+                {
+                    Order = sunriseOrder,
+                    Item = sunriseItems[1],
+                    Quantity = 1,
+                    Notes = "Add berries",
+                    Tax = sunriseTax,
+                    ServiceCharge = sunriseServiceCharge,
+                    Discount = null,
+                    Reservation = sunriseReservation
+                }
+            };
 
             var sunrisePayment = new Payment
             {
@@ -290,7 +375,8 @@ namespace CentralizedSalesSystem.API.Data
                 Method = PaymentMethod.Card,
                 Provider = PaymentProvider.ApplePay,
                 Currency = PaymentCurrency.USD,
-                Status = PaymentStatus.Completed
+                Status = PaymentStatus.Completed,
+                BussinesId = 0 // set after business save
             };
 
             var sunriseRefund = new Refund
@@ -302,7 +388,8 @@ namespace CentralizedSalesSystem.API.Data
                 Reason = "Customer returned coffee",
                 RefundMethod = PaymentMethod.Card,
                 Currency = PaymentCurrency.USD,
-                Status = PaymentStatus.Refunded
+                Status = PaymentStatus.Refunded,
+                UserId = 0 // set after user save
             };
 
             var sunriseGiftCard = new GiftCard
@@ -313,11 +400,14 @@ namespace CentralizedSalesSystem.API.Data
                 Currency = PaymentCurrency.USD,
                 IssuedAt = now.AddDays(-10),
                 ExpiresAt = now.AddMonths(12),
+                IssuedBy = 0, // set after user save
                 IssuedTo = "Jane Customer",
                 Status = GiftCardStatus.Valid
             };
 
-            // Business 2: Luna Spa (Beauty)
+            // -------------------------
+            // BUSINESS 2: Luna Spa
+            // -------------------------
             var luna = new Business
             {
                 Name = "Luna Spa",
@@ -336,7 +426,8 @@ namespace CentralizedSalesSystem.API.Data
                 Name = "Lucy Luna",
                 Email = "lucy@lunaspa.co.uk",
                 Phone = "+442080000222",
-                Status = Status.Active
+                Status = Status.Active,
+                Business = luna
             };
             lunaOwner.PasswordHash = passwordHasher.HashPassword(lunaOwner, "owner123");
 
@@ -345,7 +436,8 @@ namespace CentralizedSalesSystem.API.Data
                 Name = "Mina Stone",
                 Email = "mina@lunaspa.co.uk",
                 Phone = "+442080000333",
-                Status = Status.Active
+                Status = Status.Active,
+                Business = luna
             };
             lunaTherapist.PasswordHash = passwordHasher.HashPassword(lunaTherapist, "therapist123");
 
@@ -353,6 +445,7 @@ namespace CentralizedSalesSystem.API.Data
             {
                 Title = "Spa Owner",
                 Description = "Owner with full permissions",
+                BussinessId = 0, // set after Business save
                 CreatedAt = now,
                 UpdatedAt = now,
                 Status = Status.Active
@@ -362,46 +455,51 @@ namespace CentralizedSalesSystem.API.Data
             {
                 Title = "Therapist",
                 Description = "Handles reservations and orders",
+                BussinessId = 0, // set after Business save
                 CreatedAt = now,
                 UpdatedAt = now,
                 Status = Status.Active
             };
 
-            var lunaRolePermissions = new List<RolePermission>
-    {
-        new RolePermission { Role = lunaOwnerRole, Permission = permissions[0], CreatedAt = now, UpdatedAt = now },
-        new RolePermission { Role = lunaOwnerRole, Permission = permissions[1], CreatedAt = now, UpdatedAt = now },
-        new RolePermission { Role = lunaOwnerRole, Permission = permissions[2], CreatedAt = now, UpdatedAt = now },
-        new RolePermission { Role = lunaOwnerRole, Permission = permissions[3], CreatedAt = now, UpdatedAt = now },
-        new RolePermission { Role = lunaTherapistRole, Permission = permissions[1], CreatedAt = now, UpdatedAt = now },
-        new RolePermission { Role = lunaTherapistRole, Permission = permissions[3], CreatedAt = now, UpdatedAt = now }
-    };
+            var lunaOwnerRolePermissions = BuildRolePermissions(
+                lunaOwnerRole,
+                ownerPermissionCodes);
+
+            var lunaTherapistRolePermissions = BuildRolePermissions(
+                lunaTherapistRole,
+                new[]
+                {
+                    PermissionCode.ORDER_VIEW, PermissionCode.ORDER_CREATE, PermissionCode.ORDER_UPDATE, PermissionCode.ORDER_DELETE,
+                    PermissionCode.ORDER_ITEM_ADD, PermissionCode.ORDER_ITEM_UPDATE, PermissionCode.ORDER_ITEM_REMOVE, PermissionCode.ORDER_CLOSE,
+                    PermissionCode.RESERVATION_VIEW, PermissionCode.RESERVATION_CREATE, PermissionCode.RESERVATION_UPDATE, PermissionCode.RESERVATION_CANCEL,
+                    PermissionCode.ITEM_VIEW, PermissionCode.DISCOUNT_APPLY, PermissionCode.TABLE_VIEW
+                });
 
             var lunaUserRoles = new List<UserRole>
-    {
-        new UserRole { User = lunaOwner, Role = lunaOwnerRole, AssignedAt = now },
-        new UserRole { User = lunaTherapist, Role = lunaTherapistRole, AssignedAt = now }
-    };
+            {
+                new UserRole { User = lunaOwner, Role = lunaOwnerRole, AssignedAt = now },
+                new UserRole { User = lunaTherapist, Role = lunaTherapistRole, AssignedAt = now }
+            };
 
             var lunaItems = new List<Item>
-    {
-        new Item
-        {
-            Name = "Deep Tissue Massage",
-            Description = "60-minute full body massage",
-            Price = 60m,
-            Stock = 999,
-            Type = ItemType.Service
-        },
-        new Item
-        {
-            Name = "Hydrating Facial",
-            Description = "45-minute facial treatment",
-            Price = 80m,
-            Stock = 999,
-            Type = ItemType.Service
-        }
-    };
+            {
+                new Item
+                {
+                    Name = "Deep Tissue Massage",
+                    Description = "60-minute full body massage",
+                    Price = 60m,
+                    Stock = 999,
+                    Type = ItemType.Service
+                },
+                new Item
+                {
+                    Name = "Hydrating Facial",
+                    Description = "45-minute facial treatment",
+                    Price = 80m,
+                    Stock = 999,
+                    Type = ItemType.Service
+                }
+            };
 
             var massageVariation = new ItemVariation
             {
@@ -410,10 +508,10 @@ namespace CentralizedSalesSystem.API.Data
                 Item = lunaItems[0]
             };
             var massageVariationOptions = new List<ItemVariationOption>
-    {
-        new ItemVariationOption { Name = "60 min", PriceAdjustment = 0m, ItemVariation = massageVariation },
-        new ItemVariationOption { Name = "90 min", PriceAdjustment = 25m, ItemVariation = massageVariation }
-    };
+            {
+                new ItemVariationOption { Name = "60 min", PriceAdjustment = 0m, ItemVariation = massageVariation },
+                new ItemVariationOption { Name = "90 min", PriceAdjustment = 25m, ItemVariation = massageVariation }
+            };
 
             var lunaTax = new Tax
             {
@@ -427,7 +525,7 @@ namespace CentralizedSalesSystem.API.Data
             var lunaDiscount = new Discount
             {
                 Name = "New Client Offer",
-                rate = 15m,
+                        rate = 15m,
                 ValidFrom = now.AddDays(-1),
                 ValidTo = now.AddDays(30),
                 Type = DiscountType.Percentage,
@@ -444,10 +542,10 @@ namespace CentralizedSalesSystem.API.Data
             };
 
             var lunaTables = new List<Table>
-    {
-        new Table { Name = "Room 1", Capacity = 1, Status = TableStatus.Free },
-        new Table { Name = "Room 2", Capacity = 1, Status = TableStatus.Occupied }
-    };
+            {
+                new Table { Name = "Room 1", Capacity = 1, Status = TableStatus.Free },
+                new Table { Name = "Room 2", Capacity = 1, Status = TableStatus.Occupied }
+            };
 
             var lunaReservation = new Reservation
             {
@@ -455,10 +553,12 @@ namespace CentralizedSalesSystem.API.Data
                 CustomerPhone = "+447700900900",
                 CustomerNote = "Prefers lavender oil",
                 AppointmentTime = now.AddDays(1).AddHours(3),
-                CreatedAt = now,
-                Status = ReservationStatus.Scheduled,
-                GuestNumber = 1,
-                Table = lunaTables[0]
+                        CreatedAt = now,
+                        CreatedBy = 0,        // set after user save
+                        AssignedEmployee = 0, // set after user save
+                        Status = ReservationStatus.Scheduled,
+                        GuestNumber = 1,
+                        Table = lunaTables[0]
             };
 
             var lunaOrder = new Order
@@ -467,36 +567,36 @@ namespace CentralizedSalesSystem.API.Data
                 UpdatedAt = now,
                 Status = OrderStatus.Closed,
                 User = lunaTherapist,
-                Table = lunaTables[0],
-                Discount = lunaDiscount,
-                Reservation = lunaReservation
+                        Table = lunaTables[0],
+                        Discount = lunaDiscount,
+                        Reservation = lunaReservation
             };
 
             var lunaOrderItems = new List<OrderItem>
-    {
-        new OrderItem
-        {
-            Order = lunaOrder,
-            Item = lunaItems[0],
-            Quantity = 1,
-            Notes = "90 min session",
-            Tax = lunaTax,
-            ServiceCharge = lunaServiceCharge,
-            Discount = lunaDiscount,
-            Reservation = lunaReservation
-        },
-        new OrderItem
-        {
-            Order = lunaOrder,
-            Item = lunaItems[1],
-            Quantity = 1,
-            Notes = "Add hydration mask",
-            Tax = lunaTax,
-            ServiceCharge = lunaServiceCharge,
-            Discount = null,
-            Reservation = lunaReservation
-        }
-    };
+            {
+                new OrderItem
+                {
+                    Order = lunaOrder,
+                    Item = lunaItems[0],
+                    Quantity = 1,
+                    Notes = "90 min session",
+                    Tax = lunaTax,
+                    ServiceCharge = lunaServiceCharge,
+                    Discount = lunaDiscount,
+                    Reservation = lunaReservation
+                },
+                new OrderItem
+                {
+                    Order = lunaOrder,
+                    Item = lunaItems[1],
+                    Quantity = 1,
+                    Notes = "Add hydration mask",
+                    Tax = lunaTax,
+                    ServiceCharge = lunaServiceCharge,
+                    Discount = null,
+                    Reservation = lunaReservation
+                }
+            };
 
             var lunaPayment = new Payment
             {
@@ -506,7 +606,8 @@ namespace CentralizedSalesSystem.API.Data
                 Method = PaymentMethod.Card,
                 Provider = PaymentProvider.Paypal,
                 Currency = PaymentCurrency.EUR,
-                Status = PaymentStatus.Completed
+                Status = PaymentStatus.Completed,
+                BussinesId = 0 // set after business save
             };
 
             var lunaGiftCard = new GiftCard
@@ -517,6 +618,7 @@ namespace CentralizedSalesSystem.API.Data
                 Currency = PaymentCurrency.EUR,
                 IssuedAt = now.AddDays(-5),
                 ExpiresAt = now.AddMonths(18),
+                IssuedBy = 0, // set after user save
                 IssuedTo = "Corporate Client",
                 Status = GiftCardStatus.Valid
             };
@@ -571,8 +673,8 @@ namespace CentralizedSalesSystem.API.Data
             // -------------------------
             await context.AddRangeAsync(new object[]
             {
-        sunriseOwner, sunriseStaff, lunaOwner, lunaTherapist,
-        sunriseOwnerRole, sunriseStaffRole, lunaOwnerRole, lunaTherapistRole
+    sunriseOwner, sunriseStaff, lunaOwner, lunaTherapist,
+    sunriseOwnerRole, sunriseStaffRole, lunaOwnerRole, lunaTherapistRole
             }, cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
 
@@ -600,8 +702,8 @@ namespace CentralizedSalesSystem.API.Data
 
             remaining.AddRange(new object[]
             {
-        sunriseTax, sunriseDiscount, sunriseServiceCharge,
-        lunaTax, lunaDiscount, lunaServiceCharge
+                sunriseTax, sunriseDiscount, sunriseServiceCharge,
+                lunaTax, lunaDiscount, lunaServiceCharge
             });
 
             remaining.AddRange(sunriseTables);
@@ -614,12 +716,15 @@ namespace CentralizedSalesSystem.API.Data
 
             remaining.AddRange(new object[]
             {
-        sunriseReservation, sunriseOrder, sunrisePayment, sunriseRefund, sunriseGiftCard,
-        lunaReservation, lunaOrder, lunaPayment, lunaGiftCard
+                sunriseReservation, sunriseOrder, sunrisePayment, sunriseRefund, sunriseGiftCard,
+                lunaReservation, lunaOrder, lunaPayment, lunaGiftCard
             });
 
-            remaining.AddRange(sunriseRolePermissions);
-            remaining.AddRange(lunaRolePermissions);
+            remaining.AddRange(sunriseOwnerRolePermissions);
+            remaining.AddRange(sunriseStaffRolePermissions);
+            remaining.AddRange(lunaOwnerRolePermissions);
+            remaining.AddRange(lunaTherapistRolePermissions);
+
             remaining.AddRange(sunriseUserRoles);
             remaining.AddRange(lunaUserRoles);
 
@@ -630,6 +735,21 @@ namespace CentralizedSalesSystem.API.Data
             await context.SaveChangesAsync(cancellationToken);
 
             await tx.CommitAsync(cancellationToken);
+
+            await EnsureSuperAdminsAsync(context, passwordHasher, cancellationToken);
+
+        }
+
+        public async Task SeedSuperAdminsAsync(CancellationToken cancellationToken = default)
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var scopedProvider = scope.ServiceProvider;
+            var context = scopedProvider.GetRequiredService<CentralizedSalesDbContext>();
+            var passwordHasher = scopedProvider.GetRequiredService<IPasswordHasher<User>>();
+            var logger = scopedProvider.GetRequiredService<ILogger<CentralizedSalesDbContext>>();
+
+            await MigrateWithRecoveryAsync(context, logger, cancellationToken);
+            await EnsureSuperAdminsAsync(context, passwordHasher, cancellationToken);
         }
 
 
@@ -650,6 +770,153 @@ namespace CentralizedSalesSystem.API.Data
                 logger.LogError(ex, "Migration failed and recovery was not attempted.");
                 throw;
             }
+        }
+
+        private async Task EnsureSuperAdminsAsync(
+            CentralizedSalesDbContext context,
+            IPasswordHasher<User> passwordHasher,
+            CancellationToken cancellationToken)
+        {
+            var seeds = _configuration
+                .GetSection("SuperAdmins")
+                .Get<SuperAdminSeed[]>() ?? Array.Empty<SuperAdminSeed>();
+
+            if (seeds.Length == 0)
+            {
+                seeds = new[]
+                {
+                    new SuperAdminSeed
+                    {
+                        Email = "super@ex.com",
+                        Password = "Super123!",
+                        Name = "Super Admin",
+                        Phone = "+15550005555"
+                    }
+                };
+            }
+
+            var now = DateTimeOffset.UtcNow;
+
+            var manageAll = await context.Permissions
+                .FirstOrDefaultAsync(p => p.Code == PermissionCode.MANAGE_ALL.ToString(), cancellationToken);
+
+            if (manageAll == null)
+            {
+                manageAll = new Permission
+                {
+                    Title = "Manage All",
+                    Description = "Full access to business resources",
+                    Code = PermissionCode.MANAGE_ALL.ToString(),
+                    Resource = PermissionResource.Business,
+                    CreatedAt = now,
+                    UpdatedAt = now,
+                    Status = Status.Active
+                };
+                context.Permissions.Add(manageAll);
+                await context.SaveChangesAsync(cancellationToken);
+            }
+
+            var platformBusiness = await context.Businesses
+                .FirstOrDefaultAsync(b => b.Email == "platform@system.local", cancellationToken);
+
+            if (platformBusiness == null)
+            {
+                platformBusiness = new Business
+                {
+                    Name = "Platform",
+                    Phone = "+10000000000",
+                    Address = "Platform HQ",
+                    Email = "platform@system.local",
+                    Country = "N/A",
+                    Currency = Currency.USD,
+                    SubscriptionPlan = SubscriptionPlan.Catering
+                };
+                context.Businesses.Add(platformBusiness);
+                await context.SaveChangesAsync(cancellationToken);
+            }
+
+            var superRole = await context.Roles
+                .FirstOrDefaultAsync(r => r.Title == "SuperAdmin" && r.BussinessId == platformBusiness.Id, cancellationToken);
+
+            if (superRole == null)
+            {
+                superRole = new Role
+                {
+                    Title = "SuperAdmin",
+                    Description = "Platform-wide super admin with full access",
+                    BussinessId = platformBusiness.Id,
+                    CreatedAt = now,
+                    UpdatedAt = now,
+                    Status = Status.Active
+                };
+                context.Roles.Add(superRole);
+                await context.SaveChangesAsync(cancellationToken);
+            }
+
+            var hasRolePerm = await context.RolePermissions
+                .AnyAsync(rp => rp.RoleID == superRole.Id && rp.PermissionID == manageAll.Id, cancellationToken);
+
+            if (!hasRolePerm)
+            {
+                context.RolePermissions.Add(new RolePermission
+                {
+                    RoleID = superRole.Id,
+                    PermissionID = manageAll.Id,
+                    Role = superRole,
+                    Permission = manageAll,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                });
+                await context.SaveChangesAsync(cancellationToken);
+            }
+
+            foreach (var seed in seeds)
+            {
+                if (string.IsNullOrWhiteSpace(seed.Email)) continue;
+
+                var user = await context.Users
+                    .FirstOrDefaultAsync(u => u.Email == seed.Email, cancellationToken);
+
+                if (user == null)
+                {
+                    user = new User
+                    {
+                        Name = string.IsNullOrWhiteSpace(seed.Name) ? seed.Email : seed.Name,
+                        Email = seed.Email,
+                        Phone = string.IsNullOrWhiteSpace(seed.Phone) ? "+10000000000" : seed.Phone,
+                        Status = Status.Active,
+                        BusinessId = platformBusiness.Id
+                    };
+                    user.PasswordHash = passwordHasher.HashPassword(user, seed.Password ?? "Super123!");
+                    context.Users.Add(user);
+                    await context.SaveChangesAsync(cancellationToken);
+                }
+
+                var hasUserRole = await context.UserRoles
+                    .AnyAsync(ur => ur.UserId == user.Id && ur.RoleId == superRole.Id, cancellationToken);
+
+                if (!hasUserRole)
+                {
+                    context.UserRoles.Add(new UserRole
+                    {
+                        UserId = user.Id,
+                        RoleId = superRole.Id,
+                        User = user,
+                        Role = superRole,
+                        AssignedAt = now
+                    });
+                }
+            }
+
+            await context.SaveChangesAsync(cancellationToken);
+        }
+
+        private sealed class SuperAdminSeed
+        {
+            public string Email { get; set; } = string.Empty;
+            public string Password { get; set; } = "Super123!";
+            public string Name { get; set; } = "Super Admin";
+            public string Phone { get; set; } = "+10000000000";
         }
     }
 }

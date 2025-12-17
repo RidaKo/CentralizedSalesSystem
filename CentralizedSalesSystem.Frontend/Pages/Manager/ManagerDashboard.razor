@@ -1,10 +1,12 @@
 @page "/manager/dashboard"
 @using CentralizedSalesSystem.Frontend.Models
 @using Microsoft.AspNetCore.Authorization
-@attribute [Authorize]
+@using CentralizedSalesSystem.Frontend.Services
+@attribute [Authorize(Roles = "Admin,SuperAdmin")]
 @inject HttpClient Http
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
+@inject BusinessContext BusinessContext
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-8">
     <MudText Typo="Typo.h4" Class="mb-6">Subscriptions and payment</MudText>
@@ -50,7 +52,7 @@
                             <MudButton Variant="Variant.Filled" 
                                        Color="Color.Primary" 
                                        Class="mr-2"
-                                       OnClick="@(() => NavigateToPanel(business.Id))">
+                                       OnClick="@(() => NavigateToPanel(business))">
                                 Management Panel
                             </MudButton>
                             <MudButton Variant="Variant.Outlined" Color="Color.Error">
@@ -74,11 +76,13 @@
 @code {
     private List<Business> _businesses = new();
     private bool _isLoading = true;
+    private bool _isSuper => BusinessContext.IsSuper;
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
+            await BusinessContext.EnsureLoadedAsync();
             // 1. try to fetch from API
             var response = await Http.GetFromJsonAsync<PaginatedResponse<Business>>("businesses?limit=10");
             
@@ -125,8 +129,12 @@
         _ => "Standard Plan"
     };
 
-    private void NavigateToPanel(long businessId)
+    private void NavigateToPanel(Business business)
     {
-        Navigation.NavigateTo($"/manager/business/{businessId}");
+        if (_isSuper)
+        {
+            BusinessContext.AssumeBusiness(business.Id, business.SubscriptionPlan);
+        }
+        Navigation.NavigateTo($"/manager/business/{business.Id}", forceLoad: true);
     }
 }

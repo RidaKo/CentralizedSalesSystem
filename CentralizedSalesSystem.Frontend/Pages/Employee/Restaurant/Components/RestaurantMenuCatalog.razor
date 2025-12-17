@@ -1,0 +1,71 @@
+@using CentralizedSalesSystem.Frontend.Models
+@namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant.Components
+
+<MudPaper Elevation="2" Class="pa-3 menu-panel">
+    <MudGrid>
+        <MudItem xs="12" md="9">
+            <MudTextField @bind-Value="SearchText"
+                          Placeholder="Search menu..."
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          Class="mb-3"
+                          Immediate="true"
+                          Dense="true" />
+
+            <MudGrid GutterSize="2">
+                @if (MenuItems.Any())
+                {
+                    @foreach (var item in MenuItems)
+                    {
+                        <MudItem xs="12" sm="6" lg="4">
+                            <MudCard Class="menu-card" @onclick="() => OnAddItem.InvokeAsync(item)">
+                                <MudCardContent>
+                                    <MudText Typo="Typo.subtitle1">@item.Name</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-2">
+                                        @item.Description
+                                    </MudText>
+                                    <MudChip T="string" Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Small">
+                                        @item.Price.ToString("C")
+                                    </MudChip>
+                                </MudCardContent>
+                            </MudCard>
+                        </MudItem>
+                    }
+                }
+                else
+                {
+                    <MudItem xs="12">
+                        <MudAlert Severity="Severity.Info">No dishes match your search.</MudAlert>
+                    </MudItem>
+                }
+            </MudGrid>
+        </MudItem>
+        <MudItem xs="12" md="3">
+            <MudStack Spacing="1" Class="category-stack">
+                @foreach (var category in Categories)
+                {
+                    <MudButton Variant="Variant.Outlined"
+                               Color="@GetCategoryColor(category)"
+                               FullWidth="true"
+                               Class="category-button"
+                               OnClick="@(() => OnSelectCategory.InvokeAsync(category))">
+                        @category
+                    </MudButton>
+                }
+            </MudStack>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@code {
+    [Parameter] public IEnumerable<MenuItemDto> MenuItems { get; set; } = Enumerable.Empty<MenuItemDto>();
+    [Parameter] public IEnumerable<string> Categories { get; set; } = Enumerable.Empty<string>();
+    [Parameter] public string? SelectedCategory { get; set; }
+    [Parameter] public string? SearchText { get; set; }
+    [Parameter] public EventCallback<string?> SearchTextChanged { get; set; }
+    [Parameter] public EventCallback<string> OnSelectCategory { get; set; }
+    [Parameter] public EventCallback<MenuItemDto> OnAddItem { get; set; }
+
+    private Color GetCategoryColor(string category) =>
+        string.Equals(category, SelectedCategory, StringComparison.OrdinalIgnoreCase) ? Color.Success : Color.Default;
+}

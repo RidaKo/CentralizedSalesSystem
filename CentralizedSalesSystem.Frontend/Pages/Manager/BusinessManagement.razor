@@ -8,7 +8,7 @@
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-8">
     
-    <!-- back Button -->
+    <!-- back button -->
     <MudButton StartIcon="@Icons.Material.Filled.ArrowBack" 
                href="/manager/dashboard" 
                Color="Color.Default" 
@@ -96,7 +96,6 @@
             
             <MudTabPanel Text="Employees" Icon="@Icons.Material.Filled.People">
                 <MudText Class="mb-4">Manage your staff here.</MudText>
-                <!-- this will later link to a table -->
                 <MudButton Variant="Variant.Filled" 
                            Color="Color.Primary" 
                            OnClick="@(() => Navigation.NavigateTo($"/manager/business/{BusinessId}/employees"))">
@@ -104,12 +103,14 @@
                 </MudButton>
             </MudTabPanel>
             
+            <!-- updates discount tab -->
             <MudTabPanel Text="Discounts" Icon="@Icons.Material.Filled.LocalOffer">
-                <MudText>Discounts will go here (Step 4).</MudText>
+                <DiscountTable BusinessId="@BusinessId" />
             </MudTabPanel>
             
+            <!-- updates tax tab -->
             <MudTabPanel Text="Taxes" Icon="@Icons.Material.Filled.RequestQuote">
-                <MudText>Taxes will go here (Step 4).</MudText>
+                <TaxTable BusinessId="@BusinessId" />
             </MudTabPanel>
         </MudTabs>
     }

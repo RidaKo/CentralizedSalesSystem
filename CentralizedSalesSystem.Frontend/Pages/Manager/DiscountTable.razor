@@ -54,7 +54,6 @@
         catch (Exception ex)
         {
             Console.WriteLine($"API Fetch Failed: {ex.Message}");
-            LoadMockData();
         }
     }
 
@@ -103,12 +102,4 @@
         Snackbar.Add($"Deleted {item.Name}", Severity.Success);
     }
 
-    private void LoadMockData()
-    {
-        _discounts = new List<Discount>
-        {
-            new Discount { Id = 1, Name = "Happy Hour", Type = DiscountType.Percentage, Rate = 15 },
-            new Discount { Id = 2, Name = "Lunch Special", Type = DiscountType.Fixed, Rate = 5.00m }
-        };
-    }
 }

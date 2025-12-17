@@ -27,24 +27,34 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
             return 0;
         }
 
-        private decimal GetSubtotal(OrderDto order) =>
-            order.Items.Sum(line =>
+        private decimal GetSubtotal(OrderDto order)
+        {
+            // Use API's calculated subtotal if available, otherwise calculate locally
+            if (order.Subtotal > 0)
+                return order.Subtotal;
+                
+            return order.Items.Sum(line =>
             {
                 var item = Items.FirstOrDefault(i => i.Id == line.ItemId);
                 return (item?.Price ?? 0) * line.Quantity;
             });
+        }
 
         private decimal GetDiscountAmount(OrderDto order)
         {
-            var subtotal = GetSubtotal(order);
-            return order.Discount > 0 ? Math.Round(subtotal * order.Discount / 100m, 2) : 0;
+            // Use API's calculated discount total
+            return order.DiscountTotal;
         }
 
         private decimal CalculateTotal(OrderDto order)
         {
+            // Use API's calculated total if available
+            if (order.Total > 0)
+                return order.Total;
+                
             var subtotal = GetSubtotal(order);
             var discount = GetDiscountAmount(order);
-            var total = subtotal - discount + order.Tip;
+            var total = subtotal - discount + (order.Tip ?? 0);
             return Math.Max(total, 0);
         }
 

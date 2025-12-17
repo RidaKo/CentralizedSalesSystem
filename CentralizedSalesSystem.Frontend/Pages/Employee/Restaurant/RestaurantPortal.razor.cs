@@ -3,8 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
+using System.Security.Claims;
 using CentralizedSalesSystem.Frontend.Models;
 using CentralizedSalesSystem.Frontend.Json;
+using CentralizedSalesSystem.Frontend.Services;
+using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Authorization;
 using MudBlazor;
 
 namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
@@ -18,7 +22,10 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
             AllOrders
         }
 
-        private readonly long BusinessId = 1;
+        [Inject] private AuthenticationStateProvider AuthStateProvider { get; set; } = default!;
+
+        private long BusinessId { get; set; }
+        private long CurrentUserId { get; set; }
 
         private bool IsLoading = true;
         private PortalView ActiveView = PortalView.CurrentOrder;
@@ -47,13 +54,9 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
 
         private IEnumerable<MenuItemDto> FilteredMenuItems =>
             Items
-                .Where(i => string.IsNullOrWhiteSpace(SelectedCategory) || i.Tags.Any(t => t.Equals(SelectedCategory, StringComparison.OrdinalIgnoreCase)))
                 .Where(i => string.IsNullOrWhiteSpace(SearchText) || i.Name.Contains(SearchText, StringComparison.OrdinalIgnoreCase));
 
-        private IEnumerable<string> Categories =>
-            _defaultCategories.Concat(
-                Items.SelectMany(i => i.Tags).Where(t => !string.IsNullOrWhiteSpace(t)))
-            .Distinct(StringComparer.OrdinalIgnoreCase);
+        private IEnumerable<string> Categories => _defaultCategories;
 
         private IEnumerable<TableDto> FilteredTables =>
             Tables.Where(t => TableStatusFilter is null || t.Status == TableStatusFilter);
@@ -70,7 +73,7 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
             });
 
         private decimal DiscountAmount => ActiveOrder is null ? 0 : GetDiscountAmount(ActiveOrder);
-        private string DiscountPercentLabel => $"{(ActiveOrder?.Discount ?? 0):0.#}%";
+        private string DiscountPercentLabel => ActiveOrder?.DiscountTotal > 0 ? $"{ActiveOrder.DiscountTotal:C}" : "None";
         private decimal CurrentOrderTotal => ActiveOrder is null ? 0 : CalculateTotal(ActiveOrder);
         private decimal TotalPaid => ActiveOrder?.Payments.Sum(p => p.Amount) ?? 0;
         private decimal RemainingToPay => Math.Max(0, CurrentOrderTotal - TotalPaid);

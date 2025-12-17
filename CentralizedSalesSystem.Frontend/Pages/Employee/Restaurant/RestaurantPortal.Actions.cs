@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using CentralizedSalesSystem.Frontend.Json;
 using CentralizedSalesSystem.Frontend.Models;
 using MudBlazor;
 
@@ -8,7 +9,7 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
 {
     public partial class RestaurantPortal
     {
-        private void CreateOrderFromSelection()
+        private async Task CreateOrderFromSelectionAsync()
         {
             if (!SelectedTableForNewOrder.HasValue)
             {
@@ -23,24 +24,48 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
                 return;
             }
 
-            var table = Tables.FirstOrDefault(t => t.Id == tableId);
-            ActiveOrder = new OrderDto
+            try
             {
-                Id = NextTempId(),
-                BusinessId = BusinessId,
-                TableId = tableId,
-                Status = OrderStatus.Open,
-                UpdatedAt = DateTime.UtcNow
-            };
-            Orders.Insert(0, ActiveOrder);
-            SelectedTableId = tableId;
-            UpdateTableStatus(tableId, TableStatus.Occupied);
-            ActiveView = PortalView.CurrentOrder;
-            IsEditMode = true;
-            Snackbar.Add($"Created new order for {table?.Name ?? $"Table {tableId}"}", Severity.Success);
+                var createDto = new
+                {
+                    BusinessId = BusinessId,
+                    UserId = CurrentUserId,
+                    TableId = tableId,
+                    Status = "Open"
+                };
+
+                var response = await Http.PostAsJsonAsync("orders", createDto);
+                if (response.IsSuccessStatusCode)
+                {
+                    var createdOrder = await response.Content.ReadFromJsonAsync<OrderDto>();
+                    if (createdOrder != null)
+                    {
+                        Orders.Insert(0, createdOrder);
+                        ActiveOrder = createdOrder;
+                        SelectedTableId = tableId;
+                        UpdateTableStatus(tableId, TableStatus.Occupied);
+                        ActiveView = PortalView.CurrentOrder;
+                        IsEditMode = true;
+                        
+                        var table = Tables.FirstOrDefault(t => t.Id == tableId);
+                        Snackbar.Add($"Created new order for {table?.Name ?? $"Table {tableId}"}", Severity.Success);
+                    }
+                }
+                else
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    Snackbar.Add($"Failed to create order: {errorContent}", Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error creating order: {ex.Message}", Severity.Error);
+            }
         }
 
-        private void AddItemToOrder(MenuItemDto menuItem)
+        private Task CreateOrderFromSelection() => CreateOrderFromSelectionAsync();
+
+        private async Task AddItemToOrderAsync(MenuItemDto menuItem)
         {
             if (!CanModifyActiveOrder)
             {
@@ -57,12 +82,39 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
             var existingLine = ActiveOrder.Items.FirstOrDefault(i => i.ItemId == menuItem.Id);
             if (existingLine is null)
             {
-                ActiveOrder.Items.Add(new OrderItemDto
+                // Create new order item
+                try
                 {
-                    Id = NextTempId(),
-                    ItemId = menuItem.Id,
-                    Quantity = 1
-                });
+                    var createDto = new
+                    {
+                        OrderId = ActiveOrder.Id,
+                        ItemId = menuItem.Id,
+                        Quantity = 1,
+                        Notes = (string?)null,
+                        DiscountId = (long?)null,
+                        TaxId = (long?)null,
+                        ServiceChargeId = (long?)null
+                    };
+
+                    var response = await Http.PostAsJsonAsync("orderItems", createDto);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var createdItem = await response.Content.ReadFromJsonAsync<OrderItemDto>();
+                        if (createdItem != null)
+                        {
+                            ActiveOrder.Items.Add(createdItem);
+                            ActiveOrder.UpdatedAt = DateTimeOffset.UtcNow;
+                        }
+                    }
+                    else
+                    {
+                        Snackbar.Add("Failed to add item to order", Severity.Error);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Snackbar.Add($"Error adding item: {ex.Message}", Severity.Error);
+                }
             }
             else
             {
@@ -71,25 +123,74 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
                     Snackbar.Add("Reached quick-add limit (2). Use Edit to change quantity.", Severity.Info);
                     return;
                 }
-                existingLine.Quantity += 1;
+                
+                // Update existing order item
+                await UpdateOrderItemQuantityAsync(existingLine, existingLine.Quantity + 1);
             }
-
-            ActiveOrder.UpdatedAt = DateTime.UtcNow;
         }
 
-        private void ChangeQuantity(OrderItemDto line, int delta)
+        private Task AddItemToOrder(MenuItemDto menuItem) => AddItemToOrderAsync(menuItem);
+
+        private async Task UpdateOrderItemQuantityAsync(OrderItemDto line, int newQuantity)
+        {
+            try
+            {
+                var updateDto = new
+                {
+                    Quantity = Math.Clamp(newQuantity, 1, 10)
+                };
+
+                var response = await Http.PatchAsJsonAsync($"orderItems/{line.Id}", updateDto);
+                if (response.IsSuccessStatusCode)
+                {
+                    line.Quantity = updateDto.Quantity;
+                    if (ActiveOrder != null)
+                    {
+                        ActiveOrder.UpdatedAt = DateTimeOffset.UtcNow;
+                    }
+                }
+                else
+                {
+                    Snackbar.Add("Failed to update quantity", Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error updating quantity: {ex.Message}", Severity.Error);
+            }
+        }
+
+        private Task ChangeQuantity(OrderItemDto line, int delta)
+        {
+            if (!CanModifyActiveOrder || ActiveOrder is null) return Task.CompletedTask;
+            var newQuantity = Math.Clamp(line.Quantity + delta, 1, 10);
+            return UpdateOrderItemQuantityAsync(line, newQuantity);
+        }
+
+        private async Task RemoveItemAsync(OrderItemDto line)
         {
             if (!CanModifyActiveOrder || ActiveOrder is null) return;
-            line.Quantity = Math.Clamp(line.Quantity + delta, 1, 10);
-            ActiveOrder.UpdatedAt = DateTime.UtcNow;
+            
+            try
+            {
+                var response = await Http.DeleteAsync($"orderItems/{line.Id}");
+                if (response.IsSuccessStatusCode)
+                {
+                    ActiveOrder.Items.Remove(line);
+                    ActiveOrder.UpdatedAt = DateTimeOffset.UtcNow;
+                }
+                else
+                {
+                    Snackbar.Add("Failed to remove item", Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error removing item: {ex.Message}", Severity.Error);
+            }
         }
 
-        private void RemoveItem(OrderItemDto line)
-        {
-            if (!CanModifyActiveOrder || ActiveOrder is null) return;
-            ActiveOrder.Items.Remove(line);
-            ActiveOrder.UpdatedAt = DateTime.UtcNow;
-        }
+        private Task RemoveItem(OrderItemDto line) => RemoveItemAsync(line);
 
         private void SelectCategory(string category)
         {
@@ -134,80 +235,222 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
         private void ToggleTip() => ShowTipPanel = !ShowTipPanel;
         private void ToggleDiscount() => ShowDiscountPanel = !ShowDiscountPanel;
 
-        private void SendOrder()
+        private async Task SendOrderAsync()
         {
             if (ActiveOrder is null) return;
-            ActiveOrder.UpdatedAt = DateTime.UtcNow;
-            Snackbar.Add("Order sent to the kitchen (mock).", Severity.Success);
+            
+            try
+            {
+                var updateDto = new
+                {
+                    Status = "Pending"
+                };
+
+                var response = await Http.PatchAsJsonAsync($"orders/{ActiveOrder.Id}", updateDto);
+                if (response.IsSuccessStatusCode)
+                {
+                    ActiveOrder.Status = OrderStatus.Pending;
+                    ActiveOrder.UpdatedAt = DateTimeOffset.UtcNow;
+                    Snackbar.Add("Order sent to the kitchen.", Severity.Success);
+                }
+                else
+                {
+                    Snackbar.Add("Failed to send order", Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error sending order: {ex.Message}", Severity.Error);
+            }
         }
 
-        private void CancelOrder()
+        private Task SendOrder() => SendOrderAsync();
+
+        private async Task CancelOrderAsync()
         {
             if (ActiveOrder is null || !CanModifyActiveOrder) return;
-            ActiveOrder.Status = OrderStatus.Closed;
-            ActiveOrder.UpdatedAt = DateTime.UtcNow;
-            UpdateTableStatus(ActiveOrder.TableId, TableStatus.Free);
-            SyncTableStatuses();
-            IsEditMode = false;
-            Snackbar.Add("Order cancelled.", Severity.Warning);
+            
+            try
+            {
+                var updateDto = new
+                {
+                    Status = "Closed"
+                };
+
+                var response = await Http.PatchAsJsonAsync($"orders/{ActiveOrder.Id}", updateDto);
+                if (response.IsSuccessStatusCode)
+                {
+                    ActiveOrder.Status = OrderStatus.Closed;
+                    ActiveOrder.UpdatedAt = DateTimeOffset.UtcNow;
+                    UpdateTableStatus(ActiveOrder.TableId, TableStatus.Free);
+                    SyncTableStatuses();
+                    IsEditMode = false;
+                    Snackbar.Add("Order cancelled.", Severity.Warning);
+                }
+                else
+                {
+                    Snackbar.Add("Failed to cancel order", Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error cancelling order: {ex.Message}", Severity.Error);
+            }
         }
 
-        private void ApplyDiscountAmount()
+        private Task CancelOrder() => CancelOrderAsync();
+
+        private async Task ApplyDiscountAmountAsync()
         {
             if (ActiveOrder is null || !CanModifyActiveOrder) return;
-            ActiveOrder.Discount = Math.Clamp(DiscountInput, 0, 100);
-            ActiveOrder.UpdatedAt = DateTime.UtcNow;
-            Snackbar.Add("Discount applied.", Severity.Success);
+            
+            var discountValue = Math.Clamp(DiscountInput, 0, 100);
+            
+            try
+            {
+                // Note: Discount functionality should be implemented via DiscountId
+                // For now, we'll skip this feature as it requires discount setup
+                Snackbar.Add("Discount feature requires discount configuration in the system.", Severity.Info);
+                await Task.CompletedTask;
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error applying discount: {ex.Message}", Severity.Error);
+            }
         }
 
-        private void ApplyTipPercent(decimal percent)
+        private Task ApplyDiscountAmount() => ApplyDiscountAmountAsync();
+
+        private async Task ApplyTipAsync(decimal? tipAmount)
         {
             if (ActiveOrder is null || !CanModifyActiveOrder) return;
-            ActiveOrder.Tip = Math.Round(Subtotal * percent, 2);
-            ActiveOrder.UpdatedAt = DateTime.UtcNow;
+            
+            try
+            {
+                var updateDto = new
+                {
+                    Tip = tipAmount
+                };
+
+                var response = await Http.PatchAsJsonAsync($"orders/{ActiveOrder.Id}", updateDto);
+                if (response.IsSuccessStatusCode)
+                {
+                    ActiveOrder.Tip = tipAmount ?? 0;
+                    ActiveOrder.UpdatedAt = DateTimeOffset.UtcNow;
+                }
+                else
+                {
+                    Snackbar.Add("Failed to apply tip", Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error applying tip: {ex.Message}", Severity.Error);
+            }
         }
 
-        private void ApplyCustomTip()
+        private Task ApplyTipPercent(decimal percent)
         {
-            if (ActiveOrder is null || !CanModifyActiveOrder) return;
-            ActiveOrder.Tip = Math.Max(0, TipInput);
-            ActiveOrder.UpdatedAt = DateTime.UtcNow;
+            if (ActiveOrder is null || !CanModifyActiveOrder) return Task.CompletedTask;
+            var tipAmount = Math.Round(Subtotal * percent, 2);
+            return ApplyTipAsync(tipAmount);
         }
 
-        private void AddPayment()
+        private Task ApplyCustomTip()
+        {
+            if (ActiveOrder is null || !CanModifyActiveOrder) return Task.CompletedTask;
+            var tipAmount = Math.Max(0, TipInput);
+            return ApplyTipAsync(tipAmount);
+        }
+
+        private async Task AddPaymentAsync()
         {
             if (ActiveOrder is null || !CanModifyActiveOrder) return;
 
             var amount = NewPaymentAmount > 0 ? NewPaymentAmount : RemainingToPay;
             if (amount <= 0) return;
 
-            ActiveOrder.Payments.Add(new PaymentDto
+            try
             {
-                Id = NextTempId(),
-                Method = NewPaymentMethod,
-                Amount = amount,
-                PaidAt = DateTime.UtcNow,
-                Status = PaymentStatus.Completed
-            });
+                var createDto = new
+                {
+                    OrderId = ActiveOrder.Id,
+                    Amount = amount,
+                    Method = NewPaymentMethod,
+                    Provider = 0, // Default provider
+                    Currency = PaymentCurrency.EUR,
+                    Status = PaymentStatus.Completed,
+                    PaidAt = DateTimeOffset.UtcNow,
+                    BussinesId = BusinessId,
+                    GiftCardId = (long?)null
+                };
 
-            ActiveOrder.UpdatedAt = DateTime.UtcNow;
-            NewPaymentAmount = 0;
+                var response = await Http.PostAsJsonAsync("payments", createDto);
+                if (response.IsSuccessStatusCode)
+                {
+                    var createdPayment = await response.Content.ReadFromJsonAsync<PaymentDto>();
+                    if (createdPayment != null)
+                    {
+                        ActiveOrder.Payments.Add(createdPayment);
+                        ActiveOrder.UpdatedAt = DateTimeOffset.UtcNow;
+                        NewPaymentAmount = 0;
 
-            if (TotalPaid >= CurrentOrderTotal)
+                        if (TotalPaid >= CurrentOrderTotal)
+                        {
+                            await CloseOrderAsync();
+                        }
+                    }
+                }
+                else
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    Snackbar.Add($"Failed to add payment: {errorContent}", Severity.Error);
+                }
+            }
+            catch (Exception ex)
             {
-                ActiveOrder.Status = OrderStatus.Closed;
-                UpdateTableStatus(ActiveOrder.TableId, TableStatus.Free);
-                SyncTableStatuses();
-                IsEditMode = false;
+                Snackbar.Add($"Error adding payment: {ex.Message}", Severity.Error);
             }
         }
 
-        private void PayOrder()
+        private Task AddPayment() => AddPaymentAsync();
+
+        private async Task CloseOrderAsync()
+        {
+            if (ActiveOrder is null) return;
+            
+            try
+            {
+                var updateDto = new
+                {
+                    Status = "Closed"
+                };
+
+                var response = await Http.PatchAsJsonAsync($"orders/{ActiveOrder.Id}", updateDto);
+                if (response.IsSuccessStatusCode)
+                {
+                    ActiveOrder.Status = OrderStatus.Closed;
+                    UpdateTableStatus(ActiveOrder.TableId, TableStatus.Free);
+                    SyncTableStatuses();
+                    IsEditMode = false;
+                }
+                else
+                {
+                    Snackbar.Add("Failed to close order", Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error closing order: {ex.Message}", Severity.Error);
+            }
+        }
+
+        private async Task PayOrder()
         {
             if (ActiveOrder is null || RemainingToPay <= 0 || !CanModifyActiveOrder) return;
             NewPaymentAmount = RemainingToPay;
-            AddPayment();
-            Snackbar.Add("Order marked as paid (mock).", Severity.Success);
+            await AddPaymentAsync();
+            Snackbar.Add("Order marked as paid.", Severity.Success);
         }
 
         private async Task ShowReceipt(OrderDto? order = null)
@@ -233,7 +476,7 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
 
             var text = string.Join("\n", lines)
                        + $"\nSubtotal: {subtotal:C}"
-                       + $"\nDiscount ({target.Discount}%): {discount:C}"
+                       + $"\nDiscount: {discount:C}"
                        + $"\nTip: {target.Tip:C}"
                        + $"\nTotal: {total:C}"
                        + $"\n\nPayments:\n{payments}";
@@ -241,16 +484,39 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
             await DialogService.ShowMessageBox("Receipt", text, yesText: "Close");
         }
 
-        private void RefundOrder(OrderDto? order = null)
+        private async Task RefundOrderAsync(OrderDto? order = null)
         {
             var target = order ?? ActiveOrder;
             if (target is null || !CanRefund(target)) return;
-            target.Status = OrderStatus.Refunded;
-            target.UpdatedAt = DateTime.UtcNow;
-            UpdateTableStatus(target.TableId, TableStatus.Free);
-            SyncTableStatuses();
-            Snackbar.Add("Order marked as refunded (mock).", Severity.Warning);
+            
+            try
+            {
+                var updateDto = new
+                {
+                    Status = "Refunded"
+                };
+
+                var response = await Http.PatchAsJsonAsync($"orders/{target.Id}", updateDto);
+                if (response.IsSuccessStatusCode)
+                {
+                    target.Status = OrderStatus.Refunded;
+                    target.UpdatedAt = DateTimeOffset.UtcNow;
+                    UpdateTableStatus(target.TableId, TableStatus.Free);
+                    SyncTableStatuses();
+                    Snackbar.Add("Order marked as refunded.", Severity.Warning);
+                }
+                else
+                {
+                    Snackbar.Add("Failed to refund order", Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error refunding order: {ex.Message}", Severity.Error);
+            }
         }
+
+        private Task RefundOrder(OrderDto? order = null) => RefundOrderAsync(order);
 
         private void ToggleReservation(TableDto table)
         {

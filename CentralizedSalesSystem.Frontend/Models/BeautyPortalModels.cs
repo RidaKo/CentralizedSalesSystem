@@ -18,6 +18,8 @@ namespace CentralizedSalesSystem.Frontend.Models
         public string? CustomerPhone { get; set; }
         public string? CustomerNote { get; set; }
         public DateTimeOffset AppointmentTime { get; set; }
+        public DateTimeOffset? StartTime { get; set; }
+        public DateTimeOffset? EndTime { get; set; }
         public DateTimeOffset CreatedAt { get; set; }
         public long CreatedBy { get; set; }
         public ReservationStatus Status { get; set; } = ReservationStatus.Scheduled;
@@ -33,6 +35,8 @@ namespace CentralizedSalesSystem.Frontend.Models
         public string? CustomerPhone { get; set; }
         public string? CustomerNote { get; set; }
         public DateTimeOffset AppointmentTime { get; set; }
+        public DateTimeOffset? StartTime { get; set; }
+        public DateTimeOffset? EndTime { get; set; }
         public long CreatedBy { get; set; }
         public ReservationStatus Status { get; set; } = ReservationStatus.Scheduled;
         public long? AssignedEmployee { get; set; }
@@ -67,5 +71,14 @@ namespace CentralizedSalesSystem.Frontend.Models
         public string LastName { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public string Phone { get; set; } = string.Empty;
+    }
+
+    public class UserResponseDto
+    {
+        public long Id { get; set; }
+        public long BusinessId { get; set; }
+        public string? Name { get; set; }
+        public string? Email { get; set; }
+        public string? Phone { get; set; }
     }
 }

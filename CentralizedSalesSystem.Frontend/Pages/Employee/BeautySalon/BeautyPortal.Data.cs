@@ -1,8 +1,8 @@
 using System.Linq;
-using System.Net.Http.Json;
 using MudBlazor;
 using CentralizedSalesSystem.Frontend.Models;
 using CentralizedSalesSystem.Frontend.Services;
+using CentralizedSalesSystem.Frontend.Json;
 using Heron.MudCalendar;
 using Microsoft.AspNetCore.Components;
 
@@ -10,14 +10,13 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.BeautySalon;
 
 public partial class BeautyPortal : ComponentBase
 {
-    private readonly long BusinessId = 1;
+    private long BusinessId;
     private bool IsLoading = true;
     private PortalView CurrentView = PortalView.Reservation;
     private bool IsReservationOpen;
     private bool IsEditing;
     private long? EditingReservationId;
     private string? EditingOriginalSlot;
-    private bool UseMockData;
 
     private List<ReservationDto> Reservations = new();
     private string SearchActive = string.Empty;
@@ -64,34 +63,50 @@ public partial class BeautyPortal : ComponentBase
 
     protected override async Task OnInitializedAsync()
     {
+        await InitializeContextAsync();
         await LoadDataAsync();
         IsLoading = false;
     }
 
+    private async Task InitializeContextAsync()
+    {
+        await BusinessContext.EnsureLoadedAsync();
+        BusinessId = BusinessContext.BusinessId ?? 1;
+    }
+
     private async Task LoadDataAsync()
     {
-        await Task.WhenAll(LoadReservations(), LoadServices(), LoadStaff(), LoadClients());
         var (start, end) = GetMonthRange(CalendarCurrentDay);
         CalendarVisibleStart = start;
         CalendarVisibleEnd = end;
-        EnsureMockAvailability(start, end);
+        await Task.WhenAll(LoadReservations(start, end), LoadServices(), LoadStaff(), LoadClients());
+        EnsureAvailability(start, end);
         RefreshCalendarItemsForRange();
     }
 
-    private async Task LoadReservations()
+    private async Task LoadReservations(DateTime? startDate = null, DateTime? endDate = null)
     {
         try
         {
-            var response = await Http.GetFromJsonAsync<PaginatedResponse<ReservationDto>>($"reservations?limit=200&filterByBusinessId={BusinessId}");
+            var url = $"reservations?limit=500&filterByBusinessId={BusinessId}";
+            
+            if (startDate.HasValue && endDate.HasValue)
+            {
+                // Filter by appointment time range
+                var start = new DateTimeOffset(startDate.Value, TimeZoneInfo.Local.GetUtcOffset(startDate.Value));
+                var end = new DateTimeOffset(endDate.Value.AddDays(1).AddSeconds(-1), TimeZoneInfo.Local.GetUtcOffset(endDate.Value));
+                var startParam = Uri.EscapeDataString(start.ToString("yyyy-MM-ddTHH:mm:sszzz"));
+                var endParam = Uri.EscapeDataString(end.ToString("yyyy-MM-ddTHH:mm:sszzz"));
+                url += $"&filterByAppointmentTimeStart={startParam}&filterByAppointmentTimeEnd={endParam}";
+            }
+            
+            var response = await Http.GetFromJsonAsync<PaginatedResponse<ReservationDto>>(url);
             Reservations = response?.Data ?? new List<ReservationDto>();
-            UseMockData = false;
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Failed to load reservations: {ex.Message}");
-            UseMockData = true;
-            LoadMockReservations();
-            Snackbar.Add("Failed to load reservations from API. Showing mock data.", Severity.Warning);
+            Reservations = new List<ReservationDto>();
         }
     }
 
@@ -100,44 +115,60 @@ public partial class BeautyPortal : ComponentBase
         try
         {
             var resp = await Http.GetFromJsonAsync<PaginatedResponse<MenuItemDto>>($"items?limit=200&filterByBusinessId={BusinessId}");
-            Services = resp?.Data?.Where(i => string.Equals(i.Type.ToString(), "Service", StringComparison.OrdinalIgnoreCase)).ToList() ?? new List<MenuItemDto>();
+            if (resp?.Data != null)
+            {
+                Services = resp.Data.Where(i => i.Type == ItemType.Service).ToList();
+                Console.WriteLine($"Loaded {Services.Count} services out of {resp.Data.Count} total items");
+            }
+            else
+            {
+                Services = new List<MenuItemDto>();
+                Console.WriteLine("No items data received from API");
+            }
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Failed to load services: {ex.Message}");
-            LoadMockServices();
+            Services = new List<MenuItemDto>();
         }
-        if (Services.Count == 0) LoadMockServices();
     }
 
     private async Task LoadStaff()
     {
         try
         {
-            if (Staff.Count == 0)
+            var resp = await Http.GetFromJsonAsync<PaginatedResponse<UserResponseDto>>($"users?limit=200&filterByBusinessId={BusinessId}");
+            if (resp?.Data != null)
             {
-                LoadMockStaff();
+                Staff = resp.Data.Select(u => new StaffDto
+                {
+                    Id = u.Id,
+                    FirstName = u.Name ?? string.Empty,
+                    LastName = string.Empty,
+                    Email = u.Email ?? string.Empty,
+                    Phone = u.Phone ?? string.Empty,
+                    Schedule = string.Empty
+                }).ToList();
+                Console.WriteLine($"Loaded {Staff.Count} staff members");
+            }
+            else
+            {
+                Staff = new List<StaffDto>();
+                Console.WriteLine("No users data received from API");
             }
         }
-        catch
+        catch (Exception ex)
         {
-            LoadMockStaff();
+            Console.WriteLine($"Failed to load staff: {ex.Message}");
+            Staff = new List<StaffDto>();
         }
     }
 
     private async Task LoadClients()
     {
-        try
-        {
-            if (Clients.Count == 0)
-            {
-                LoadMockClients();
-            }
-        }
-        catch
-        {
-            LoadMockClients();
-        }
+        // TODO: Implement clients API endpoint
+        // For now, using empty list until clients endpoint is available
+        Clients = new List<ClientDto>();
     }
 
     private static (DateTime start, DateTime end) GetMonthRange(DateTime date)
@@ -149,18 +180,19 @@ public partial class BeautyPortal : ComponentBase
 
     private static bool IsPastDate(DateTime date) => date.Date < DateTime.Today;
 
-    private void OnCalendarDateRangeChanged(DateRange range)
+    private async void OnCalendarDateRangeChanged(DateRange range)
     {
         if (range.Start.HasValue && range.End.HasValue)
         {
             CalendarVisibleStart = range.Start.Value.Date;
             CalendarVisibleEnd = range.End.Value.Date;
-            EnsureMockAvailability(CalendarVisibleStart.Value, CalendarVisibleEnd.Value);
+            await LoadReservations(CalendarVisibleStart.Value, CalendarVisibleEnd.Value);
+            EnsureAvailability(CalendarVisibleStart.Value, CalendarVisibleEnd.Value);
             RefreshCalendarItemsForRange();
         }
     }
 
-    private void OnCalendarCurrentDayChanged(DateTime date)
+    private async void OnCalendarCurrentDayChanged(DateTime date)
     {
         CalendarCurrentDay = date;
         if (CalendarVisibleStart == null || CalendarVisibleEnd == null)
@@ -168,7 +200,8 @@ public partial class BeautyPortal : ComponentBase
             var (start, end) = GetMonthRange(date);
             CalendarVisibleStart = start;
             CalendarVisibleEnd = end;
-            EnsureMockAvailability(start, end);
+            await LoadReservations(start, end);
+            EnsureAvailability(start, end);
             RefreshCalendarItemsForRange();
         }
     }
@@ -405,12 +438,22 @@ public partial class BeautyPortal : ComponentBase
         RefreshCalendarItemsForRange();
     }
 
-    private void SetView(PortalView view)
+    private async void SetView(PortalView view)
     {
         CurrentView = view;
         if (view == PortalView.Reservation)
         {
-            IsReservationOpen = false;
+            // Open the reservation form for new reservation
+            IsReservationOpen = true;
+            IsEditing = false;
+            EditingReservationId = null;
+            ResetForm();
+            // Ensure services are loaded
+            if (Services == null || Services.Count == 0)
+            {
+                await LoadServices();
+            }
+            StateHasChanged();
         }
     }
 
@@ -472,15 +515,30 @@ public partial class BeautyPortal : ComponentBase
             c.Id.ToString().Contains(term));
     }
 
-    private void EnsureMockAvailability(DateTime start, DateTime end)
+    private void EnsureAvailability(DateTime start, DateTime end)
     {
+        // Generate hourly slots from 9 AM to 6 PM for business days
         var slots = new[] { "09:00-10:00", "10:00-11:00", "11:00-12:00", "14:00-15:00", "15:00-16:00", "17:00-18:00" };
         for (var day = start; day <= end; day = day.AddDays(1))
         {
             if (day.DayOfWeek == DayOfWeek.Sunday) continue;
             if (!Availability.ContainsKey(day.Date))
             {
-                Availability[day.Date] = slots.ToList();
+                // Remove slots that have existing reservations
+                var availableSlots = slots.ToList();
+                var dayReservations = Reservations.Where(r => 
+                    r.AppointmentTime.Date == day.Date && 
+                    r.Status == ReservationStatus.Scheduled).ToList();
+                
+                foreach (var reservation in dayReservations)
+                {
+                    var startTime = reservation.StartTime ?? reservation.AppointmentTime;
+                    var endTime = reservation.EndTime ?? startTime.AddMinutes(60);
+                    var slot = BuildSlotLabel(startTime.ToLocalTime().DateTime, endTime.ToLocalTime().DateTime);
+                    availableSlots.Remove(slot);
+                }
+                
+                Availability[day.Date] = availableSlots;
             }
         }
     }
@@ -496,6 +554,40 @@ public partial class BeautyPortal : ComponentBase
 
         var items = new List<CalendarItem>();
         var isMonthView = CurrentCalendarView == CalendarView.Month;
+        
+        // Add booked reservations to calendar
+        var relevantReservations = Reservations
+            .Where(r => r.Status == ReservationStatus.Scheduled && 
+                       r.AppointmentTime.Date >= start.Date && 
+                       r.AppointmentTime.Date <= end.Date)
+            .ToList();
+
+        foreach (var reservation in relevantReservations)
+        {
+            var resStart = reservation.StartTime ?? reservation.AppointmentTime;
+            var resEnd = reservation.EndTime ?? resStart.AddMinutes(60);
+            var localStart = resStart.ToLocalTime();
+            var localEnd = resEnd.ToLocalTime();
+            
+            if (isMonthView && (localStart.Month != CalendarCurrentDay.Month || localStart.Year != CalendarCurrentDay.Year))
+            {
+                continue;
+            }
+
+            var customerName = reservation.CustomerName ?? "Unnamed";
+            var staffName = reservation.AssignedEmployee.HasValue && StaffLookup.ContainsKey(reservation.AssignedEmployee.Value)
+                ? StaffLookup[reservation.AssignedEmployee.Value]
+                : "Any Staff";
+            
+            items.Add(new CalendarItem
+            {
+                Start = localStart.DateTime,
+                End = localEnd.DateTime,
+                Text = isMonthView ? $"{customerName}" : $"{customerName} - {staffName}",
+                AllDay = false
+            });
+        }
+
         for (var day = start.Date; day <= end.Date; day = day.AddDays(1))
         {
             if (isMonthView && (day.Month != CalendarCurrentDay.Month || day.Year != CalendarCurrentDay.Year))
@@ -518,36 +610,14 @@ public partial class BeautyPortal : ComponentBase
                 continue;
             }
 
-            var slots = GetFilteredSlots(day).ToList();
-            if (isMonthView && slots.Count == 0)
+            var dayReservations = relevantReservations.Count(r => r.AppointmentTime.Date == day.Date);
+            if (isMonthView && dayReservations == 0)
             {
                 items.Add(new CalendarItem
                 {
                     Start = day,
                     End = day,
-                    Text = "No availability",
-                    AllDay = true
-                });
-                continue;
-            }
-
-            var visibleSlots = isMonthView ? slots.Take(3) : slots;
-            foreach (var slot in visibleSlots)
-            {
-                var item = CreateCalendarItem(day, slot);
-                if (item != null)
-                {
-                    items.Add(item);
-                }
-            }
-
-            if (isMonthView && slots.Count > 3)
-            {
-                items.Add(new CalendarItem
-                {
-                    Start = day.AddHours(23).AddMinutes(59),
-                    End = day.AddHours(23).AddMinutes(59),
-                    Text = $"+{slots.Count - 3} more",
+                    Text = "No bookings",
                     AllDay = true
                 });
             }
@@ -577,82 +647,6 @@ public partial class BeautyPortal : ComponentBase
 
     private static string BuildSlotLabel(DateTime start, DateTime end) =>
         $"{start:HH:mm}-{end:HH:mm}";
-
-    private void LoadMockReservations()
-    {
-        Reservations = new List<ReservationDto>
-        {
-            new()
-            {
-                Id = 7001,
-                BusinessId = BusinessId,
-                CustomerName = "Julia Ceasar",
-                CustomerPhone = "+1 555 111 2222",
-                CustomerNote = "Be gentle",
-                AppointmentTime = DateTimeOffset.UtcNow.AddHours(3),
-                CreatedAt = DateTimeOffset.UtcNow.AddHours(-1),
-                CreatedBy = 1,
-                Status = ReservationStatus.Scheduled,
-                AssignedEmployee = 2
-            },
-            new()
-            {
-                Id = 7002,
-                BusinessId = BusinessId,
-                CustomerName = "Tom Brad",
-                CustomerPhone = "+1 555 333 4444",
-                CustomerNote = "Prefers quiet room",
-                AppointmentTime = DateTimeOffset.UtcNow.AddDays(-1),
-                CreatedAt = DateTimeOffset.UtcNow.AddDays(-2),
-                CreatedBy = 1,
-                Status = ReservationStatus.Completed,
-                AssignedEmployee = 3
-            },
-            new()
-            {
-                Id = 7003,
-                BusinessId = BusinessId,
-                CustomerName = "Amy Adams",
-                CustomerPhone = "+1 555 555 7777",
-                CustomerNote = "Cancelled",
-                AppointmentTime = DateTimeOffset.UtcNow.AddDays(1),
-                CreatedAt = DateTimeOffset.UtcNow.AddDays(-1),
-                CreatedBy = 1,
-                Status = ReservationStatus.Cancelled,
-                AssignedEmployee = 2
-            }
-        };
-    }
-
-    private void LoadMockServices()
-    {
-        Services = new List<MenuItemDto>
-        {
-            new() { Id = 5001, Name = "Haircut", Price = 25m },
-            new() { Id = 5002, Name = "Manicure", Price = 30m },
-            new() { Id = 5003, Name = "Massage", Price = 60m }
-        };
-    }
-
-    private void LoadMockStaff()
-    {
-        Staff = new List<StaffDto>
-        {
-            new() { Id = 1, FirstName = "Amy", LastName = "Adams", Email = "amy@beauty.local", Phone = "+1 555 0100", Schedule = "Mon-Fri" },
-            new() { Id = 2, FirstName = "Ted", LastName = "Smith", Email = "ted@beauty.local", Phone = "+1 555 0101", Schedule = "Tue-Sat" },
-            new() { Id = 3, FirstName = "Louise", LastName = "Graham", Email = "louise@beauty.local", Phone = "+1 555 0102", Schedule = "Wed-Sun" }
-        };
-    }
-
-    private void LoadMockClients()
-    {
-        Clients = new List<ClientDto>
-        {
-            new() { Id = 101, FirstName = "Tom", LastName = "Braddington", Email = "tom@example.com", Phone = "+1 555 0200" },
-            new() { Id = 102, FirstName = "Julia", LastName = "Ceasar", Email = "julia@example.com", Phone = "+1 555 0201" },
-            new() { Id = 103, FirstName = "Gabe", LastName = "Newell", Email = "gabe@example.com", Phone = "+1 555 0202" }
-        };
-    }
 
     private enum PortalView
     {

@@ -41,6 +41,7 @@ namespace CentralizedSalesSystem.Frontend.Models
     {
         public long Id { get; set; }
         public long BusinessId { get; set; }
+        public long UserId { get; set; }
         public long? ReservationId { get; set; }
         public long? TableId { get; set; }
         public long? DiscountId { get; set; }

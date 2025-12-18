@@ -304,14 +304,27 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
         {
             if (ActiveOrder is null || !CanModifyActiveOrder) return;
             
-            var discountValue = Math.Clamp(DiscountInput, 0, 100);
+            var discountPercent = Math.Clamp(DiscountInput, 0, 100);
+            var discountAmount = Math.Round(Subtotal * (discountPercent / 100), 2);
             
             try
             {
-                // Note: Discount functionality should be implemented via DiscountId
-                // For now, we'll skip this feature as it requires discount setup
-                Snackbar.Add("Discount feature requires discount configuration in the system.", Severity.Info);
-                await Task.CompletedTask;
+                var updateDto = new
+                {
+                    Discount = discountAmount
+                };
+
+                var response = await Http.PatchAsJsonAsync($"orders/{ActiveOrder.Id}", updateDto);
+                if (response.IsSuccessStatusCode)
+                {
+                    ActiveOrder.DiscountTotal = discountAmount;
+                    ActiveOrder.UpdatedAt = DateTimeOffset.UtcNow;
+                    Snackbar.Add($"Applied {discountPercent}% discount ({discountAmount:C})", Severity.Success);
+                }
+                else
+                {
+                    Snackbar.Add("Failed to apply discount", Severity.Error);
+                }
             }
             catch (Exception ex)
             {

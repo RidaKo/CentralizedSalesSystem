@@ -20,7 +20,6 @@ namespace CentralizedSalesSystem.Frontend.Models
         public string Name { get; set; } = string.Empty;
         public string? Description { get; set; }
         public decimal Price { get; set; }
-        public List<string> Tags { get; set; } = new();
         public int? Stock { get; set; }
         public int? Duration { get; set; }
     }
@@ -41,12 +40,19 @@ namespace CentralizedSalesSystem.Frontend.Models
         public long? ReservationId { get; set; }
         public long? TableId { get; set; }
         public List<OrderItemDto> Items { get; set; } = new();
-        public decimal Discount { get; set; }
-        public decimal Tip { get; set; }
-        public DateTime? UpdatedAt { get; set; }
+        public decimal? Tip { get; set; }
+        public DateTimeOffset? UpdatedAt { get; set; }
         public long? CreatedBy { get; set; }
         public OrderStatus Status { get; set; } = OrderStatus.Open;
         public List<PaymentDto> Payments { get; set; } = new();
+        
+        // Totals from API
+        public decimal Subtotal { get; set; }
+        public decimal DiscountTotal { get; set; }
+        public decimal TaxTotal { get; set; }
+        public decimal ServiceChargeTotal { get; set; }
+        public decimal Total { get; set; }
+        public decimal AmountPaid { get; set; }
     }
 
     public class PaymentDto
@@ -55,7 +61,7 @@ namespace CentralizedSalesSystem.Frontend.Models
         public PaymentMethod Method { get; set; } = PaymentMethod.Cash;
         public decimal Amount { get; set; }
         public PaymentStatus Status { get; set; } = PaymentStatus.Completed;
-        public DateTime? PaidAt { get; set; }
+        public DateTimeOffset? PaidAt { get; set; }
         public PaymentCurrency Currency { get; set; } = PaymentCurrency.EUR;
     }
 
@@ -87,6 +93,13 @@ namespace CentralizedSalesSystem.Frontend.Models
         Cash,
         Card,
         GiftCard,
+    }
+
+    public enum PaymentProvider
+    {
+        Internal,
+        Stripe,
+        PayPal,
     }
 
     public enum PaymentCurrency

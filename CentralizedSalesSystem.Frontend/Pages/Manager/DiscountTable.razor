@@ -64,6 +64,7 @@
         catch (Exception ex)
         {
             Snackbar.Add($"Unable to load discounts: {ex.Message}", Severity.Error);
+            Console.WriteLine($"API Fetch Failed: {ex.Message}");
         }
     }
 

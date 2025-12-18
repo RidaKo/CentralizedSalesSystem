@@ -2,10 +2,12 @@
 @namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
 @using CentralizedSalesSystem.Frontend.Models
 @using Microsoft.AspNetCore.Authorization
+@using CentralizedSalesSystem.Frontend.Services
 @attribute [Authorize]
 @inject HttpClient Http
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
+@inject BusinessContext BusinessContext
 
 <MudContainer MaxWidth="MaxWidth.False" Class="employee-portal mt-6">
     <MudText Typo="Typo.h3" Class="mb-1">Work portal</MudText>
@@ -159,7 +161,7 @@
                                 </div>
                                 <div class="d-flex justify-space-between">
                                     <MudText Typo="Typo.caption">Tip</MudText>
-                                    <MudText Typo="Typo.caption">@ActiveOrder?.Tip.ToString("C")</MudText>
+                                    <MudText Typo="Typo.caption">@((ActiveOrder?.Tip ?? 0).ToString("C"))</MudText>
                                 </div>
                                 <MudDivider Class="my-1" />
                                 <div class="d-flex justify-space-between align-center">

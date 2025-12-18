@@ -12,6 +12,7 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 builder.Services.AddScoped<ITokenStore, LocalStorageTokenStore>();
 builder.Services.AddScoped<AuthMessageHandler>();
 builder.Services.AddScoped<ApiErrorMessageHandler>();
+builder.Services.AddScoped<LoggingMessageHandler>();
 builder.Services.AddScoped<BusinessContext>();
 builder.Services.AddScoped<ApiAuthStateProvider>();
 builder.Services.AddScoped<AuthenticationStateProvider>(sp =>
@@ -23,6 +24,7 @@ builder.Services.AddHttpClient("Api", client =>
 {
     client.BaseAddress = new Uri("https://localhost:7051");
 })
+    .AddHttpMessageHandler<LoggingMessageHandler>()
     .AddHttpMessageHandler<AuthMessageHandler>()
     .AddHttpMessageHandler<ApiErrorMessageHandler>();
 

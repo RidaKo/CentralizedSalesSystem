@@ -47,32 +47,29 @@
         }
     </MudAppBar>
 
-    @if (ShowSidebar)
-    {
-        <MudDrawer Open="false" Variant="DrawerVariant.Mini">
-            <MudNavMenu>
-                <AuthorizeView>
-                    @if ((BusinessContext.IsOwner || BusinessContext.IsSuper) && BusinessContext.BusinessId.HasValue)
-                    {
-                        <MudNavLink Href="/manager/dashboard" Icon="@Icons.Material.Filled.BusinessCenter">Manager Dashboard</MudNavLink>
-                        <MudNavLink Href="@($"/manager/business/{BusinessContext.BusinessId.Value}")" Icon="@Icons.Material.Filled.ManageAccounts">
-                            Business Management
-                        </MudNavLink>
-                    }
-                </AuthorizeView>
-                <AuthorizeView>
-                    @if (BusinessContext.IsRestaurantEnabled)
-                    {
-                        <MudNavLink Href="/employee/restaurant" Icon="@Icons.Material.Filled.RestaurantMenu">Restaurant Portal</MudNavLink>
-                    }
-                    @if (BusinessContext.IsBeautyEnabled)
-                    {
-                        <MudNavLink Href="/employee/beauty" Icon="@Icons.Material.Filled.Spa">Beauty Portal</MudNavLink>
-                    }
-                </AuthorizeView>
-            </MudNavMenu>
-        </MudDrawer>
-    }
+    <MudDrawer Open="true" Variant="DrawerVariant.Persistent">
+        <MudNavMenu>
+            <AuthorizeView>
+                @if ((BusinessContext.IsOwner || BusinessContext.IsSuper) && BusinessContext.BusinessId.HasValue)
+                {
+                    <MudNavLink Href="/manager/dashboard" Icon="@Icons.Material.Filled.BusinessCenter">Manager Dashboard</MudNavLink>
+                    <MudNavLink Href="@($"/manager/business/{BusinessContext.BusinessId.Value}")" Icon="@Icons.Material.Filled.ManageAccounts">
+                        Business Management
+                    </MudNavLink>
+                }
+            </AuthorizeView>
+            <AuthorizeView>
+                @if (BusinessContext.IsRestaurantEnabled)
+                {
+                    <MudNavLink Href="/employee/restaurant" Icon="@Icons.Material.Filled.RestaurantMenu">Restaurant Portal</MudNavLink>
+                }
+                @if (BusinessContext.IsBeautyEnabled)
+                {
+                    <MudNavLink Href="/employee/beauty" Icon="@Icons.Material.Filled.Spa">Beauty Portal</MudNavLink>
+                }
+            </AuthorizeView>
+        </MudNavMenu>
+    </MudDrawer>
 
     <MudMainContent>
         <MudContainer MaxWidth="MaxWidth.False" Class="pa-6">
@@ -99,7 +96,6 @@
         BusinessContext.Changed += OnBusinessContextChanged;
         await LoadUserAsync();
         await BusinessContext.EnsureLoadedAsync();
-        RedirectEmployeeHomeIfNeeded();
     }
 
     private async Task LoadUserAsync()
@@ -118,7 +114,6 @@
     {
         await LoadUserAsync();
         await BusinessContext.RefreshAsync();
-        RedirectEmployeeHomeIfNeeded();
         await InvokeAsync(StateHasChanged);
     }
 
@@ -146,32 +141,4 @@
         InvokeAsync(StateHasChanged);
     }
 
-    private bool IsEmployeeOnly =>
-        (CurrentUser.IsInRole("Employee") || CurrentUser.Claims.Any(c => c.Type == ClaimTypes.Role && c.Value == "Employee"))
-        && !CurrentUser.IsInRole("Admin");
-
-    private bool ShowSidebar => !IsEmployeeOnly;
-
-    private void RedirectEmployeeHomeIfNeeded()
-    {
-        if (!IsEmployeeOnly)
-        {
-            return;
-        }
-
-        var relative = Navigation.ToBaseRelativePath(Navigation.Uri);
-        if (!string.IsNullOrEmpty(relative))
-        {
-            return;
-        }
-
-        if (BusinessContext.IsBeautyEnabled)
-        {
-            Navigation.NavigateTo("/employee/beauty");
-        }
-        else if (BusinessContext.IsRestaurantEnabled)
-        {
-            Navigation.NavigateTo("/employee/restaurant");
-        }
-    }
 }

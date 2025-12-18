@@ -1,166 +1,203 @@
 @page "/manager/business/{BusinessId:long}"
 @using CentralizedSalesSystem.Frontend.Models
-@using Microsoft.AspNetCore.Authorization
 @using CentralizedSalesSystem.Frontend.Services
+@using CentralizedSalesSystem.Frontend.Json
+@using Microsoft.AspNetCore.Authorization
+@using System.Linq
 @attribute [Authorize]
 @inject HttpClient Http
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject BusinessContext BusinessContext
 
-<MudContainer MaxWidth="MaxWidth.Large" Class="mt-8">
-    
-    <!-- back button -->
-    <MudButton StartIcon="@Icons.Material.Filled.ArrowBack" 
-               href="/manager/dashboard" 
-               Color="Color.Default" 
-               Class="mb-4">
-        Back to Dashboard
-    </MudButton>
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-6">
+    <MudStack Spacing="2">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+            <MudIconButton Icon="@Icons.Material.Filled.ArrowBack"
+                           Color="Color.Default"
+                           OnClick="GoToDashboard" />
+            <MudText Typo="Typo.h4">Business Management</MudText>
+            <MudSpacer />
+        </MudStack>
 
-    @if (_isLoading)
-    {
-        <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-7" />
-    }
-    else if (_business == null)
-    {
-        <MudAlert Severity="Severity.Error">Business not found.</MudAlert>
-    }
-    else
-    {
-        <!-- header -->
-        <MudGrid>
-            <MudItem xs="12">
-                <MudText Typo="Typo.h4" Class="mb-2">
-                    Service panel: "@_business.Name"
-                </MudText>
-            </MudItem>
+        @if (_isLoading)
+        {
+            <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-6" />
+        }
+        else if (_business == null)
+        {
+            <MudAlert Severity="Severity.Error">Business not found.</MudAlert>
+        }
+        else
+        {
+            <MudGrid GutterSpacing="3">
+                @if (!_isBusinessEditing)
+                {
+                    <MudItem xs="12">
+                        <MudPaper Class="pa-4" Elevation="2">
+                            <MudStack Spacing="1">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                    <MudText Typo="Typo.h5">@_business?.Name</MudText>
+                                    <MudChip T="string" Color="Color.Info" Size="Size.Small">@_business?.SubscriptionPlan</MudChip>
+                                    <MudSpacer />
+                                    <MudButton Variant="Variant.Outlined"
+                                               Color="Color.Primary"
+                                               StartIcon="@Icons.Material.Filled.Edit"
+                                               OnClick="BeginBusinessEdit">
+                                        Edit
+                                    </MudButton>
+                                </MudStack>
+                                <MudText Typo="Typo.body1">@_business?.Address</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@_business?.Email | @_business?.Phone</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">Currency: @_business?.Currency</MudText>
+                            </MudStack>
+                        </MudPaper>
+                    </MudItem>
+                }
+                else
+                {
+                    <MudItem xs="12" md="7">
+                        <MudPaper Class="pa-4" Elevation="2">
+                            <MudStack Spacing="1">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                    <MudText Typo="Typo.h5">Business details</MudText>
+                                    <MudChip T="string" Color="Color.Info" Size="Size.Small">@_business?.SubscriptionPlan</MudChip>
+                                </MudStack>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    Update the profile information for this business.
+                                </MudText>
 
-            <!-- info card -->
-            <MudItem xs="12" md="6">
-                <MudPaper Class="pa-4" Elevation="3">
-                    <div class="d-flex justify-space-between align-center mb-4">
-                        <MudText Typo="Typo.h6">Info</MudText>
-                        <MudChip T="string" Color="Color.Info" Size="Size.Small">@_business.SubscriptionPlan</MudChip>
-                    </div>
+                                <MudGrid GutterSpacing="2">
+                                    <MudItem xs="12" sm="6">
+                                        <MudTextField @bind-Value="_businessForm.Name" Label="Name" Required="true" />
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6">
+                                        <MudTextField @bind-Value="_businessForm.Phone" Label="Phone" Required="true" />
+                                    </MudItem>
+                                    <MudItem xs="12">
+                                        <MudTextField @bind-Value="_businessForm.Address" Label="Address" Required="true" />
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6">
+                                        <MudTextField @bind-Value="_businessForm.Email" Label="Email" Required="true" />
+                                    </MudItem>
+                                    <MudItem xs="12" sm="3">
+                                        <MudSelect T="Currency" @bind-Value="_businessForm.Currency" Label="Currency">
+                                            <MudSelectItem Value="@Currency.EUR">EUR</MudSelectItem>
+                                            <MudSelectItem Value="@Currency.USD">USD</MudSelectItem>
+                                        </MudSelect>
+                                    </MudItem>
+                                    <MudItem xs="12" sm="3">
+                                        <MudSelect T="SubscriptionPlan" @bind-Value="_businessForm.SubscriptionPlan" Label="Plan">
+                                            <MudSelectItem Value="@SubscriptionPlan.Catering">Catering</MudSelectItem>
+                                            <MudSelectItem Value="@SubscriptionPlan.Beauty">Beauty</MudSelectItem>
+                                        </MudSelect>
+                                    </MudItem>
+                                </MudGrid>
 
-                    <MudList T="string" Dense="true">
-                        <MudListItem Icon="@Icons.Material.Filled.Business">
-                            <MudText Typo="Typo.caption">Company Name</MudText>
-                            <MudText Typo="Typo.body1">@_business.Name</MudText>
-                        </MudListItem>
-                        <MudListItem Icon="@Icons.Material.Filled.LocationOn">
-                            <MudText Typo="Typo.caption">Address</MudText>
-                            <MudText Typo="Typo.body1">@_business.Address</MudText>
-                        </MudListItem>
-                        <MudListItem Icon="@Icons.Material.Filled.AttachMoney">
-                            <MudText Typo="Typo.caption">Currency</MudText>
-                            <MudText Typo="Typo.body1">@_business.Currency</MudText>
-                        </MudListItem>
-                    </MudList>
-                    
-                    <div class="mt-4 d-flex gap-2">
-                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small">
-                            Edit Info
-                        </MudButton>
-                        <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small">
-                            Cancel Plan
-                        </MudButton>
-                    </div>
-                </MudPaper>
-            </MudItem>
-            
-            <!-- working hours (placeholder) -->
-             <MudItem xs="12" md="6">
-                <MudPaper Class="pa-4" Elevation="3">
-                     <MudText Typo="Typo.h6" Class="mb-4">Working Hours</MudText>
-                     <MudText Typo="Typo.body2">
-                         <MudIcon Icon="@Icons.Material.Filled.AccessTime" Size="Size.Small" Class="mr-1"/>
-                         I-V 8:00-22:00
-                     </MudText>
-                     <MudText Typo="Typo.body2" Class="mt-2">
-                         <MudIcon Icon="@Icons.Material.Filled.AccessTime" Size="Size.Small" Class="mr-1"/>
-                         VI-VII 10:00-20:00
-                     </MudText>
-                </MudPaper>
-            </MudItem>
-        </MudGrid>
+                                <MudStack Row="true" Spacing="1">
+                                    <MudButton Variant="Variant.Filled"
+                                               Color="Color.Primary"
+                                               StartIcon="@Icons.Material.Filled.Save"
+                                               Disabled="_isSavingBusiness"
+                                               OnClick="SaveBusinessAsync">
+                                        @(_isSavingBusiness ? "Saving..." : "Save Business")
+                                    </MudButton>
+                                    <MudButton Variant="Variant.Text"
+                                               Color="Color.Default"
+                                               StartIcon="@Icons.Material.Filled.Refresh"
+                                               Disabled="_isSavingBusiness"
+                                               OnClick="ResetBusinessForm">
+                                        Cancel
+                                    </MudButton>
+                                </MudStack>
+                            </MudStack>
+                        </MudPaper>
+                    </MudItem>
+                }
+            </MudGrid>
 
-        <MudDivider Class="my-8"/>
+            <MudDivider Class="my-5" />
 
-        <!-- navigation tabs for the "manage" section -->
-        <MudText Typo="Typo.h5" Class="mb-4">Manage</MudText>
-        
-        <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6">
-            <MudTabPanel Text="Items" Icon="@Icons.Material.Filled.Fastfood">
-                <MudText>Item management will go here (Step 5).</MudText>
-            </MudTabPanel>
-            
-            <MudTabPanel Text="Employees" Icon="@Icons.Material.Filled.People">
-                <MudText Class="mb-4">Manage your staff here.</MudText>
-                <MudButton Variant="Variant.Filled" 
-                           Color="Color.Primary" 
-                           OnClick="@(() => Navigation.NavigateTo($"/manager/business/{BusinessId}/employees"))">
-                    Open Employee Table
-                </MudButton>
-            </MudTabPanel>
-            
-            <!-- updates discount tab -->
-            <MudTabPanel Text="Discounts" Icon="@Icons.Material.Filled.LocalOffer">
-                <DiscountTable BusinessId="@BusinessId" />
-            </MudTabPanel>
-            
-            <!-- updates tax tab -->
-            <MudTabPanel Text="Taxes" Icon="@Icons.Material.Filled.RequestQuote">
-                <TaxTable BusinessId="@BusinessId" />
-            </MudTabPanel>
-        </MudTabs>
-    }
+            <MudTabs @bind-ActivePanelIndex="_tabIndex" Rounded="true" Elevation="2" PanelClass="pa-4">
+                <MudTabPanel Text="Employees" Icon="@Icons.Material.Filled.People">
+                    @EmployeesTab()
+                </MudTabPanel>
+                <MudTabPanel Text="Discounts" Icon="@Icons.Material.Filled.LocalOffer">
+                    @DiscountsTab()
+                </MudTabPanel>
+                <MudTabPanel Text="Taxes" Icon="@Icons.Material.Filled.RequestQuote">
+                    @TaxesTab()
+                </MudTabPanel>
+            </MudTabs>
+        }
+    </MudStack>
 </MudContainer>
 
 @code {
-    [Parameter]
-    public long BusinessId { get; set; }
+    [Parameter] public long BusinessId { get; set; }
 
     private Business? _business;
+    private BusinessEditModel _businessForm = new();
     private bool _isLoading = true;
+    private int _tabIndex;
+
+    private readonly List<EmployeeDto> _employees = new();
+    private readonly List<Discount> _discounts = new();
+    private readonly List<Tax> _taxes = new();
+
+    private EmployeeFormModel _employeeForm = new();
+    private DiscountEditModel _discountForm = new();
+    private TaxEditModel _taxForm = new();
+
+    private string _employeeSearch = string.Empty;
+    private string _discountSearch = string.Empty;
+    private string _taxSearch = string.Empty;
+
+    private bool _isSavingBusiness;
+    private bool _isSavingEmployee;
+    private bool _isSavingDiscount;
+    private bool _isSavingTax;
+
+    private bool _isBusinessEditing;
+    private bool IsEditingBusiness => _business?.Id == _businessForm.Id && _businessForm.Id != 0;
+    private bool IsEditingEmployee => _employeeForm.Id != 0;
+    private bool IsEditingDiscount => _discountForm.Id != 0;
+    private bool IsEditingTax => _taxForm.Id != 0;
 
     protected override async Task OnInitializedAsync()
+    {
+        await InitializeAsync();
+    }
+
+    private void GoToDashboard() => Navigation.NavigateTo("/manager/dashboard");
+
+    private async Task InitializeAsync()
     {
         try
         {
             _isLoading = true;
-
             await BusinessContext.EnsureLoadedAsync();
+
             var isSameBusiness = BusinessContext.BusinessId.HasValue && BusinessContext.BusinessId.Value == BusinessId;
             var hasAccess = BusinessContext.IsSuper || (BusinessContext.IsOwner && isSameBusiness);
             if (!hasAccess)
             {
                 Snackbar.Add("Only the business owner or a super admin can access this page.", Severity.Error);
-                _isLoading = false;
                 Navigation.NavigateTo("/", forceLoad: true);
                 return;
             }
-            
-            var response = await Http.GetAsync($"businesses/{BusinessId}");
-            if (response.IsSuccessStatusCode)
-            {
-                _business = await response.Content.ReadFromJsonAsync<Business>();
-            }
-            else
-            {
-                var reason = $"{(int)response.StatusCode} {response.ReasonPhrase}";
-                Snackbar.Add($"Failed to load business details: {reason}", Severity.Error);
-            }
 
-            if (BusinessContext.IsSuper && _business is not null)
-            {
-                BusinessContext.AssumeBusiness(_business.Id, _business.SubscriptionPlan);
-            }
+            await LoadBusinessAsync();
+            await Task.WhenAll(LoadEmployeesAsync(), LoadDiscountsAsync(), LoadTaxesAsync());
+
+            InitializeBusinessForm();
+            BeginCreateEmployee();
+            BeginCreateDiscount();
+            BeginCreateTax();
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Unable to load business details: {ex.Message}", Severity.Error);
+            Snackbar.Add($"Unable to load business page: {ex.Message}", Severity.Error);
         }
         finally
         {
@@ -168,4 +205,1102 @@
         }
     }
 
+    private async Task LoadBusinessAsync()
+    {
+        var response = await Http.GetAsync($"businesses/{BusinessId}");
+        if (response.IsSuccessStatusCode)
+        {
+            _business = await HttpJsonDefaultsExtensions.ReadFromJsonAsync<Business>(response.Content);
+            if (BusinessContext.IsSuper && _business is not null)
+            {
+                BusinessContext.AssumeBusiness(_business.Id, _business.SubscriptionPlan);
+            }
+            InitializeBusinessForm();
+        }
+        else
+        {
+            Snackbar.Add($"Failed to load business: {(int)response.StatusCode} {response.ReasonPhrase}", Severity.Error);
+        }
+    }
+
+    private Task LoadDiscountsAsync() =>
+        LoadCollectionAsync($"discounts?filterByBusinessId={BusinessId}&limit=200", _discounts, "discounts");
+
+    private Task LoadTaxesAsync() =>
+        LoadCollectionAsync($"taxes?filterByBusinessId={BusinessId}&limit=200", _taxes, "taxes");
+
+    private async Task LoadEmployeesAsync()
+    {
+        try
+        {
+            var response = await Http.GetAsync($"users?filterByBusinessId={BusinessId}&limit=200");
+            if (response.IsSuccessStatusCode)
+            {
+                var payload = await HttpJsonDefaultsExtensions.ReadFromJsonAsync<PaginatedResponse<UserResponseDto>>(response.Content);
+                _employees.Clear();
+                if (payload?.Data != null)
+                {
+                    _employees.AddRange(payload.Data.Select(MapToEmployee));
+                }
+            }
+            else
+            {
+                var reason = $"{(int)response.StatusCode} {response.ReasonPhrase}";
+                Snackbar.Add($"Failed to load employees: {reason}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Unable to load employees: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task LoadCollectionAsync<T>(string endpoint, List<T> target, string label)
+    {
+        var response = await Http.GetAsync(endpoint);
+        if (response.IsSuccessStatusCode)
+        {
+            var payload = await HttpJsonDefaultsExtensions.ReadFromJsonAsync<PaginatedResponse<T>>(response.Content);
+            target.Clear();
+            if (payload?.Data != null) target.AddRange(payload.Data);
+        }
+        else
+        {
+            Snackbar.Add($"Failed to load {label}: {(int)response.StatusCode} {response.ReasonPhrase}", Severity.Error);
+        }
+    }
+
+    private void InitializeBusinessForm()
+    {
+        if (_business is null) return;
+
+        _businessForm = new BusinessEditModel
+        {
+            Id = _business.Id,
+            Name = _business.Name,
+            Phone = _business.Phone,
+            Address = _business.Address,
+            Email = _business.Email,
+            Currency = _business.Currency,
+            SubscriptionPlan = _business.SubscriptionPlan
+        };
+        _isBusinessEditing = false;
+    }
+
+    private void BeginBusinessEdit() => _isBusinessEditing = true;
+
+    private void ResetBusinessForm()
+    {
+        InitializeBusinessForm();
+        _isBusinessEditing = false;
+    }
+
+    private async Task SaveBusinessAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_businessForm.Name) ||
+            string.IsNullOrWhiteSpace(_businessForm.Phone) ||
+            string.IsNullOrWhiteSpace(_businessForm.Address) ||
+            string.IsNullOrWhiteSpace(_businessForm.Email))
+        {
+            Snackbar.Add("Name, phone, address, and email are required.", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            _isSavingBusiness = true;
+
+            var payload = new BusinessUpdateRequest
+            {
+                Name = _businessForm.Name,
+                Phone = _businessForm.Phone,
+                Address = _businessForm.Address,
+                Email = _businessForm.Email,
+                Currency = _businessForm.Currency,
+                SubscriptionPlan = _businessForm.SubscriptionPlan
+            };
+
+            var request = new HttpRequestMessage(HttpMethod.Patch, $"businesses/{BusinessId}")
+            {
+                Content = System.Net.Http.Json.JsonContent.Create(payload)
+            };
+
+            var response = await Http.SendAsync(request);
+            if (response.IsSuccessStatusCode)
+            {
+                var record = await HttpJsonDefaultsExtensions.ReadFromJsonAsync<Business>(response.Content);
+                if (record is not null)
+                {
+                    _business = record;
+                    InitializeBusinessForm();
+                    if (BusinessContext.IsSuper)
+                    {
+                        BusinessContext.AssumeBusiness(record.Id, record.SubscriptionPlan);
+                    }
+                }
+                Snackbar.Add("Business updated.", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add($"Unable to update business: {(int)response.StatusCode} {response.ReasonPhrase}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Unable to update business: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSavingBusiness = false;
+            _isBusinessEditing = false;
+        }
+    }
+
+    // Employees
+    private void BeginCreateEmployee()
+    {
+        _employeeForm = new EmployeeFormModel
+        {
+            Id = 0,
+            Name = string.Empty,
+            Email = string.Empty,
+            Phone = string.Empty,
+            Password = string.Empty,
+            Activity = "active"
+        };
+    }
+
+    private void BeginEditEmployee(EmployeeDto employee)
+    {
+        _tabIndex = 0;
+        _employeeForm = new EmployeeFormModel
+        {
+            Id = employee.Id,
+            Name = employee.Name,
+            Email = employee.Email,
+            Phone = employee.Phone,
+            Password = string.Empty,
+            Activity = employee.Status
+        };
+    }
+
+    private async Task SaveEmployeeAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_employeeForm.Name) ||
+            string.IsNullOrWhiteSpace(_employeeForm.Email) ||
+            (!IsEditingEmployee && string.IsNullOrWhiteSpace(_employeeForm.Password)))
+        {
+            Snackbar.Add("Name, email, and password are required.", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            _isSavingEmployee = true;
+            HttpResponseMessage response;
+
+            if (_employeeForm.Id == 0)
+            {
+                var payload = new UserCreateRequest
+                {
+                    BusinessId = BusinessId,
+                    Name = _employeeForm.Name,
+                    Email = _employeeForm.Email,
+                    Phone = _employeeForm.Phone ?? string.Empty,
+                    Password = _employeeForm.Password ?? string.Empty,
+                    Activity = string.IsNullOrWhiteSpace(_employeeForm.Activity) ? "active" : _employeeForm.Activity.ToLowerInvariant()
+                };
+
+                response = await HttpJsonDefaultsExtensions.PostAsJsonAsync(Http, "users", payload);
+            }
+            else
+            {
+                var payload = new UserPatchRequest
+                {
+                    Name = _employeeForm.Name,
+                    Email = _employeeForm.Email,
+                    Phone = _employeeForm.Phone,
+                    Activity = string.IsNullOrWhiteSpace(_employeeForm.Activity) ? null : _employeeForm.Activity.ToLowerInvariant(),
+                    Password = string.IsNullOrWhiteSpace(_employeeForm.Password) ? null : _employeeForm.Password
+                };
+
+                var request = new HttpRequestMessage(HttpMethod.Patch, $"users/{_employeeForm.Id}")
+                {
+                    Content = System.Net.Http.Json.JsonContent.Create(payload)
+                };
+                response = await Http.SendAsync(request);
+            }
+
+            if (response.IsSuccessStatusCode)
+            {
+                var record = await HttpJsonDefaultsExtensions.ReadFromJsonAsync<UserResponseDto>(response.Content);
+                if (record != null)
+                {
+                    var mapped = MapToEmployee(record);
+                    Upsert(_employees, mapped, e => e.Id == mapped.Id);
+                    Snackbar.Add(IsEditingEmployee ? "Employee updated." : "Employee added.", Severity.Success);
+                    BeginCreateEmployee();
+                }
+            }
+            else
+            {
+                var reason = $"{(int)response.StatusCode} {response.ReasonPhrase}";
+                Snackbar.Add($"Unable to save employee: {reason}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Unable to save employee: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSavingEmployee = false;
+        }
+    }
+
+    private async Task DeleteEmployeeAsync(EmployeeDto employee)
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"users/{employee.Id}");
+            if (response.IsSuccessStatusCode)
+            {
+                _employees.Remove(employee);
+                Snackbar.Add($"Deleted {employee.Name}", Severity.Success);
+                if (_employeeForm.Id == employee.Id) BeginCreateEmployee();
+            }
+            else
+            {
+                var reason = $"{(int)response.StatusCode} {response.ReasonPhrase}";
+                Snackbar.Add($"Failed to delete {employee.Name}: {reason}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Unable to delete {employee.Name}: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private bool EmployeeFilter(EmployeeDto employee)
+    {
+        if (string.IsNullOrWhiteSpace(_employeeSearch)) return true;
+        return employee.Name.Contains(_employeeSearch, StringComparison.OrdinalIgnoreCase)
+            || employee.Email.Contains(_employeeSearch, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static EmployeeDto MapToEmployee(UserResponseDto user) => new()
+    {
+        Id = user.Id,
+        Name = user.Name ?? user.Email,
+        Email = user.Email,
+        Phone = user.Phone ?? string.Empty,
+        Role = "Staff",
+        Status = user.Activity?.ToLowerInvariant() ?? "inactive"
+    };
+
+    private RenderFragment EmployeesTab() => @<MudGrid GutterSpacing="3">
+        <MudItem xs="12" md="4">
+            <MudPaper Class="pa-4" Elevation="1">
+                <MudStack Spacing="2">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                        <MudText Typo="Typo.subtitle1">@((IsEditingEmployee ? "Edit" : "New") + " Employee")</MudText>
+                        <MudChip T="string"
+                                 Color="@(IsEditingEmployee ? Color.Warning : Color.Success)"
+                                 Variant="Variant.Filled"
+                                 Size="Size.Small">
+                            @(IsEditingEmployee ? "Editing" : "Create")
+                        </MudChip>
+                    </MudStack>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        Add staff to this business or update their details.
+                    </MudText>
+
+                    <MudTextField @bind-Value="_employeeForm.Name" Label="Name" Required="true" />
+                    <MudTextField @bind-Value="_employeeForm.Email" Label="Email" Required="true" />
+                    <MudTextField @bind-Value="_employeeForm.Phone" Label="Phone" />
+                    <MudTextField @bind-Value="_employeeForm.Password"
+                                  Label="@(IsEditingEmployee ? "New Password (optional)" : "Password")"
+                                  InputType="InputType.Password"
+                                  Required="@(!IsEditingEmployee)" />
+                    <MudSelect T="string" @bind-Value="_employeeForm.Activity" Label="Status">
+                        <MudSelectItem Value="@("active")">Active</MudSelectItem>
+                        <MudSelectItem Value="@("inactive")">Inactive</MudSelectItem>
+                    </MudSelect>
+
+                    <MudStack Row="true" Spacing="1">
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Save"
+                                   Disabled="_isSavingEmployee"
+                                   OnClick="SaveEmployeeAsync">
+                            @(_isSavingEmployee
+                                ? "Saving..."
+                                : IsEditingEmployee
+                                    ? "Update Employee"
+                                    : "Add Employee")
+                        </MudButton>
+                        <MudButton Variant="Variant.Text"
+                                   Color="Color.Default"
+                                   StartIcon="@Icons.Material.Filled.Refresh"
+                                   Disabled="_isSavingEmployee"
+                                   OnClick="BeginCreateEmployee">
+                            Clear
+                        </MudButton>
+                    </MudStack>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="8">
+            <MudPaper Class="pa-3 pb-1" Elevation="1">
+                <MudTable Items="_employees" Hover="true" Dense="true" Striped="true" Filter="EmployeeFilter">
+                    <ToolBarContent>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                            <MudText Typo="Typo.h6">Employees</MudText>
+                            <MudChip T="string" Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small">
+                                @_employees.Count
+                            </MudChip>
+                        </MudStack>
+                        <MudSpacer />
+                        <MudTextField @bind-Value="_employeeSearch"
+                                      Placeholder="Search name or email"
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.Search"
+                                      Class="mt-0" />
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Add"
+                                   Size="Size.Small"
+                                   Class="ma-0 px-3"
+                                   OnClick="BeginCreateEmployee">
+                            New
+                        </MudButton>
+                    </ToolBarContent>
+                    <HeaderContent>
+                        <MudTh>Name</MudTh>
+                        <MudTh>Email</MudTh>
+                        <MudTh>Phone</MudTh>
+                        <MudTh>Status</MudTh>
+                        <MudTh Style="text-align:right">Actions</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Name">@context.Name</MudTd>
+                        <MudTd DataLabel="Email">@context.Email</MudTd>
+                        <MudTd DataLabel="Phone">@context.Phone</MudTd>
+                        <MudTd DataLabel="Status">
+                            <MudText Color="@(context.Status == "active" ? Color.Success : Color.Error)" Typo="Typo.body2">
+                                @(context.Status == "active" ? "Active" : "Inactive")
+                            </MudText>
+                        </MudTd>
+                        <MudTd DataLabel="Actions" Style="text-align:right">
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary" OnClick="@(() => BeginEditEmployee(context))" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(async () => await DeleteEmployeeAsync(context))" />
+                        </MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent>
+                        <MudText Typo="Typo.body2" Class="pa-4">No employees yet. Add one on the left.</MudText>
+                    </NoRecordsContent>
+                    <PagerContent>
+                        <MudTablePager />
+                    </PagerContent>
+                </MudTable>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>;
+
+    private RenderFragment DiscountsTab() => @<MudGrid GutterSpacing="3">
+        <MudItem xs="12" md="4">
+            <MudPaper Class="pa-4" Elevation="1">
+                <MudStack Spacing="2">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                        <MudText Typo="Typo.subtitle1">@((IsEditingDiscount ? "Edit" : "New") + " Discount")</MudText>
+                        <MudChip T="string"
+                                 Color="@(IsEditingDiscount ? Color.Warning : Color.Success)"
+                                 Variant="Variant.Filled"
+                                 Size="Size.Small">
+                            @(IsEditingDiscount ? "Editing" : "Create")
+                        </MudChip>
+                    </MudStack>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        Build percentage or fixed promotions and choose where they apply.
+                    </MudText>
+
+                    <MudTextField @bind-Value="_discountForm.Name" Label="Name" Required="true" />
+                    <MudNumericField T="decimal"
+                                     @bind-Value="_discountForm.Rate"
+                                     Label="Rate"
+                                     Adornment="Adornment.End"
+                                     AdornmentText="@(_discountForm.Type == DiscountType.Percentage ? "%" : "Amount")" />
+                    <MudSelect @bind-Value="_discountForm.Type" Label="Type">
+                        <MudSelectItem Value="@DiscountType.Percentage">Percentage</MudSelectItem>
+                        <MudSelectItem Value="@DiscountType.Fixed">Fixed</MudSelectItem>
+                    </MudSelect>
+                    <MudSelect @bind-Value="_discountForm.AppliesTo" Label="Applies To">
+                        <MudSelectItem Value="@DiscountAppliesTo.Order">Order</MudSelectItem>
+                        <MudSelectItem Value="@DiscountAppliesTo.Product">Product</MudSelectItem>
+                        <MudSelectItem Value="@DiscountAppliesTo.Service">Service</MudSelectItem>
+                    </MudSelect>
+                    <MudSelect @bind-Value="_discountForm.Status" Label="Status">
+                        <MudSelectItem Value="@DiscountStatus.Active">Active</MudSelectItem>
+                        <MudSelectItem Value="@DiscountStatus.Inactive">Inactive</MudSelectItem>
+                    </MudSelect>
+                    <MudDatePicker T="DateTime?"
+                                   @bind-Date="_discountForm.ValidFrom"
+                                   Label="Valid From" />
+                    <MudDatePicker T="DateTime?"
+                                   @bind-Date="_discountForm.ValidTo"
+                                   Label="Valid To (optional)"
+                                   Clearable="true" />
+
+                    <MudStack Row="true" Spacing="1">
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Save"
+                                   Disabled="_isSavingDiscount"
+                                   OnClick="SaveDiscountAsync">
+                            @(_isSavingDiscount
+                                ? "Saving..."
+                                : IsEditingDiscount
+                                    ? "Update Discount"
+                                    : "Save Discount")
+                        </MudButton>
+                        <MudButton Variant="Variant.Text"
+                                   Color="Color.Default"
+                                   StartIcon="@Icons.Material.Filled.Refresh"
+                                   Disabled="_isSavingDiscount"
+                                   OnClick="BeginCreateDiscount">
+                            Clear
+                        </MudButton>
+                    </MudStack>
+                    </MudStack>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" md="8">
+                <MudPaper Class="pa-3 pb-1" Elevation="1">
+                    <MudTable Items="_discounts" Hover="true" Dense="true" Striped="true" Filter="DiscountFilter">
+                        <ToolBarContent>
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudText Typo="Typo.h6">Discounts</MudText>
+                                <MudChip T="string" Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small">
+                                    @_discounts.Count
+                                </MudChip>
+                            </MudStack>
+                            <MudSpacer />
+                            <MudTextField @bind-Value="_discountSearch"
+                                          Placeholder="Search name, type, or scope"
+                                          Adornment="Adornment.Start"
+                                          AdornmentIcon="@Icons.Material.Filled.Search"
+                                          Class="mt-0" />
+                            <MudButton Variant="Variant.Filled"
+                                       Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Filled.Add"
+                                       Size="Size.Small"
+                                       Class="ma-0 px-3"
+                                       OnClick="@BeginCreateDiscount">
+                                New
+                            </MudButton>
+                        </ToolBarContent>
+                        <HeaderContent>
+                            <MudTh>Name</MudTh>
+                            <MudTh>Rate</MudTh>
+                            <MudTh>Valid</MudTh>
+                            <MudTh>Status</MudTh>
+                            <MudTh Style="text-align:right">Actions</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Name">
+                                <MudText Typo="Typo.body2">@context.Name</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Type - @context.AppliesTo</MudText>
+                            </MudTd>
+                            <MudTd DataLabel="Rate">@FormatDiscountRate(context)</MudTd>
+                            <MudTd DataLabel="Valid">@FormatDateRange(context.ValidFrom, context.ValidTo)</MudTd>
+                            <MudTd DataLabel="Status">
+                                <MudChip T="string" Color="@(context.Status == DiscountStatus.Active ? Color.Success : Color.Default)" Size="Size.Small">@context.Status</MudChip>
+                            </MudTd>
+                            <MudTd DataLabel="Actions" Style="text-align:right">
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary" OnClick="@(() => BeginEditDiscount(context))" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(async () => await DeleteDiscountAsync(context))" />
+                            </MudTd>
+                        </RowTemplate>
+                        <NoRecordsContent>
+                            <MudText Typo="Typo.body2" Class="pa-4">No discounts yet. Start by creating one on the left.</MudText>
+                        </NoRecordsContent>
+                        <PagerContent>
+                            <MudTablePager />
+                        </PagerContent>
+                    </MudTable>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>;
+
+    private RenderFragment TaxesTab() => @<MudGrid GutterSpacing="3">
+        <MudItem xs="12" md="4">
+            <MudPaper Class="pa-4" Elevation="1">
+                <MudStack Spacing="2">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                        <MudText Typo="Typo.subtitle1">@((IsEditingTax ? "Edit" : "New") + " Tax")</MudText>
+                        <MudChip T="string"
+                                 Color="@(IsEditingTax ? Color.Warning : Color.Success)"
+                                 Variant="Variant.Filled"
+                                 Size="Size.Small">
+                            @(IsEditingTax ? "Editing" : "Create")
+                        </MudChip>
+                    </MudStack>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        Maintain tax rates and effective windows.
+                    </MudText>
+
+                    <MudTextField @bind-Value="_taxForm.Name" Label="Name" Required="true" />
+                    <MudNumericField T="decimal"
+                                     @bind-Value="_taxForm.Rate"
+                                     Label="Rate (as decimal, e.g. 0.05 = 5%)"
+                                     Adornment="Adornment.End"
+                                     AdornmentText="%" />
+                    <MudSelect @bind-Value="_taxForm.Status" Label="Status">
+                        <MudSelectItem Value="@TaxStatus.Active">Active</MudSelectItem>
+                        <MudSelectItem Value="@TaxStatus.Inactive">Inactive</MudSelectItem>
+                    </MudSelect>
+                    <MudDatePicker T="DateTime?"
+                                   @bind-Date="_taxForm.EffectiveFrom"
+                                   Label="Effective From" />
+                    <MudDatePicker T="DateTime?"
+                                   @bind-Date="_taxForm.EffectiveTo"
+                                   Label="Effective To (optional)"
+                                   Clearable="true" />
+
+                    <MudStack Row="true" Spacing="1">
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Save"
+                                   Disabled="_isSavingTax"
+                                   OnClick="SaveTaxAsync">
+                            @(_isSavingTax
+                                ? "Saving..."
+                                : IsEditingTax
+                                    ? "Update Tax"
+                                    : "Save Tax")
+                        </MudButton>
+                        <MudButton Variant="Variant.Text"
+                                   Color="Color.Default"
+                                   StartIcon="@Icons.Material.Filled.Refresh"
+                                   Disabled="_isSavingTax"
+                                   OnClick="BeginCreateTax">
+                            Clear
+                        </MudButton>
+                    </MudStack>
+                    </MudStack>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" md="8">
+                <MudPaper Class="pa-3 pb-1" Elevation="1">
+                    <MudTable Items="_taxes" Hover="true" Dense="true" Striped="true" Filter="TaxFilter">
+                        <ToolBarContent>
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudText Typo="Typo.h6">Taxes</MudText>
+                                <MudChip T="string" Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small">
+                                    @_taxes.Count
+                                </MudChip>
+                            </MudStack>
+                            <MudSpacer />
+                            <MudTextField @bind-Value="_taxSearch"
+                                          Placeholder="Search name or status"
+                                          Adornment="Adornment.Start"
+                                          AdornmentIcon="@Icons.Material.Filled.Search"
+                                          Class="mt-0" />
+                            <MudButton Variant="Variant.Filled"
+                                       Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Filled.Add"
+                                       Size="Size.Small"
+                                       Class="ma-0 px-3"
+                                       OnClick="@BeginCreateTax">
+                                New
+                            </MudButton>
+                        </ToolBarContent>
+                        <HeaderContent>
+                            <MudTh>Name</MudTh>
+                            <MudTh>Rate</MudTh>
+                            <MudTh>Effective</MudTh>
+                            <MudTh>Status</MudTh>
+                            <MudTh Style="text-align:right">Actions</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Name">
+                                <MudText Typo="Typo.body2">@context.Name</MudText>
+                            </MudTd>
+                            <MudTd DataLabel="Rate">@FormatTaxRate(context)</MudTd>
+                            <MudTd DataLabel="Effective">@FormatDateRange(context.EffectiveFrom, context.EffectiveTo)</MudTd>
+                            <MudTd DataLabel="Status">
+                                <MudChip T="string" Color="@(context.Status == TaxStatus.Active ? Color.Success : Color.Default)" Size="Size.Small">@context.Status</MudChip>
+                            </MudTd>
+                            <MudTd DataLabel="Actions" Style="text-align:right">
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary" OnClick="@(() => BeginEditTax(context))" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(async () => await DeleteTaxAsync(context))" />
+                            </MudTd>
+                        </RowTemplate>
+                        <NoRecordsContent>
+                            <MudText Typo="Typo.body2" Class="pa-4">No taxes configured yet. Add one on the left.</MudText>
+                        </NoRecordsContent>
+                        <PagerContent>
+                            <MudTablePager />
+                        </PagerContent>
+                    </MudTable>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>;
+
+    // Discounts
+    private void BeginCreateDiscount()
+    {
+        _discountForm = new DiscountEditModel
+        {
+            BusinessId = BusinessId,
+            Type = DiscountType.Percentage,
+            AppliesTo = DiscountAppliesTo.Order,
+            Status = DiscountStatus.Active,
+            Rate = 10,
+            ValidFrom = DateTime.UtcNow
+        };
+    }
+
+    private void BeginEditDiscount(Discount discount)
+    {
+        _tabIndex = 0;
+        _discountForm = new DiscountEditModel
+        {
+            Id = discount.Id,
+            BusinessId = discount.BusinessId,
+            Name = discount.Name,
+            Rate = discount.Rate,
+            Type = discount.Type,
+            AppliesTo = discount.AppliesTo,
+            Status = discount.Status,
+            ValidFrom = discount.ValidFrom.UtcDateTime,
+            ValidTo = discount.ValidTo?.UtcDateTime
+        };
+    }
+
+    private async Task SaveDiscountAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_discountForm.Name))
+        {
+            Snackbar.Add("Name is required.", Severity.Warning);
+            return;
+        }
+
+        if (_discountForm.Rate <= 0)
+        {
+            Snackbar.Add("Rate must be greater than zero.", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            _isSavingDiscount = true;
+            HttpResponseMessage response;
+            if (_discountForm.Id == 0)
+            {
+                var payload = new DiscountCreateRequest
+                {
+                    BusinessId = _discountForm.BusinessId,
+                    Name = _discountForm.Name,
+                    Rate = _discountForm.Rate,
+                    ValidFrom = ToOffsetUtc(_discountForm.ValidFrom),
+                    ValidTo = ToOffsetUtcNullable(_discountForm.ValidTo),
+                    Type = _discountForm.Type,
+                    AppliesTo = _discountForm.AppliesTo,
+                    Status = _discountForm.Status
+                };
+
+                response = await HttpJsonDefaultsExtensions.PostAsJsonAsync(Http, "discounts", payload);
+            }
+            else
+            {
+                var payload = new DiscountUpdateRequest
+                {
+                    Name = _discountForm.Name,
+                    Rate = _discountForm.Rate,
+                    ValidFrom = ToOffsetUtc(_discountForm.ValidFrom),
+                    ValidTo = ToOffsetUtcNullable(_discountForm.ValidTo),
+                    Type = _discountForm.Type,
+                    AppliesTo = _discountForm.AppliesTo,
+                    Status = _discountForm.Status
+                };
+
+                var request = new HttpRequestMessage(HttpMethod.Patch, $"discounts/{_discountForm.Id}")
+                {
+                    Content = System.Net.Http.Json.JsonContent.Create(payload)
+                };
+                response = await Http.SendAsync(request);
+            }
+
+            if (response.IsSuccessStatusCode)
+            {
+                var record = await HttpJsonDefaultsExtensions.ReadFromJsonAsync<Discount>(response.Content);
+                if (record != null)
+                {
+                    Upsert(_discounts, record, d => d.Id == record.Id);
+                    Snackbar.Add(_discountForm.Id == 0 ? "Discount created." : "Discount updated.", Severity.Success);
+                    BeginCreateDiscount();
+                }
+            }
+            else
+            {
+                Snackbar.Add($"Unable to save discount: {(int)response.StatusCode} {response.ReasonPhrase}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Unable to save discount: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSavingDiscount = false;
+        }
+    }
+
+    private async Task DeleteDiscountAsync(Discount discount)
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"discounts/{discount.Id}");
+            if (response.IsSuccessStatusCode)
+            {
+                _discounts.Remove(discount);
+                Snackbar.Add($"Deleted {discount.Name}", Severity.Success);
+                if (_discountForm.Id == discount.Id) BeginCreateDiscount();
+            }
+            else
+            {
+                Snackbar.Add($"Delete failed: {(int)response.StatusCode} {response.ReasonPhrase}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Unable to delete {discount.Name}: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private bool DiscountFilter(Discount discount)
+    {
+        if (string.IsNullOrWhiteSpace(_discountSearch)) return true;
+
+        return discount.Name.Contains(_discountSearch, StringComparison.OrdinalIgnoreCase)
+            || discount.Type.ToString().Contains(_discountSearch, StringComparison.OrdinalIgnoreCase)
+            || discount.AppliesTo.ToString().Contains(_discountSearch, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private string FormatDiscountRate(Discount discount)
+    {
+        if (discount.Type == DiscountType.Percentage)
+        {
+            return $"{discount.Rate:0.##}%";
+        }
+
+        var currency = _business?.Currency.ToString();
+        var prefix = string.IsNullOrWhiteSpace(currency) ? string.Empty : $"{currency} ";
+        return $"{prefix}{discount.Rate:0.##}";
+    }
+
+    // Taxes
+    private void BeginCreateTax()
+    {
+        _taxForm = new TaxEditModel
+        {
+            BusinessId = BusinessId,
+            Name = "New Tax",
+            Rate = 0.05m,
+            Status = TaxStatus.Active,
+            EffectiveFrom = DateTime.UtcNow
+        };
+    }
+
+    private void BeginEditTax(Tax tax)
+    {
+        _tabIndex = 1;
+        _taxForm = new TaxEditModel
+        {
+            Id = tax.Id,
+            BusinessId = tax.BusinessId,
+            Name = tax.Name,
+            Rate = tax.Rate,
+            Status = tax.Status,
+            EffectiveFrom = tax.EffectiveFrom.UtcDateTime,
+            EffectiveTo = tax.EffectiveTo?.UtcDateTime
+        };
+    }
+
+    private async Task SaveTaxAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_taxForm.Name))
+        {
+            Snackbar.Add("Name is required.", Severity.Warning);
+            return;
+        }
+
+        if (_taxForm.Rate <= 0)
+        {
+            Snackbar.Add("Rate must be greater than zero.", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            _isSavingTax = true;
+            HttpResponseMessage response;
+            if (_taxForm.Id == 0)
+            {
+                var payload = new TaxCreateRequest
+                {
+                    BusinessId = _taxForm.BusinessId,
+                    Name = _taxForm.Name,
+                    Rate = _taxForm.Rate,
+                    Status = _taxForm.Status,
+                    EffectiveFrom = ToOffsetUtc(_taxForm.EffectiveFrom),
+                    EffectiveTo = ToOffsetUtcNullable(_taxForm.EffectiveTo)
+                };
+
+                response = await HttpJsonDefaultsExtensions.PostAsJsonAsync(Http, "taxes", payload);
+            }
+            else
+            {
+                var payload = new TaxUpdateRequest
+                {
+                    Name = _taxForm.Name,
+                    Rate = _taxForm.Rate,
+                    Status = _taxForm.Status,
+                    EffectiveFrom = ToOffsetUtc(_taxForm.EffectiveFrom),
+                    EffectiveTo = ToOffsetUtcNullable(_taxForm.EffectiveTo)
+                };
+
+                var request = new HttpRequestMessage(HttpMethod.Patch, $"taxes/{_taxForm.Id}")
+                {
+                    Content = System.Net.Http.Json.JsonContent.Create(payload)
+                };
+                response = await Http.SendAsync(request);
+            }
+
+            if (response.IsSuccessStatusCode)
+            {
+                var record = await HttpJsonDefaultsExtensions.ReadFromJsonAsync<Tax>(response.Content);
+                if (record != null)
+                {
+                    Upsert(_taxes, record, t => t.Id == record.Id);
+                    Snackbar.Add(_taxForm.Id == 0 ? "Tax created." : "Tax updated.", Severity.Success);
+                    BeginCreateTax();
+                }
+            }
+            else
+            {
+                Snackbar.Add($"Unable to save tax: {(int)response.StatusCode} {response.ReasonPhrase}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Unable to save tax: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSavingTax = false;
+        }
+    }
+
+    private async Task DeleteTaxAsync(Tax tax)
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"taxes/{tax.Id}");
+            if (response.IsSuccessStatusCode)
+            {
+                _taxes.Remove(tax);
+                Snackbar.Add($"Deleted {tax.Name}", Severity.Success);
+                if (_taxForm.Id == tax.Id) BeginCreateTax();
+            }
+            else
+            {
+                Snackbar.Add($"Delete failed: {(int)response.StatusCode} {response.ReasonPhrase}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Unable to delete {tax.Name}: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private bool TaxFilter(Tax tax)
+    {
+        if (string.IsNullOrWhiteSpace(_taxSearch)) return true;
+        return tax.Name.Contains(_taxSearch, StringComparison.OrdinalIgnoreCase)
+            || tax.Status.ToString().Contains(_taxSearch, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string FormatTaxRate(Tax tax) => $"{tax.Rate * 100:0.##}%";
+
+    private static string FormatDateRange(DateTimeOffset from, DateTimeOffset? to) =>
+        to.HasValue ? $"{from:yyyy-MM-dd} - {to.Value:yyyy-MM-dd}" : $"{from:yyyy-MM-dd} onward";
+
+    private static void Upsert<T>(List<T> list, T item, Func<T, bool> predicate)
+    {
+        var index = list.FindIndex(x => predicate(x));
+        if (index >= 0)
+        {
+            list[index] = item;
+        }
+        else
+        {
+            list.Add(item);
+        }
+    }
+
+    private static DateTimeOffset ToOffsetUtc(DateTime? value)
+    {
+        var dt = value ?? DateTime.UtcNow;
+        var specified = DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+        return new DateTimeOffset(specified);
+    }
+
+    private static DateTimeOffset? ToOffsetUtcNullable(DateTime? value)
+    {
+        if (!value.HasValue) return null;
+        var specified = DateTime.SpecifyKind(value.Value, DateTimeKind.Utc);
+        return new DateTimeOffset(specified);
+    }
+
+    private sealed class BusinessEditModel
+    {
+        public long Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Phone { get; set; } = string.Empty;
+        public string Address { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public Currency Currency { get; set; } = Currency.EUR;
+        public SubscriptionPlan SubscriptionPlan { get; set; } = SubscriptionPlan.Catering;
+    }
+
+    private sealed class BusinessUpdateRequest
+    {
+        public string? Name { get; set; }
+        public string? Phone { get; set; }
+        public string? Address { get; set; }
+        public string? Email { get; set; }
+        public Currency? Currency { get; set; }
+        public SubscriptionPlan? SubscriptionPlan { get; set; }
+    }
+
+    private sealed class EmployeeDto
+    {
+        public long Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string Phone { get; set; } = string.Empty;
+        public string Role { get; set; } = "Staff";
+        public string Status { get; set; } = "active";
+    }
+
+    private sealed class EmployeeFormModel
+    {
+        public long Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string Phone { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+        public string Activity { get; set; } = "active";
+    }
+
+    private sealed class UserResponseDto
+    {
+        public long Id { get; set; }
+        public long BusinessId { get; set; }
+        public string? Name { get; set; }
+        public string Email { get; set; } = string.Empty;
+        public string? Phone { get; set; }
+        public string? Activity { get; set; }
+    }
+
+    private sealed class UserCreateRequest
+    {
+        public long BusinessId { get; set; }
+        public string? Name { get; set; }
+        public string Email { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+        public string Phone { get; set; } = string.Empty;
+        public string Activity { get; set; } = "active";
+    }
+
+    private sealed class UserPatchRequest
+    {
+        public long? BusinessId { get; set; }
+        public string? Name { get; set; }
+        public string? Email { get; set; }
+        public string? Phone { get; set; }
+        public string? Activity { get; set; }
+        public string? Password { get; set; }
+    }
+
+    private sealed class DiscountEditModel
+    {
+        public long Id { get; set; }
+        public long BusinessId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public decimal Rate { get; set; }
+        public DateTime? ValidFrom { get; set; } = DateTime.UtcNow;
+        public DateTime? ValidTo { get; set; }
+        public DiscountType Type { get; set; } = DiscountType.Percentage;
+        public DiscountAppliesTo AppliesTo { get; set; } = DiscountAppliesTo.Order;
+        public DiscountStatus Status { get; set; } = DiscountStatus.Active;
+    }
+
+    private sealed class DiscountCreateRequest
+    {
+        public string Name { get; set; } = string.Empty;
+        public decimal Rate { get; set; }
+        public DateTimeOffset ValidFrom { get; set; }
+        public DateTimeOffset? ValidTo { get; set; }
+        public DiscountType Type { get; set; }
+        public DiscountAppliesTo AppliesTo { get; set; }
+        public DiscountStatus Status { get; set; }
+        public long BusinessId { get; set; }
+    }
+
+    private sealed class DiscountUpdateRequest
+    {
+        public string? Name { get; set; }
+        public decimal? Rate { get; set; }
+        public DateTimeOffset? ValidFrom { get; set; }
+        public DateTimeOffset? ValidTo { get; set; }
+        public DiscountType? Type { get; set; }
+        public DiscountAppliesTo? AppliesTo { get; set; }
+        public DiscountStatus? Status { get; set; }
+    }
+
+    private sealed class TaxEditModel
+    {
+        public long Id { get; set; }
+        public long BusinessId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public decimal Rate { get; set; }
+        public TaxStatus Status { get; set; } = TaxStatus.Active;
+        public DateTime? EffectiveFrom { get; set; } = DateTime.UtcNow;
+        public DateTime? EffectiveTo { get; set; }
+    }
+
+    private sealed class TaxCreateRequest
+    {
+        public string Name { get; set; } = string.Empty;
+        public decimal Rate { get; set; }
+        public DateTimeOffset EffectiveFrom { get; set; }
+        public DateTimeOffset? EffectiveTo { get; set; }
+        public TaxStatus Status { get; set; }
+        public long BusinessId { get; set; }
+    }
+
+    private sealed class TaxUpdateRequest
+    {
+        public string? Name { get; set; }
+        public decimal? Rate { get; set; }
+        public DateTimeOffset? EffectiveFrom { get; set; }
+        public DateTimeOffset? EffectiveTo { get; set; }
+        public TaxStatus? Status { get; set; }
+    }
 }

@@ -45,14 +45,14 @@ namespace CentralizedSalesSystem.Frontend.Models
 
     public enum Currency
     {
-        EUR = 1,
-        USD = 2
+        EUR,
+        USD
     }
 
     public enum SubscriptionPlan
     {
-        Catering = 1,
-        Beauty = 2
+        Catering,
+        Beauty
     }
 
     public sealed class OwnerSignupResponse

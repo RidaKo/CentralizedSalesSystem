@@ -22,7 +22,7 @@ builder.Services.AddMudServices();
 
 builder.Services.AddHttpClient("Api", client =>
 {
-    client.BaseAddress = new Uri("http://localhost:5263");
+    client.BaseAddress = new Uri("https://localhost:7051");
 })
     .AddHttpMessageHandler<LoggingMessageHandler>()
     .AddHttpMessageHandler<AuthMessageHandler>()

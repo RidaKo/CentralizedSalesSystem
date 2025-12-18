@@ -1,6 +1,7 @@
 @page "/register"
 @using System.ComponentModel.DataAnnotations
 @using CentralizedSalesSystem.Frontend.Models
+@using CentralizedSalesSystem.Frontend.Json
 
 <MudContainer MaxWidth="MaxWidth.Medium" Class="mt-12">
     <MudPaper Elevation="1" Class="pa-6">
@@ -177,7 +178,7 @@
                 return;
             }
 
-            CreatedAccount = await response.Content.ReadFromJsonAsync<OwnerSignupResponse>();
+            CreatedAccount = await HttpJsonDefaultsExtensions.ReadFromJsonAsync<OwnerSignupResponse>(response.Content);
 
             Snackbar.Add("Registration successful. You can now sign in.", Severity.Success);
         }

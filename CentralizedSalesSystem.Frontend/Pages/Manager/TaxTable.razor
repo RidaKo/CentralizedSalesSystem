@@ -1,4 +1,5 @@
 @using CentralizedSalesSystem.Frontend.Models
+@using CentralizedSalesSystem.Frontend.Json
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize]
 @inject HttpClient Http
@@ -34,7 +35,7 @@
             }
         </MudTd>
         <MudTd DataLabel="Actions" Style="text-align:right">
-            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => DeleteTax(context))" />
+            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(async () => await DeleteTax(context))" />
         </MudTd>
     </RowTemplate>
     <PagerContent>
@@ -50,11 +51,21 @@
     {
         try
         {
-            var response = await Http.GetFromJsonAsync<PaginatedResponse<Tax>>($"taxes?businessId={BusinessId}");
-            if (response?.Data != null) _taxes = response.Data;
+            var response = await Http.GetAsync($"taxes?filterByBusinessId={BusinessId}&limit=100");
+            if (response.IsSuccessStatusCode)
+            {
+                var payload = await HttpJsonDefaultsExtensions.ReadFromJsonAsync<PaginatedResponse<Tax>>(response.Content);
+                if (payload?.Data != null) _taxes = payload.Data;
+            }
+            else
+            {
+                var reason = $"{(int)response.StatusCode} {response.ReasonPhrase}";
+                Snackbar.Add($"Failed to load taxes: {reason}", Severity.Error);
+            }
         }
         catch (Exception ex)
         {
+            Snackbar.Add($"Unable to load taxes: {ex.Message}", Severity.Error);
             Console.WriteLine($"API Fetch Failed: {ex.Message}");
         }
     }
@@ -66,17 +77,27 @@
             BusinessId = BusinessId, 
             Name = "New Tax Rule", 
             Rate = 0.05m, 
+            EffectiveFrom = DateTimeOffset.UtcNow,
             Status = TaxStatus.Active 
         };
 
         try 
         {
-            // 1. try to get real data from the API
-            var response = await Http.PostAsJsonAsync("taxes", newTax);
+            var payload = new TaxCreateRequest
+            {
+                BusinessId = newTax.BusinessId,
+                Name = newTax.Name,
+                Rate = newTax.Rate,
+                EffectiveFrom = newTax.EffectiveFrom,
+                EffectiveTo = newTax.EffectiveTo,
+                Status = newTax.Status
+            };
+
+            var response = await Http.PostAsJsonAsync("taxes", payload);
             
             if (response.IsSuccessStatusCode)
             {
-                var createdTax = await response.Content.ReadFromJsonAsync<Tax>();
+                var createdTax = await HttpJsonDefaultsExtensions.ReadFromJsonAsync<Tax>(response.Content);
                 if (createdTax != null)
                 {
                     _taxes.Add(createdTax);
@@ -85,23 +106,45 @@
             }
             else
             {
-                 Snackbar.Add("Failed to save tax to API.", Severity.Error);
+                var reason = $"{(int)response.StatusCode} {response.ReasonPhrase}";
+                Snackbar.Add($"Failed to save tax: {reason}", Severity.Error);
             }
         }
         catch (Exception)
         {
-            // 2. mock data if API fails
-            newTax.Id = DateTime.Now.Ticks;
-            _taxes.Add(newTax);
-            Snackbar.Add("Tax Added (Local Only - API Offline)", Severity.Warning);
+            Snackbar.Add("Unable to save tax.", Severity.Error);
         }
     }
 
-    private void DeleteTax(Tax tax)
+    private async Task DeleteTax(Tax tax)
     {
-        // for now, we just remove from UI
-        _taxes.Remove(tax);
-        Snackbar.Add($"Deleted {tax.Name}", Severity.Success);
+        try
+        {
+            var response = await Http.DeleteAsync($"taxes/{tax.Id}");
+            if (response.IsSuccessStatusCode)
+            {
+                _taxes.Remove(tax);
+                Snackbar.Add($"Deleted {tax.Name}", Severity.Success);
+            }
+            else
+            {
+                var reason = $"{(int)response.StatusCode} {response.ReasonPhrase}";
+                Snackbar.Add($"Failed to delete {tax.Name}: {reason}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Unable to delete {tax.Name}: {ex.Message}", Severity.Error);
+        }
     }
 
+    private sealed class TaxCreateRequest
+    {
+        public string Name { get; set; } = string.Empty;
+        public decimal Rate { get; set; }
+        public DateTimeOffset EffectiveFrom { get; set; }
+        public DateTimeOffset? EffectiveTo { get; set; }
+        public TaxStatus Status { get; set; }
+        public long BusinessId { get; set; }
+    }
 }

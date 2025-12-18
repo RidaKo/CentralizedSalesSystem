@@ -1,5 +1,6 @@
 @page "/manager/business/{BusinessId:long}/employees"
 @using CentralizedSalesSystem.Frontend.Models
+@using CentralizedSalesSystem.Frontend.Json
 @using Microsoft.AspNetCore.Authorization
 @inject HttpClient Http
 @inject ISnackbar Snackbar
@@ -8,57 +9,123 @@
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-8">
     
     <!-- header with back button -->
-    <div class="d-flex align-center gap-4 mb-6">
+    <div class="d-flex align-center gap-4 mb-4">
         <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" 
                        OnClick="@(() => Navigation.NavigateTo($"/manager/business/{BusinessId}"))" />
         <MudText Typo="Typo.h4">Employees</MudText>
         <MudSpacer />
-        <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Add" OnClick="AddMockEmployee">
-            Add Employee
-        </MudButton>
     </div>
 
+    <MudPaper Class="pa-4 mb-6" Elevation="2">
+        <MudText Typo="Typo.h6" Class="mb-3">Add Employee</MudText>
+        <MudGrid>
+            <MudItem xs="12" md="3">
+                <MudTextField @bind-Value="_newEmployee.Name" Label="Name" Required="true" For="@(() => _newEmployee.Name)" />
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudTextField @bind-Value="_newEmployee.Email" Label="Email" Required="true" For="@(() => _newEmployee.Email)" />
+            </MudItem>
+            <MudItem xs="12" md="2">
+                <MudTextField @bind-Value="_newEmployee.Phone" Label="Phone" />
+            </MudItem>
+            <MudItem xs="12" md="2">
+                <MudTextField @bind-Value="_newEmployee.Password" Label="Password" InputType="InputType.Password" Required="true" For="@(() => _newEmployee.Password)" />
+            </MudItem>
+            <MudItem xs="12" md="2">
+                <MudSelect T="string" @bind-Value="_newEmployee.Activity" Label="Status">
+                    <MudSelectItem Value="@("active")">Active</MudSelectItem>
+                    <MudSelectItem Value="@("inactive")">Inactive</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+        </MudGrid>
+    <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Add" Disabled="_isSaving" OnClick="CreateEmployeeAsync">
+        @(_isSaving ? "Saving..." : "Add Employee")
+    </MudButton>
+</MudPaper>
+
+@if (_editEmployee != null)
+{
+    <MudPaper Class="pa-4 mb-6" Elevation="1">
+        <MudText Typo="Typo.h6" Class="mb-3">Edit Employee</MudText>
+        <MudGrid>
+            <MudItem xs="12" md="3">
+                <MudTextField @bind-Value="_editEmployee.Name" Label="Name" Required="true" />
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudTextField @bind-Value="_editEmployee.Email" Label="Email" Required="true" />
+            </MudItem>
+            <MudItem xs="12" md="2">
+                <MudTextField @bind-Value="_editEmployee.Phone" Label="Phone" />
+            </MudItem>
+            <MudItem xs="12" md="2">
+                <MudTextField @bind-Value="_editEmployee.Password" Label="New Password (optional)" InputType="InputType.Password" />
+            </MudItem>
+            <MudItem xs="12" md="2">
+                <MudSelect T="string" @bind-Value="_editEmployee.Activity" Label="Status">
+                    <MudSelectItem Value="@("active")">Active</MudSelectItem>
+                    <MudSelectItem Value="@("inactive")">Inactive</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+        </MudGrid>
+        <MudStack Row="true" Spacing="2" Class="mt-2">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_isUpdating" OnClick="UpdateEmployeeAsync">
+                @(_isUpdating ? "Updating..." : "Save Changes")
+            </MudButton>
+            <MudButton Variant="Variant.Text" OnClick="CancelEdit">Cancel</MudButton>
+        </MudStack>
+    </MudPaper>
+}
+
     <!-- employee data table -->
-    <MudTable Items="@_employees" Hover="true" Striped="true" Filter="new Func<EmployeeDTO,bool>(FilterFunc)">
-        <ToolBarContent>
-            <MudText Typo="Typo.h6">Staff List</MudText>
-            <MudSpacer />
-            <MudTextField @bind-Value="_searchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
-        </ToolBarContent>
-        <HeaderContent>
-            <MudTh>Name</MudTh>
-            <MudTh>Email</MudTh>
-            <MudTh>Phone</MudTh>
-            <MudTh>Role</MudTh>
-            <MudTh>Status</MudTh>
-            <MudTh Style="text-align:right">Actions</MudTh>
-        </HeaderContent>
-        <RowTemplate>
-            <MudTd DataLabel="Name">@context.Name</MudTd>
-            <MudTd DataLabel="Email">@context.Email</MudTd>
-            <MudTd DataLabel="Phone">@context.Phone</MudTd>
-            <MudTd DataLabel="Role">
-                <MudChip T="string" Size="Size.Small" Color="@GetRoleColor(context.Role)">@context.Role</MudChip>
-            </MudTd>
-            <MudTd DataLabel="Status">
-                @if(context.Status == "active")
-                {
-                    <MudText Color="Color.Success" Typo="Typo.body2">Active</MudText>
-                }
-                else
-                {
-                    <MudText Color="Color.Error" Typo="Typo.body2">Inactive</MudText>
-                }
-            </MudTd>
-            <MudTd DataLabel="Actions" Style="text-align:right">
-                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary" />
-                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => DeleteEmployee(context))" />
-            </MudTd>
-        </RowTemplate>
-        <PagerContent>
-            <MudTablePager />
-        </PagerContent>
-    </MudTable>
+    @if (_isLoading)
+    {
+        <div class="d-flex justify-center my-6">
+            <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+        </div>
+    }
+    else
+    {
+        <MudTable Items="@_employees" Hover="true" Striped="true" Filter="new Func<EmployeeDTO,bool>(FilterFunc)">
+            <ToolBarContent>
+                <MudText Typo="Typo.h6">Staff List</MudText>
+                <MudSpacer />
+                <MudTextField @bind-Value="_searchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+            </ToolBarContent>
+            <HeaderContent>
+                <MudTh>Name</MudTh>
+                <MudTh>Email</MudTh>
+                <MudTh>Phone</MudTh>
+                <MudTh>Role</MudTh>
+                <MudTh>Status</MudTh>
+                <MudTh Style="text-align:right">Actions</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Name">@context.Name</MudTd>
+                <MudTd DataLabel="Email">@context.Email</MudTd>
+                <MudTd DataLabel="Phone">@context.Phone</MudTd>
+                <MudTd DataLabel="Role">
+                    <MudChip T="string" Size="Size.Small" Color="@GetRoleColor(context.Role)">@context.Role</MudChip>
+                </MudTd>
+                <MudTd DataLabel="Status">
+                    @if(context.Status == "active")
+                    {
+                        <MudText Color="Color.Success" Typo="Typo.body2">Active</MudText>
+                    }
+                    else
+                    {
+                        <MudText Color="Color.Error" Typo="Typo.body2">Inactive</MudText>
+                    }
+                </MudTd>
+                <MudTd DataLabel="Actions" Style="text-align:right">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary" OnClick="@(() => BeginEdit(context))" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(async () => await DeleteEmployee(context))" />
+                </MudTd>
+            </RowTemplate>
+            <PagerContent>
+                <MudTablePager />
+            </PagerContent>
+        </MudTable>
+    }
 
 </MudContainer>
 
@@ -68,37 +135,201 @@
 
     private List<EmployeeDTO> _employees = new();
     private string _searchString = "";
+    private bool _isSaving;
+    private bool _isLoading = true;
+    private NewEmployeeModel _newEmployee = new();
+    private EditEmployeeModel? _editEmployee;
+    private bool _isUpdating;
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadEmployeesAsync();
+    }
+
+    private async Task LoadEmployeesAsync()
+    {
         try
         {
-            // 1. try to get real data from the API
-            var response = await Http.GetFromJsonAsync<PaginatedResponse<EmployeeDTO>>($"users?businessId={BusinessId}");
-            if (response?.Data != null)
+            _isLoading = true;
+            var response = await Http.GetAsync($"users?filterByBusinessId={BusinessId}&limit=100");
+            if (response.IsSuccessStatusCode)
             {
-                _employees = response.Data;
+                var payload = await HttpJsonDefaultsExtensions.ReadFromJsonAsync<PaginatedResponse<UserResponseDto>>(response.Content);
+                _employees = payload?.Data?.Select(MapToEmployee).ToList() ?? new();
+            }
+            else
+            {
+                var reason = $"{(int)response.StatusCode} {response.ReasonPhrase}";
+                Snackbar.Add($"Failed to load employees: {reason}", Severity.Error);
             }
         }
-        // TODO: will remove this block once the API is fully stable in all environments
         catch (Exception ex)
         {
-            Console.WriteLine($"API Request failed: {ex.Message}. Loading mock data.");
-            LoadMockData();
-            Snackbar.Add("Using Mock Data", Severity.Normal);
+            Snackbar.Add($"Unable to load employees: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
         }
     }
 
-    private void LoadMockData()
+    private async Task CreateEmployeeAsync()
     {
-        _employees = new List<EmployeeDTO>
+        if (string.IsNullOrWhiteSpace(_newEmployee.Email) ||
+            string.IsNullOrWhiteSpace(_newEmployee.Password) ||
+            string.IsNullOrWhiteSpace(_newEmployee.Name))
         {
-            new EmployeeDTO { Id = 1, Name = "Tommy Buckworth", Email = "t.buck@buckycheese.com", Phone = "+1-555-0142", Role = "Manager", Status = "active" },
-            new EmployeeDTO { Id = 2, Name = "Sarah Cheddarson", Email = "s.cheddar@buckycheese.com", Phone = "+1-555-0298", Role = "Worker", Status = "active" },
-            new EmployeeDTO { Id = 3, Name = "Mike Gouda", Email = "m.gouda@buckycheese.com", Phone = "+1-555-0371", Role = "Cashier", Status = "active" },
-            new EmployeeDTO { Id = 4, Name = "Linda Brie", Email = "l.brie@buckycheese.com", Phone = "+1-555-0156", Role = "Worker", Status = "inactive" }
+            Snackbar.Add("Name, email, and password are required.", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            _isSaving = true;
+            var payload = new UserCreateRequest
+            {
+                BusinessId = BusinessId,
+                Name = _newEmployee.Name,
+                Email = _newEmployee.Email,
+                Phone = _newEmployee.Phone ?? string.Empty,
+                Password = _newEmployee.Password,
+                Activity = string.IsNullOrWhiteSpace(_newEmployee.Activity) ? "active" : _newEmployee.Activity.ToLowerInvariant()
+            };
+
+            var response = await HttpJsonDefaultsExtensions.PostAsJsonAsync(Http, "users", payload);
+            if (response.IsSuccessStatusCode)
+            {
+                var created = await HttpJsonDefaultsExtensions.ReadFromJsonAsync<UserResponseDto>(response.Content);
+                if (created != null)
+                {
+                    _employees.Add(MapToEmployee(created));
+                    Snackbar.Add("Employee added.", Severity.Success);
+                    _newEmployee = new();
+                }
+            }
+            else
+            {
+                var reason = $"{(int)response.StatusCode} {response.ReasonPhrase}";
+                Snackbar.Add($"Failed to add employee: {reason}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Unable to add employee: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task DeleteEmployee(EmployeeDTO emp)
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"users/{emp.Id}");
+            if (response.IsSuccessStatusCode)
+            {
+                _employees.Remove(emp);
+                Snackbar.Add($"Deleted {emp.Name}", Severity.Success);
+            }
+            else
+            {
+                var reason = $"{(int)response.StatusCode} {response.ReasonPhrase}";
+                Snackbar.Add($"Failed to delete {emp.Name}: {reason}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Unable to delete {emp.Name}: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void BeginEdit(EmployeeDTO emp)
+    {
+        _editEmployee = new EditEmployeeModel
+        {
+            Id = emp.Id,
+            Name = emp.Name,
+            Email = emp.Email,
+            Phone = emp.Phone,
+            Activity = emp.Status,
+            Password = string.Empty
         };
     }
+
+    private void CancelEdit() => _editEmployee = null;
+
+    private async Task UpdateEmployeeAsync()
+    {
+        if (_editEmployee == null) return;
+
+        if (string.IsNullOrWhiteSpace(_editEmployee.Name) || string.IsNullOrWhiteSpace(_editEmployee.Email))
+        {
+            Snackbar.Add("Name and email are required.", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            _isUpdating = true;
+            var payload = new UserPatchRequest
+            {
+                Name = _editEmployee.Name,
+                Email = _editEmployee.Email,
+                Phone = _editEmployee.Phone,
+                Activity = string.IsNullOrWhiteSpace(_editEmployee.Activity) ? null : _editEmployee.Activity.ToLowerInvariant(),
+                Password = string.IsNullOrWhiteSpace(_editEmployee.Password) ? null : _editEmployee.Password
+            };
+
+            var request = new HttpRequestMessage(HttpMethod.Patch, $"users/{_editEmployee.Id}")
+            {
+                Content = System.Net.Http.Json.JsonContent.Create(payload)
+            };
+
+            var response = await Http.SendAsync(request);
+            if (response.IsSuccessStatusCode)
+            {
+                var updated = await HttpJsonDefaultsExtensions.ReadFromJsonAsync<UserResponseDto>(response.Content);
+                if (updated != null)
+                {
+                    var existing = _employees.FirstOrDefault(e => e.Id == updated.Id);
+                    if (existing != null)
+                    {
+                        existing.Name = updated.Name ?? updated.Email;
+                        existing.Email = updated.Email;
+                        existing.Phone = updated.Phone ?? string.Empty;
+                        existing.Status = updated.Activity?.ToLowerInvariant() ?? existing.Status;
+                    }
+                    Snackbar.Add("Employee updated.", Severity.Success);
+                    _editEmployee = null;
+                }
+            }
+            else
+            {
+                var reason = $"{(int)response.StatusCode} {response.ReasonPhrase}";
+                Snackbar.Add($"Failed to update employee: {reason}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Unable to update employee: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isUpdating = false;
+        }
+    }
+
+    private static EmployeeDTO MapToEmployee(UserResponseDto user) => new()
+    {
+        Id = user.Id,
+        Name = user.Name ?? user.Email,
+        Email = user.Email,
+        Phone = user.Phone ?? string.Empty,
+        Role = "Staff",
+        Status = user.Activity?.ToLowerInvariant() ?? "inactive"
+    };
 
     private Color GetRoleColor(string role) => role.ToLower() switch
     {
@@ -117,23 +348,47 @@
         return false;
     }
 
-    private void DeleteEmployee(EmployeeDTO emp)
+    private sealed class UserResponseDto
     {
-        _employees.Remove(emp);
-        Snackbar.Add($"Deleted {emp.Name}", Severity.Success);
+        public long Id { get; set; }
+        public long BusinessId { get; set; }
+        public string? Name { get; set; }
+        public string Email { get; set; } = string.Empty;
+        public string? Phone { get; set; }
+        public string? Activity { get; set; }
     }
 
-    private void AddMockEmployee()
+    private sealed class UserCreateRequest
     {
-        _employees.Add(new EmployeeDTO 
-        { 
-            Id = DateTime.Now.Ticks, 
-            Name = "New Hire", 
-            Email = "new@hire.com", 
-            Phone = "---", 
-            Role = "Worker", 
-            Status = "active" 
-        });
-        Snackbar.Add("Employee Added", Severity.Success);
+        public long BusinessId { get; set; }
+        public string? Name { get; set; }
+        public string Email { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+        public string Phone { get; set; } = string.Empty;
+        public string Activity { get; set; } = "active";
+    }
+
+    private class NewEmployeeModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string Phone { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+        public string Activity { get; set; } = "active";
+    }
+
+    private class EditEmployeeModel : NewEmployeeModel
+    {
+        public long Id { get; set; }
+    }
+
+    private sealed class UserPatchRequest
+    {
+        public long? BusinessId { get; set; }
+        public string? Name { get; set; }
+        public string? Email { get; set; }
+        public string? Phone { get; set; }
+        public string? Activity { get; set; }
+        public string? Password { get; set; }
     }
 }

@@ -36,7 +36,9 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
         {
             try
             {
-                var response = await Http.GetFromJsonAsync<PaginatedResponse<TableDto>>($"tables?limit=200&filterByBusinessId={BusinessId}");
+                var response = await HttpJsonDefaultsExtensions.GetFromJsonAsync<PaginatedResponse<TableDto>>(
+                    Http,
+                    $"tables?limit=200&filterByBusinessId={BusinessId}");
                 Tables = response?.Data ?? new List<TableDto>();
             }
             catch (Exception ex)
@@ -51,7 +53,9 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
         {
             try
             {
-                var response = await Http.GetFromJsonAsync<PaginatedResponse<MenuItemDto>>($"items?limit=200&filterByBusinessId={BusinessId}");
+                var response = await HttpJsonDefaultsExtensions.GetFromJsonAsync<PaginatedResponse<MenuItemDto>>(
+                    Http,
+                    $"items?limit=200&filterByBusinessId={BusinessId}");
                 Items = response?.Data ?? new List<MenuItemDto>();
                 if (Items.Count == 0)
                 {
@@ -70,7 +74,9 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
         {
             try
             {
-                var response = await Http.GetFromJsonAsync<PaginatedResponse<OrderDto>>($"orders?limit=100&filterByBusinessId={BusinessId}");
+                var response = await HttpJsonDefaultsExtensions.GetFromJsonAsync<PaginatedResponse<OrderDto>>(
+                    Http,
+                    $"orders?limit=100&filterByBusinessId={BusinessId}");
                 Orders = response?.Data ?? new List<OrderDto>();
                 if (Orders.Count == 0)
                 {

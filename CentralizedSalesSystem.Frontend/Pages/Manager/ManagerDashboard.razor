@@ -1,5 +1,6 @@
 @page "/manager/dashboard"
 @using CentralizedSalesSystem.Frontend.Models
+@using CentralizedSalesSystem.Frontend.Json
 @using Microsoft.AspNetCore.Authorization
 @using CentralizedSalesSystem.Frontend.Services
 @attribute [Authorize(Roles = "Admin,SuperAdmin")]
@@ -87,10 +88,23 @@
 
             if (response.IsSuccessStatusCode)
             {
-                var payload = await response.Content.ReadFromJsonAsync<PaginatedResponse<Business>>();
+                var payload = await HttpJsonDefaultsExtensions.ReadFromJsonAsync<PaginatedResponse<Business>>(response.Content);
                 if (payload?.Data != null)
                 {
                     _businesses = payload.Data;
+                }
+            }
+            else if (response.StatusCode == System.Net.HttpStatusCode.Forbidden && BusinessContext.BusinessId.HasValue)
+            {
+                // Owners without BUSINESS_VIEW can still see their own business
+                var ownBusiness = await Http.GetAsync($"businesses/{BusinessContext.BusinessId.Value}");
+                if (ownBusiness.IsSuccessStatusCode)
+                {
+                    var business = await HttpJsonDefaultsExtensions.ReadFromJsonAsync<Business>(ownBusiness.Content);
+                    if (business != null)
+                    {
+                        _businesses = new List<Business> { business };
+                    }
                 }
             }
             else
@@ -110,24 +124,24 @@
     }
 
     // helpers
-    private string GetIcon(string plan) => plan?.ToLower() switch
+    private string GetIcon(SubscriptionPlan plan) => plan switch
     {
-        "catering" => Icons.Material.Filled.Restaurant,
-        "beauty" => Icons.Material.Filled.Spa,
+        SubscriptionPlan.Catering => Icons.Material.Filled.Restaurant,
+        SubscriptionPlan.Beauty => Icons.Material.Filled.Spa,
         _ => Icons.Material.Filled.Business
     };
 
-    private Color GetColor(string plan) => plan?.ToLower() switch
+    private Color GetColor(SubscriptionPlan plan) => plan switch
     {
-        "catering" => Color.Warning,
-        "beauty" => Color.Secondary,
+        SubscriptionPlan.Catering => Color.Warning,
+        SubscriptionPlan.Beauty => Color.Secondary,
         _ => Color.Default
     };
 
-    private string GetPlanLabel(string plan) => plan?.ToLower() switch
+    private string GetPlanLabel(SubscriptionPlan plan) => plan switch
     {
-        "catering" => "Food services",
-        "beauty" => "Beauty services",
+        SubscriptionPlan.Catering => "Food services",
+        SubscriptionPlan.Beauty => "Beauty services",
         _ => "Standard Plan"
     };
 

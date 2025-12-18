@@ -1,4 +1,5 @@
 @using CentralizedSalesSystem.Frontend.Models
+@using CentralizedSalesSystem.Frontend.Json
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize]
 @inject HttpClient Http
@@ -32,7 +33,7 @@
             @(context.ValidTo.HasValue ? context.ValidTo.Value.ToString("yyyy-MM-dd") : "Forever")
         </MudTd>
         <MudTd DataLabel="Actions" Style="text-align:right">
-            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => DeleteDiscount(context))" />
+            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(async () => await DeleteDiscount(context))" />
         </MudTd>
     </RowTemplate>
     <PagerContent>
@@ -48,13 +49,21 @@
     {
         try
         {
-            var response = await Http.GetFromJsonAsync<PaginatedResponse<Discount>>($"discounts?businessId={BusinessId}");
-            if (response?.Data != null) _discounts = response.Data;
+            var response = await Http.GetAsync($"discounts?filterByBusinessId={BusinessId}&limit=100");
+            if (response.IsSuccessStatusCode)
+            {
+                var payload = await HttpJsonDefaultsExtensions.ReadFromJsonAsync<PaginatedResponse<Discount>>(response.Content);
+                if (payload?.Data != null) _discounts = payload.Data;
+            }
+            else
+            {
+                var reason = $"{(int)response.StatusCode} {response.ReasonPhrase}";
+                Snackbar.Add($"Failed to load discounts: {reason}", Severity.Error);
+            }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"API Fetch Failed: {ex.Message}");
-            LoadMockData();
+            Snackbar.Add($"Unable to load discounts: {ex.Message}", Severity.Error);
         }
     }
 
@@ -65,18 +74,32 @@
             BusinessId = BusinessId, 
             Name = "New Promo", 
             Type = DiscountType.Percentage, 
+            AppliesTo = DiscountAppliesTo.Order,
+            Status = DiscountStatus.Active,
             Rate = 10,
+            ValidFrom = DateTimeOffset.UtcNow,
             ValidTo = DateTimeOffset.UtcNow.AddMonths(1)
         };
 
         try 
         {
-            // 1. try to get real data from the API
-            var response = await Http.PostAsJsonAsync("discounts", newDiscount);
+            var payload = new DiscountCreateRequest
+            {
+                BusinessId = newDiscount.BusinessId,
+                Name = newDiscount.Name,
+                Rate = newDiscount.Rate,
+                ValidFrom = newDiscount.ValidFrom,
+                ValidTo = newDiscount.ValidTo,
+                Type = newDiscount.Type,
+                AppliesTo = newDiscount.AppliesTo,
+                Status = newDiscount.Status
+            };
+
+            var response = await Http.PostAsJsonAsync("discounts", payload);
             
             if (response.IsSuccessStatusCode)
             {
-                var created = await response.Content.ReadFromJsonAsync<Discount>();
+                var created = await HttpJsonDefaultsExtensions.ReadFromJsonAsync<Discount>(response.Content);
                 if (created != null)
                 {
                     _discounts.Add(created);
@@ -85,30 +108,47 @@
             }
             else
             {
-                 Snackbar.Add("Failed to save discount to API.", Severity.Error);
+                var reason = $"{(int)response.StatusCode} {response.ReasonPhrase}";
+                Snackbar.Add($"Failed to save discount: {reason}", Severity.Error);
             }
         }
         catch (Exception)
         {
-            // 2. mock data if API fails
-            newDiscount.Id = DateTime.Now.Ticks;
-            _discounts.Add(newDiscount);
-            Snackbar.Add("Discount Added (Local Only - API Offline)", Severity.Warning);
+            Snackbar.Add("Unable to save discount.", Severity.Error);
         }
     }
 
-    private void DeleteDiscount(Discount item)
+    private async Task DeleteDiscount(Discount item)
     {
-        _discounts.Remove(item);
-        Snackbar.Add($"Deleted {item.Name}", Severity.Success);
+        try
+        {
+            var response = await Http.DeleteAsync($"discounts/{item.Id}");
+            if (response.IsSuccessStatusCode)
+            {
+                _discounts.Remove(item);
+                Snackbar.Add($"Deleted {item.Name}", Severity.Success);
+            }
+            else
+            {
+                var reason = $"{(int)response.StatusCode} {response.ReasonPhrase}";
+                Snackbar.Add($"Failed to delete {item.Name}: {reason}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Unable to delete {item.Name}: {ex.Message}", Severity.Error);
+        }
     }
 
-    private void LoadMockData()
+    private sealed class DiscountCreateRequest
     {
-        _discounts = new List<Discount>
-        {
-            new Discount { Id = 1, Name = "Happy Hour", Type = DiscountType.Percentage, Rate = 15 },
-            new Discount { Id = 2, Name = "Lunch Special", Type = DiscountType.Fixed, Rate = 5.00m }
-        };
+        public string Name { get; set; } = string.Empty;
+        public decimal Rate { get; set; }
+        public DateTimeOffset ValidFrom { get; set; }
+        public DateTimeOffset? ValidTo { get; set; }
+        public DiscountType Type { get; set; }
+        public DiscountAppliesTo AppliesTo { get; set; }
+        public DiscountStatus Status { get; set; }
+        public long BusinessId { get; set; }
     }
 }

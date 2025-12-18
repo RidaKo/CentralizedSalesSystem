@@ -3,6 +3,8 @@ using System.Net.Http.Json;
 using System.Security.Claims;
 using MudBlazor;
 using Microsoft.AspNetCore.Components.Authorization;
+using CentralizedSalesSystem.Frontend.Json;
+using CentralizedSalesSystem.Frontend.Models;
 
 namespace CentralizedSalesSystem.Frontend.Services;
 
@@ -17,7 +19,7 @@ public sealed class BusinessContext
     private long? _ownerId;
     private long? _currentUserId;
 
-    public string? SubscriptionPlan { get; private set; }
+    public SubscriptionPlan? SubscriptionPlan { get; private set; }
     public bool IsRestaurantEnabled { get; private set; }
     public bool IsBeautyEnabled { get; private set; }
     public bool IsOwner { get; private set; }
@@ -72,7 +74,7 @@ public sealed class BusinessContext
                 return;
             }
 
-            var business = await response.Content.ReadFromJsonAsync<BusinessDto>();
+            var business = await HttpJsonDefaultsExtensions.ReadFromJsonAsync<BusinessDto>(response.Content);
             if (business is null)
             {
                 IsRestaurantEnabled = true;
@@ -109,18 +111,17 @@ public sealed class BusinessContext
         ClearFlags();
     }
 
-    private void SetFlags(string subscriptionPlan)
+    private void SetFlags(SubscriptionPlan? subscriptionPlan)
     {
-        if (string.IsNullOrWhiteSpace(subscriptionPlan))
+        if (!subscriptionPlan.HasValue)
         {
             return;
         }
 
         SubscriptionPlan = subscriptionPlan;
-        var plan = subscriptionPlan.ToLowerInvariant();
 
-        IsRestaurantEnabled = plan == "catering";
-        IsBeautyEnabled = plan == "beauty";
+        IsRestaurantEnabled = subscriptionPlan == Models.SubscriptionPlan.Catering;
+        IsBeautyEnabled = subscriptionPlan == Models.SubscriptionPlan.Beauty;
     }
 
     private void ClearFlags()
@@ -154,7 +155,7 @@ public sealed class BusinessContext
             (c.Type == "perm" || c.Type == "permission") &&
             string.Equals(c.Value, "MANAGE_ALL", StringComparison.OrdinalIgnoreCase));
 
-    public void AssumeBusiness(long businessId, string? subscriptionPlan)
+    public void AssumeBusiness(long businessId, SubscriptionPlan? subscriptionPlan)
     {
         if (!IsSuper) return;
 
@@ -164,14 +165,14 @@ public sealed class BusinessContext
 
         IsOwner = true;
         SubscriptionPlan = null;
-        SetFlags(subscriptionPlan ?? string.Empty);
+        SetFlags(subscriptionPlan);
         NotifyChanged();
     }
 
     private sealed class BusinessDto
     {
         public long Id { get; set; }
-        public string? SubscriptionPlan { get; set; }
+        public SubscriptionPlan? SubscriptionPlan { get; set; }
         public long? Owner { get; set; }
     }
 

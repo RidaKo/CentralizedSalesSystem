@@ -47,7 +47,7 @@
         }
     </MudAppBar>
 
-    <MudDrawer Open="false" Variant="DrawerVariant.Mini">
+    <MudDrawer Open="true" Variant="DrawerVariant.Persistent">
         <MudNavMenu>
             <AuthorizeView>
                 @if ((BusinessContext.IsOwner || BusinessContext.IsSuper) && BusinessContext.BusinessId.HasValue)

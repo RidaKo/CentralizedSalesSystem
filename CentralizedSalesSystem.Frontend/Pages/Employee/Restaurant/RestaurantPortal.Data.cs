@@ -45,7 +45,7 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
             IsLoading = true;
             try
             {
-                await Task.WhenAll(LoadTablesAsync(), LoadItemsAsync(), LoadOrdersAsync());
+                await Task.WhenAll(LoadTablesAsync(), LoadItemsAsync(), LoadTaxesAsync(), LoadDiscountsAsync(), LoadOrdersAsync());
                 SyncTableStatuses();
                 SelectedCategory ??= Categories.FirstOrDefault() ?? "Mains";
                 EnsureSelections();
@@ -85,6 +85,38 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
             {
                 Snackbar.Add($"Failed to load items: {ex.Message}", Severity.Error);
                 Items = new List<MenuItemDto>();
+            }
+        }
+
+        private async Task LoadTaxesAsync()
+        {
+            try
+            {
+                var response = await HttpJsonDefaultsExtensions.GetFromJsonAsync<PaginatedResponse<Tax>>(
+                    Http,
+                    $"taxes?limit=200&filterByBusinessId={BusinessId}");
+                Taxes = response?.Data ?? new List<Tax>();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Failed to load taxes: {ex.Message}", Severity.Error);
+                Taxes = new List<Tax>();
+            }
+        }
+
+        private async Task LoadDiscountsAsync()
+        {
+            try
+            {
+                var response = await HttpJsonDefaultsExtensions.GetFromJsonAsync<PaginatedResponse<Discount>>(
+                    Http,
+                    $"discounts?limit=200&filterByBusinessId={BusinessId}");
+                Discounts = response?.Data ?? new List<Discount>();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Failed to load discounts: {ex.Message}", Severity.Error);
+                Discounts = new List<Discount>();
             }
         }
 

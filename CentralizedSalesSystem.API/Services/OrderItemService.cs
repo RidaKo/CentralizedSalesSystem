@@ -79,7 +79,7 @@ namespace CentralizedSalesSystem.API.Services
                 Quantity = dto.Quantity,
                 Notes = dto.Notes,
                 DiscountId = dto.DiscountId,
-                TaxId = dto.TaxId,
+                TaxId = dto.TaxId ?? item.TaxId,
                 ServiceChargeId = dto.ServiceChargeId
             };
 
@@ -108,7 +108,10 @@ namespace CentralizedSalesSystem.API.Services
             }
 
             if (!string.IsNullOrEmpty(dto.Notes)) orderItem.Notes = dto.Notes;
-            if (dto.DiscountId.HasValue) orderItem.DiscountId = dto.DiscountId;
+            if (dto.DiscountId.HasValue)
+            {
+                orderItem.DiscountId = dto.DiscountId.Value == 0 ? null : dto.DiscountId;
+            }
             if (dto.TaxId.HasValue) orderItem.TaxId = dto.TaxId;
             if (dto.ServiceChargeId.HasValue) orderItem.ServiceChargeId = dto.ServiceChargeId;
 

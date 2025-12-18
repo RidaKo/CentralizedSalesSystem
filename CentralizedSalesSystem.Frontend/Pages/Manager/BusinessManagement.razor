@@ -128,6 +128,9 @@
                 <MudTabPanel Text="Taxes" Icon="@Icons.Material.Filled.RequestQuote">
                     @TaxesTab()
                 </MudTabPanel>
+                <MudTabPanel Text="Items" Icon="@Icons.Material.Filled.Inventory">
+                    @ItemsTab()
+                </MudTabPanel>
             </MudTabs>
         }
     </MudStack>
@@ -144,25 +147,30 @@
     private readonly List<EmployeeDto> _employees = new();
     private readonly List<Discount> _discounts = new();
     private readonly List<Tax> _taxes = new();
+    private readonly List<ItemDto> _items = new();
 
     private EmployeeFormModel _employeeForm = new();
     private DiscountEditModel _discountForm = new();
     private TaxEditModel _taxForm = new();
+    private ItemEditModel _itemForm = new();
 
     private string _employeeSearch = string.Empty;
     private string _discountSearch = string.Empty;
     private string _taxSearch = string.Empty;
+    private string _itemSearch = string.Empty;
 
     private bool _isSavingBusiness;
     private bool _isSavingEmployee;
     private bool _isSavingDiscount;
     private bool _isSavingTax;
+    private bool _isSavingItem;
 
     private bool _isBusinessEditing;
     private bool IsEditingBusiness => _business?.Id == _businessForm.Id && _businessForm.Id != 0;
     private bool IsEditingEmployee => _employeeForm.Id != 0;
     private bool IsEditingDiscount => _discountForm.Id != 0;
     private bool IsEditingTax => _taxForm.Id != 0;
+    private bool IsEditingItem => _itemForm.Id != 0;
 
     protected override async Task OnInitializedAsync()
     {
@@ -188,12 +196,13 @@
             }
 
             await LoadBusinessAsync();
-            await Task.WhenAll(LoadEmployeesAsync(), LoadDiscountsAsync(), LoadTaxesAsync());
+            await Task.WhenAll(LoadEmployeesAsync(), LoadDiscountsAsync(), LoadTaxesAsync(), LoadItemsAsync());
 
             InitializeBusinessForm();
             BeginCreateEmployee();
             BeginCreateDiscount();
             BeginCreateTax();
+            BeginCreateItem();
         }
         catch (Exception ex)
         {
@@ -228,6 +237,9 @@
 
     private Task LoadTaxesAsync() =>
         LoadCollectionAsync($"taxes?filterByBusinessId={BusinessId}&limit=200", _taxes, "taxes");
+
+    private Task LoadItemsAsync() =>
+        LoadCollectionAsync($"items?filterByBusinessId={BusinessId}&limit=200", _items, "items");
 
     private async Task LoadEmployeesAsync()
     {
@@ -754,7 +766,7 @@
                     <MudTextField @bind-Value="_taxForm.Name" Label="Name" Required="true" />
                     <MudNumericField T="decimal"
                                      @bind-Value="_taxForm.Rate"
-                                     Label="Rate (as decimal, e.g. 0.05 = 5%)"
+                                     Label="Rate (%)"
                                      Adornment="Adornment.End"
                                      AdornmentText="%" />
                     <MudSelect @bind-Value="_taxForm.Status" Label="Status">
@@ -849,6 +861,294 @@
                 </MudPaper>
             </MudItem>
         </MudGrid>;
+
+    private RenderFragment ItemsTab() => @<MudGrid GutterSpacing="3">
+        <MudItem xs="12" md="4">
+            <MudPaper Class="pa-4" Elevation="1">
+                <MudStack Spacing="2">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                        <MudText Typo="Typo.subtitle1">@((IsEditingItem ? "Edit" : "New") + " Item")</MudText>
+                        <MudChip T="string"
+                                 Color="@(IsEditingItem ? Color.Warning : Color.Success)"
+                                 Variant="Variant.Filled"
+                                 Size="Size.Small">
+                            @(IsEditingItem ? "Editing" : "Create")
+                        </MudChip>
+                    </MudStack>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        Create products and services with default taxes.
+                    </MudText>
+
+                    <MudTextField @bind-Value="_itemForm.Name" Label="Name" Required="true" />
+                    <MudTextField @bind-Value="_itemForm.Description" Label="Description" Lines="3" />
+                    <MudSelect @bind-Value="_itemForm.Type" Label="Type">
+                        <MudSelectItem Value="@ItemType.Product">Product</MudSelectItem>
+                        <MudSelectItem Value="@ItemType.Service">Service</MudSelectItem>
+                    </MudSelect>
+                    <MudNumericField T="decimal"
+                                     @bind-Value="_itemForm.Price"
+                                     Label="Price"
+                                     Adornment="Adornment.End"
+                                     AdornmentText="@(_business?.Currency.ToString())" />
+                    <MudNumericField T="int" @bind-Value="_itemForm.Stock" Label="Stock" Min="0" />
+                    <MudSelect T="long?"
+                               @bind-Value="_itemForm.TaxId"
+                               Label="Tax"
+                               Disabled="@(!_taxes.Any())">
+                        <MudSelectItem T="long?" Value="@((long?)null)">No tax</MudSelectItem>
+                        @foreach (var tax in _taxes.OrderBy(t => t.Name))
+                        {
+                            <MudSelectItem T="long?" Value="@tax.Id">@($"{tax.Name} ({FormatTaxRate(tax)})")</MudSelectItem>
+                        }
+                    </MudSelect>
+
+                    <MudStack Row="true" Spacing="1">
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Save"
+                                   Disabled="_isSavingItem"
+                                   OnClick="SaveItemAsync">
+                            @(_isSavingItem
+                                ? "Saving..."
+                                : IsEditingItem
+                                    ? "Update Item"
+                                    : "Save Item")
+                        </MudButton>
+                        <MudButton Variant="Variant.Text"
+                                   Color="Color.Default"
+                                   StartIcon="@Icons.Material.Filled.Refresh"
+                                   Disabled="_isSavingItem"
+                                   OnClick="BeginCreateItem">
+                            Clear
+                        </MudButton>
+                    </MudStack>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="8">
+            <MudPaper Class="pa-3 pb-1" Elevation="1">
+                <MudTable Items="_items" Hover="true" Dense="true" Striped="true" Filter="ItemFilter">
+                    <ToolBarContent>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                            <MudText Typo="Typo.h6">Items</MudText>
+                            <MudChip T="string" Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small">
+                                @_items.Count
+                            </MudChip>
+                        </MudStack>
+                        <MudSpacer />
+                        <MudTextField @bind-Value="_itemSearch"
+                                      Placeholder="Search name or type"
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.Search"
+                                      Class="mt-0" />
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Add"
+                                   Size="Size.Small"
+                                   Class="ma-0 px-3"
+                                   OnClick="BeginCreateItem">
+                            New
+                        </MudButton>
+                    </ToolBarContent>
+                    <HeaderContent>
+                        <MudTh>Name</MudTh>
+                        <MudTh>Type</MudTh>
+                        <MudTh>Price</MudTh>
+                        <MudTh>Tax</MudTh>
+                        <MudTh>Stock</MudTh>
+                        <MudTh Style="text-align:right">Actions</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Name">
+                            <MudText Typo="Typo.body2">@context.Name</MudText>
+                            @if (!string.IsNullOrWhiteSpace(context.Description))
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Description</MudText>
+                            }
+                        </MudTd>
+                        <MudTd DataLabel="Type">@context.Type</MudTd>
+                        <MudTd DataLabel="Price">@FormatItemPrice(context.Price)</MudTd>
+                        <MudTd DataLabel="Tax">@GetTaxLabel(context.TaxId)</MudTd>
+                        <MudTd DataLabel="Stock">@context.Stock</MudTd>
+                        <MudTd DataLabel="Actions" Style="text-align:right">
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary" OnClick="@(() => BeginEditItem(context))" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(async () => await DeleteItemAsync(context))" />
+                        </MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent>
+                        <MudText Typo="Typo.body2" Class="pa-4">No items yet. Add one on the left.</MudText>
+                    </NoRecordsContent>
+                    <PagerContent>
+                        <MudTablePager />
+                    </PagerContent>
+                </MudTable>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>;
+
+    // Items
+    private void BeginCreateItem()
+    {
+        _itemForm = new ItemEditModel
+        {
+            Id = 0,
+            BusinessId = BusinessId,
+            Name = string.Empty,
+            Description = string.Empty,
+            Price = 0m,
+            Stock = 0,
+            Type = ItemType.Product,
+            TaxId = null
+        };
+    }
+
+    private void BeginEditItem(ItemDto item)
+    {
+        _tabIndex = 3;
+        _itemForm = new ItemEditModel
+        {
+            Id = item.Id,
+            BusinessId = item.BusinessId,
+            Name = item.Name,
+            Description = item.Description,
+            Price = item.Price,
+            Stock = item.Stock,
+            Type = item.Type,
+            TaxId = item.TaxId
+        };
+    }
+
+    private async Task SaveItemAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_itemForm.Name))
+        {
+            Snackbar.Add("Name is required.", Severity.Warning);
+            return;
+        }
+
+        if (_itemForm.Price <= 0)
+        {
+            Snackbar.Add("Price must be greater than zero.", Severity.Warning);
+            return;
+        }
+
+        if (_itemForm.Stock < 0)
+        {
+            Snackbar.Add("Stock cannot be negative.", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            _isSavingItem = true;
+            HttpResponseMessage response;
+
+            if (_itemForm.Id == 0)
+            {
+                var payload = new ItemCreateRequest
+                {
+                    BusinessId = BusinessId,
+                    Name = _itemForm.Name,
+                    Description = string.IsNullOrWhiteSpace(_itemForm.Description) ? null : _itemForm.Description,
+                    Price = _itemForm.Price,
+                    Stock = _itemForm.Stock,
+                    Type = _itemForm.Type,
+                    TaxId = _itemForm.TaxId
+                };
+
+                response = await HttpJsonDefaultsExtensions.PostAsJsonAsync(Http, "items", payload);
+            }
+            else
+            {
+                var payload = new ItemUpdateRequest
+                {
+                    Name = _itemForm.Name,
+                    Description = string.IsNullOrWhiteSpace(_itemForm.Description) ? null : _itemForm.Description,
+                    Price = _itemForm.Price,
+                    Stock = _itemForm.Stock,
+                    Type = _itemForm.Type,
+                    TaxId = _itemForm.TaxId ?? 0
+                };
+
+                var request = new HttpRequestMessage(HttpMethod.Patch, $"items/{_itemForm.Id}")
+                {
+                    Content = System.Net.Http.Json.JsonContent.Create(payload)
+                };
+                response = await Http.SendAsync(request);
+            }
+
+            if (response.IsSuccessStatusCode)
+            {
+                var record = await HttpJsonDefaultsExtensions.ReadFromJsonAsync<ItemDto>(response.Content);
+                if (record != null)
+                {
+                    Upsert(_items, record, i => i.Id == record.Id);
+                    Snackbar.Add(_itemForm.Id == 0 ? "Item created." : "Item updated.", Severity.Success);
+                    BeginCreateItem();
+                }
+            }
+            else
+            {
+                Snackbar.Add($"Unable to save item: {(int)response.StatusCode} {response.ReasonPhrase}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Unable to save item: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSavingItem = false;
+        }
+    }
+
+    private async Task DeleteItemAsync(ItemDto item)
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"items/{item.Id}");
+            if (response.IsSuccessStatusCode)
+            {
+                _items.Remove(item);
+                Snackbar.Add($"Deleted {item.Name}", Severity.Success);
+                if (_itemForm.Id == item.Id) BeginCreateItem();
+            }
+            else
+            {
+                Snackbar.Add($"Delete failed: {(int)response.StatusCode} {response.ReasonPhrase}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Unable to delete {item.Name}: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private bool ItemFilter(ItemDto item)
+    {
+        if (string.IsNullOrWhiteSpace(_itemSearch)) return true;
+
+        return item.Name.Contains(_itemSearch, StringComparison.OrdinalIgnoreCase)
+            || item.Type.ToString().Contains(_itemSearch, StringComparison.OrdinalIgnoreCase)
+            || (item.Description ?? string.Empty).Contains(_itemSearch, StringComparison.OrdinalIgnoreCase)
+            || item.Price.ToString("0.##").Contains(_itemSearch, StringComparison.OrdinalIgnoreCase)
+            || GetTaxLabel(item.TaxId).Contains(_itemSearch, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private string FormatItemPrice(decimal price)
+    {
+        var currency = _business?.Currency.ToString();
+        var prefix = string.IsNullOrWhiteSpace(currency) ? string.Empty : $"{currency} ";
+        return $"{prefix}{price:0.##}";
+    }
+
+    private string GetTaxLabel(long? taxId)
+    {
+        if (!taxId.HasValue) return "None";
+        var tax = _taxes.FirstOrDefault(t => t.Id == taxId.Value);
+        return tax == null ? "Unknown" : $"{tax.Name} ({FormatTaxRate(tax)})";
+    }
 
     // Discounts
     private void BeginCreateDiscount()
@@ -1010,7 +1310,7 @@
         {
             BusinessId = BusinessId,
             Name = "New Tax",
-            Rate = 0.05m,
+            Rate = 5m,
             Status = TaxStatus.Active,
             EffectiveFrom = DateTime.UtcNow
         };
@@ -1135,7 +1435,7 @@
             || tax.Status.ToString().Contains(_taxSearch, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string FormatTaxRate(Tax tax) => $"{tax.Rate * 100:0.##}%";
+    private static string FormatTaxRate(Tax tax) => $"{tax.Rate:0.##}%";
 
     private static string FormatDateRange(DateTimeOffset from, DateTimeOffset? to) =>
         to.HasValue ? $"{from:yyyy-MM-dd} - {to.Value:yyyy-MM-dd}" : $"{from:yyyy-MM-dd} onward";
@@ -1302,5 +1602,50 @@
         public DateTimeOffset? EffectiveFrom { get; set; }
         public DateTimeOffset? EffectiveTo { get; set; }
         public TaxStatus? Status { get; set; }
+    }
+
+    private sealed class ItemDto
+    {
+        public long Id { get; set; }
+        public long BusinessId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public decimal Price { get; set; }
+        public int Stock { get; set; }
+        public ItemType Type { get; set; } = ItemType.Product;
+        public long? TaxId { get; set; }
+    }
+
+    private sealed class ItemEditModel
+    {
+        public long Id { get; set; }
+        public long BusinessId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public decimal Price { get; set; }
+        public int Stock { get; set; }
+        public ItemType Type { get; set; } = ItemType.Product;
+        public long? TaxId { get; set; }
+    }
+
+    private sealed class ItemCreateRequest
+    {
+        public string Name { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public decimal Price { get; set; }
+        public int Stock { get; set; }
+        public ItemType Type { get; set; }
+        public long BusinessId { get; set; }
+        public long? TaxId { get; set; }
+    }
+
+    private sealed class ItemUpdateRequest
+    {
+        public string? Name { get; set; }
+        public string? Description { get; set; }
+        public decimal? Price { get; set; }
+        public int? Stock { get; set; }
+        public ItemType? Type { get; set; }
+        public long? TaxId { get; set; }
     }
 }

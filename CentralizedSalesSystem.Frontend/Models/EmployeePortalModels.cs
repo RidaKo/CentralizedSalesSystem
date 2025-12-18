@@ -22,6 +22,7 @@ namespace CentralizedSalesSystem.Frontend.Models
         public decimal Price { get; set; }
         public int? Stock { get; set; }
         public int? Duration { get; set; }
+        public long? TaxId { get; set; }
     }
 
     public class OrderItemDto
@@ -31,6 +32,9 @@ namespace CentralizedSalesSystem.Frontend.Models
         public int Quantity { get; set; }
         public string? Notes { get; set; }
         public long? DiscountId { get; set; }
+        public Discount? Discount { get; set; }
+        public long? TaxId { get; set; }
+        public Tax? Tax { get; set; }
     }
 
     public class OrderDto
@@ -39,6 +43,8 @@ namespace CentralizedSalesSystem.Frontend.Models
         public long BusinessId { get; set; }
         public long? ReservationId { get; set; }
         public long? TableId { get; set; }
+        public long? DiscountId { get; set; }
+        public Discount? Discount { get; set; }
         public List<OrderItemDto> Items { get; set; } = new();
         public decimal? Tip { get; set; }
         public DateTimeOffset? UpdatedAt { get; set; }

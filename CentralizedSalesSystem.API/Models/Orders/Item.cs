@@ -15,6 +15,9 @@ namespace CentralizedSalesSystem.API.Models.Orders
 
         public ItemType Type { get; set; }
 
+        public long? TaxId { get; set; }
+        public Tax? Tax { get; set; }
+
         public ICollection<ItemVariation> Variations { get; set; } = new List<ItemVariation>();
         public ICollection<Role> AssociatedRoles { get; set; } = new List<Role>();
 

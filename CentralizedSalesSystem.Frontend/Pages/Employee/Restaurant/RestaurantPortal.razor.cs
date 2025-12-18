@@ -38,7 +38,7 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
         private bool ShowTipPanel;
         private bool ShowDiscountPanel;
 
-        private decimal DiscountInput;
+        private long? SelectedOrderDiscountId;
         private decimal TipInput;
         private decimal NewPaymentAmount;
         private PaymentMethod NewPaymentMethod = PaymentMethod.Card;
@@ -47,6 +47,8 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
 
         private List<TableDto> Tables { get; set; } = new();
         private List<MenuItemDto> Items { get; set; } = new();
+        private List<Tax> Taxes { get; set; } = new();
+        private List<Discount> Discounts { get; set; } = new();
         private List<OrderDto> Orders { get; set; } = new();
 
         private OrderDto? ActiveOrder { get; set; }
@@ -73,7 +75,8 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
             });
 
         private decimal DiscountAmount => ActiveOrder is null ? 0 : GetDiscountAmount(ActiveOrder);
-        private string DiscountPercentLabel => ActiveOrder?.DiscountTotal > 0 ? $"{ActiveOrder.DiscountTotal:C}" : "None";
+        private decimal TaxAmount => ActiveOrder is null ? 0 : GetTaxAmount(ActiveOrder);
+        private string DiscountLabel => ActiveOrder is null ? "None" : GetDiscountLabel(ActiveOrder);
         private decimal CurrentOrderTotal => ActiveOrder is null ? 0 : CalculateTotal(ActiveOrder);
         private decimal TotalPaid => ActiveOrder?.Payments.Sum(p => p.Amount) ?? 0;
         private decimal RemainingToPay => Math.Max(0, CurrentOrderTotal - TotalPaid);

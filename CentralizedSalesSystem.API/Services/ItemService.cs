@@ -87,6 +87,13 @@ namespace CentralizedSalesSystem.API.Services
 
         public async Task<ItemResponseDto?> CreateItemAsync(ItemCreateDto dto)
         {
+            if (dto.TaxId.HasValue && dto.TaxId.Value > 0)
+            {
+                var tax = await _db.Taxes.FindAsync(dto.TaxId.Value);
+                if (tax == null || tax.BusinessId != dto.BusinessId)
+                    throw new Exception($"Tax {dto.TaxId} is not available for this business");
+            }
+
             var item = new Item
             {
                 Name = dto.Name,
@@ -94,7 +101,8 @@ namespace CentralizedSalesSystem.API.Services
                 Price = dto.Price,
                 Stock = dto.Stock,
                 Type = dto.Type,
-                BusinessId = dto.BusinessId
+                BusinessId = dto.BusinessId,
+                TaxId = dto.TaxId.HasValue && dto.TaxId.Value > 0 ? dto.TaxId.Value : null
             };
 
             _db.Items.Add(item);
@@ -108,12 +116,28 @@ namespace CentralizedSalesSystem.API.Services
             var item = await _db.Items.FindAsync(id);
             if (item == null) return null;
 
+            if (dto.BusinessId.HasValue) item.BusinessId = dto.BusinessId.Value;
+
             if (!string.IsNullOrEmpty(dto.Name)) item.Name = dto.Name;
             if (!string.IsNullOrEmpty(dto.Description)) item.Description = dto.Description;
             if (dto.Price.HasValue) item.Price = dto.Price.Value;
             if (dto.Stock.HasValue) item.Stock = dto.Stock.Value;
             if (dto.Type.HasValue) item.Type = dto.Type.Value;
-            if (dto.BusinessId.HasValue) item.BusinessId = dto.BusinessId.Value;
+            if (dto.TaxId.HasValue)
+            {
+                if (dto.TaxId.Value == 0)
+                {
+                    item.TaxId = null;
+                }
+                else
+                {
+                    var tax = await _db.Taxes.FindAsync(dto.TaxId.Value);
+                    if (tax == null || tax.BusinessId != item.BusinessId)
+                        throw new Exception($"Tax {dto.TaxId} is not available for this business");
+
+                    item.TaxId = tax.Id;
+                }
+            }
 
             await _db.SaveChangesAsync();
 

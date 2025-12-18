@@ -10,5 +10,6 @@ public class ItemUpdateDto
     public int? Duration { get; set; }
     public ItemType? Type { get; set; }
     public long? BusinessId { get; set; }
+    public long? TaxId { get; set; }
 
 }

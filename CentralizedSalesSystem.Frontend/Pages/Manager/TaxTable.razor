@@ -22,7 +22,7 @@
     </HeaderContent>
     <RowTemplate>
         <MudTd DataLabel="Name">@context.Name</MudTd>
-        <MudTd DataLabel="Rate">@((context.Rate * 100).ToString("0.##"))%</MudTd>
+        <MudTd DataLabel="Rate">@context.Rate.ToString("0.##")%</MudTd>
         <MudTd DataLabel="Effective">@context.EffectiveFrom.ToString("yyyy-MM-dd")</MudTd>
         <MudTd DataLabel="Status">
             @if(context.Status == TaxStatus.Active)
@@ -76,7 +76,7 @@
         { 
             BusinessId = BusinessId, 
             Name = "New Tax Rule", 
-            Rate = 0.05m, 
+            Rate = 5m, 
             EffectiveFrom = DateTimeOffset.UtcNow,
             Status = TaxStatus.Active 
         };

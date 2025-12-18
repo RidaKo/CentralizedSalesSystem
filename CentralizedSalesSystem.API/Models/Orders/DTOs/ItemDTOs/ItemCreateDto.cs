@@ -9,5 +9,6 @@ public class ItemCreateDto
     public ItemType Type { get; set; }   // or ItemType if you prefer
     public int Stock { get; set; }
     public long BusinessId { get; set; }
+    public long? TaxId { get; set; }
 
 }

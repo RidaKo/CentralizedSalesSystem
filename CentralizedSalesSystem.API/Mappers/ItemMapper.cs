@@ -17,6 +17,7 @@ namespace CentralizedSalesSystem.API.Mappers
                 Stock = item.Stock,
                 Type = item.Type,
                 BusinessId = item.BusinessId,
+                TaxId = item.TaxId,
                 Variations = item.Variations?.Select(v => new ItemVariationResponseDto
                 {
                     Id = v.Id,

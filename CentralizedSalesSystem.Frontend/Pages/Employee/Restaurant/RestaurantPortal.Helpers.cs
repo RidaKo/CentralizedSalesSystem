@@ -29,10 +29,6 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
 
         private decimal GetSubtotal(OrderDto order)
         {
-            // Use API's calculated subtotal if available, otherwise calculate locally
-            if (order.Subtotal > 0)
-                return order.Subtotal;
-                
             return order.Items.Sum(line =>
             {
                 var item = Items.FirstOrDefault(i => i.Id == line.ItemId);
@@ -42,19 +38,140 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
 
         private decimal GetDiscountAmount(OrderDto order)
         {
-            // Use API's calculated discount total
-            return order.DiscountTotal;
+            if (order.Items == null || order.Items.Count == 0)
+                return 0m;
+
+            var subtotal = GetSubtotal(order);
+            var itemDiscountTotal = order.Items.Sum(line =>
+            {
+                var item = Items.FirstOrDefault(i => i.Id == line.ItemId);
+                if (item is null) return 0m;
+
+                var discount = GetLineDiscount(line);
+                if (discount is null) return 0m;
+                if (!IsDiscountActive(discount)) return 0m;
+                if (!IsDiscountApplicableToItem(discount, item)) return 0m;
+
+                var lineTotal = item.Price * line.Quantity;
+                return CalculateDiscountAmount(discount, lineTotal, line.Quantity);
+            });
+
+            var orderDiscount = GetOrderDiscount(order);
+            if (orderDiscount is null || !IsDiscountActive(orderDiscount) || orderDiscount.AppliesTo != DiscountAppliesTo.Order)
+            {
+                return itemDiscountTotal;
+            }
+
+            var orderDiscountAmount = orderDiscount.Type == DiscountType.Percentage
+                ? subtotal * (orderDiscount.Rate / 100m)
+                : orderDiscount.Rate;
+            orderDiscountAmount = Math.Min(orderDiscountAmount, subtotal);
+
+            return itemDiscountTotal + orderDiscountAmount;
+        }
+
+        private string GetDiscountLabel(OrderDto order)
+        {
+            var orderDiscount = GetOrderDiscount(order);
+            if (orderDiscount is not null && IsDiscountActive(orderDiscount) && orderDiscount.AppliesTo == DiscountAppliesTo.Order)
+            {
+                return orderDiscount.Name;
+            }
+
+            var hasItemDiscount = order.Items.Any(line =>
+            {
+                var item = Items.FirstOrDefault(i => i.Id == line.ItemId);
+                if (item is null) return false;
+                var discount = GetLineDiscount(line);
+                return discount is not null && IsDiscountActive(discount) && IsDiscountApplicableToItem(discount, item);
+            });
+
+            return hasItemDiscount ? "Items" : "None";
+        }
+
+        private IEnumerable<Discount> GetOrderDiscountOptions() =>
+            Discounts
+                .Where(d => d.AppliesTo == DiscountAppliesTo.Order && IsDiscountActive(d))
+                .OrderBy(d => d.Name);
+
+        private IEnumerable<Discount> GetItemDiscountOptions(MenuItemDto? item)
+        {
+            if (item is null) return Enumerable.Empty<Discount>();
+
+            var appliesTo = item.Type == ItemType.Service
+                ? DiscountAppliesTo.Service
+                : DiscountAppliesTo.Product;
+
+            return Discounts
+                .Where(d => d.AppliesTo == appliesTo && IsDiscountActive(d))
+                .OrderBy(d => d.Name);
+        }
+
+        private string FormatDiscountOption(Discount discount) =>
+            discount.Type == DiscountType.Percentage
+                ? $"{discount.Name} ({discount.Rate:0.##}%)"
+                : $"{discount.Name} ({discount.Rate.ToString("C")} off)";
+
+        private Discount? GetOrderDiscount(OrderDto order) =>
+            order.Discount ?? (order.DiscountId.HasValue ? Discounts.FirstOrDefault(d => d.Id == order.DiscountId.Value) : null);
+
+        private Discount? GetLineDiscount(OrderItemDto line) =>
+            line.Discount ?? (line.DiscountId.HasValue ? Discounts.FirstOrDefault(d => d.Id == line.DiscountId.Value) : null);
+
+        private static bool IsDiscountApplicableToItem(Discount discount, MenuItemDto item) =>
+            (discount.AppliesTo == DiscountAppliesTo.Product && item.Type == ItemType.Product)
+            || (discount.AppliesTo == DiscountAppliesTo.Service && item.Type == ItemType.Service);
+
+        private static bool IsDiscountActive(Discount discount)
+        {
+            if (discount.Status != DiscountStatus.Active) return false;
+
+            var now = DateTimeOffset.UtcNow;
+            if (discount.ValidFrom > now) return false;
+            if (discount.ValidTo.HasValue && discount.ValidTo.Value < now) return false;
+
+            return true;
+        }
+
+        private static decimal CalculateDiscountAmount(Discount discount, decimal baseAmount, int quantity)
+        {
+            var amount = discount.Type == DiscountType.Percentage
+                ? baseAmount * (discount.Rate / 100m)
+                : discount.Rate * quantity;
+
+            return Math.Min(amount, baseAmount);
+        }
+
+        private decimal GetTaxAmount(OrderDto order)
+        {
+            if (order.Items == null || order.Items.Count == 0)
+                return 0m;
+
+            var now = DateTimeOffset.UtcNow;
+            return order.Items.Sum(line =>
+            {
+                var item = Items.FirstOrDefault(i => i.Id == line.ItemId);
+                if (item is null) return 0m;
+
+                var tax = line.Tax
+                    ?? (line.TaxId.HasValue ? Taxes.FirstOrDefault(t => t.Id == line.TaxId.Value) : null)
+                    ?? (item.TaxId.HasValue ? Taxes.FirstOrDefault(t => t.Id == item.TaxId.Value) : null);
+                if (tax == null) return 0m;
+                if (tax.Status != TaxStatus.Active) return 0m;
+                if (tax.EffectiveFrom > now) return 0m;
+                if (tax.EffectiveTo.HasValue && tax.EffectiveTo.Value < now) return 0m;
+
+                var lineSubtotal = item.Price * line.Quantity;
+                return lineSubtotal * (tax.Rate / 100m);
+            });
         }
 
         private decimal CalculateTotal(OrderDto order)
         {
-            // Use API's calculated total if available
-            if (order.Total > 0)
-                return order.Total;
-                
             var subtotal = GetSubtotal(order);
             var discount = GetDiscountAmount(order);
-            var total = subtotal - discount + (order.Tip ?? 0);
+            var tax = GetTaxAmount(order);
+            var total = subtotal - discount + tax + order.ServiceChargeTotal + (order.Tip ?? 0);
             return Math.Max(total, 0);
         }
 
@@ -93,6 +210,7 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
             SelectedTableId = tableId;
             SelectedTableForNewOrder = tableId;
             ActiveOrder = GetOrderForTable(tableId);
+            SelectedOrderDiscountId = ActiveOrder?.DiscountId;
             IsEditMode = false;
         }
 

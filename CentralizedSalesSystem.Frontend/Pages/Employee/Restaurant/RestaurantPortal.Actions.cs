@@ -43,6 +43,7 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
                         Orders.Insert(0, createdOrder);
                         ActiveOrder = createdOrder;
                         SelectedTableId = tableId;
+                        SelectedOrderDiscountId = createdOrder.DiscountId;
                         UpdateTableStatus(tableId, TableStatus.Occupied);
                         ActiveView = PortalView.CurrentOrder;
                         IsEditMode = true;
@@ -222,6 +223,7 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
             ActiveOrder = order;
             SelectedTableId = order.TableId;
             SelectedTableForNewOrder = order.TableId;
+            SelectedOrderDiscountId = order.DiscountId;
             ActiveView = PortalView.CurrentOrder;
         }
 
@@ -300,39 +302,87 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
 
         private Task CancelOrder() => CancelOrderAsync();
 
-        private async Task ApplyDiscountAmountAsync()
+        private async Task ApplyOrderDiscountAsync()
         {
             if (ActiveOrder is null || !CanModifyActiveOrder) return;
-            
-            var discountPercent = Math.Clamp(DiscountInput, 0, 100);
-            var discountAmount = Math.Round(Subtotal * (discountPercent / 100), 2);
-            
+
+            var previousDiscountId = ActiveOrder.DiscountId;
+            var discountId = SelectedOrderDiscountId ?? 0;
+
             try
             {
                 var updateDto = new
                 {
-                    Discount = discountAmount
+                    DiscountId = discountId
                 };
 
                 var response = await Http.PatchAsJsonAsync($"orders/{ActiveOrder.Id}", updateDto);
                 if (response.IsSuccessStatusCode)
                 {
-                    ActiveOrder.DiscountTotal = discountAmount;
+                    ActiveOrder.DiscountId = discountId == 0 ? null : discountId;
+                    ActiveOrder.Discount = discountId == 0
+                        ? null
+                        : Discounts.FirstOrDefault(d => d.Id == discountId);
                     ActiveOrder.UpdatedAt = DateTimeOffset.UtcNow;
-                    Snackbar.Add($"Applied {discountPercent}% discount ({discountAmount:C})", Severity.Success);
+                    Snackbar.Add(discountId == 0 ? "Discount cleared." : "Discount applied.", Severity.Success);
                 }
                 else
                 {
+                    SelectedOrderDiscountId = previousDiscountId;
                     Snackbar.Add("Failed to apply discount", Severity.Error);
                 }
             }
             catch (Exception ex)
             {
+                SelectedOrderDiscountId = previousDiscountId;
                 Snackbar.Add($"Error applying discount: {ex.Message}", Severity.Error);
             }
         }
 
-        private Task ApplyDiscountAmount() => ApplyDiscountAmountAsync();
+        private Task ApplyOrderDiscount() => ApplyOrderDiscountAsync();
+
+        private async Task ApplyItemDiscountAsync(OrderItemDto line, long? discountId)
+        {
+            if (!CanModifyActiveOrder) return;
+
+            var previousDiscountId = line.DiscountId;
+            var discountValue = discountId ?? 0;
+
+            try
+            {
+                var updateDto = new
+                {
+                    DiscountId = discountValue
+                };
+
+                var response = await Http.PatchAsJsonAsync($"orderItems/{line.Id}", updateDto);
+                if (response.IsSuccessStatusCode)
+                {
+                    line.DiscountId = discountValue == 0 ? null : discountValue;
+                    line.Discount = discountValue == 0
+                        ? null
+                        : Discounts.FirstOrDefault(d => d.Id == discountValue);
+                    if (ActiveOrder != null)
+                    {
+                        ActiveOrder.UpdatedAt = DateTimeOffset.UtcNow;
+                    }
+                    Snackbar.Add(discountValue == 0 ? "Item discount cleared." : "Item discount applied.", Severity.Success);
+                }
+                else
+                {
+                    line.DiscountId = previousDiscountId;
+                    Snackbar.Add("Failed to apply item discount", Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                line.DiscountId = previousDiscountId;
+                Snackbar.Add($"Error applying item discount: {ex.Message}", Severity.Error);
+            }
+        }
+
+        private Task ApplyItemDiscount(OrderItemDto line, long? discountId) =>
+            ApplyItemDiscountAsync(line, discountId);
 
         private async Task ApplyTipAsync(decimal? tipAmount)
         {
@@ -485,11 +535,13 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
 
             var subtotal = GetSubtotal(target);
             var discount = GetDiscountAmount(target);
+            var tax = GetTaxAmount(target);
             var total = CalculateTotal(target);
 
             var text = string.Join("\n", lines)
                        + $"\nSubtotal: {subtotal:C}"
                        + $"\nDiscount: {discount:C}"
+                       + $"\nTax: {tax:C}"
                        + $"\nTip: {target.Tip:C}"
                        + $"\nTotal: {total:C}"
                        + $"\n\nPayments:\n{payments}";

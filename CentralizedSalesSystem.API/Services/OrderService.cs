@@ -203,11 +203,19 @@ namespace CentralizedSalesSystem.API.Services
             if (dto.ReservationId.HasValue) order.ReservationId = dto.ReservationId.Value;
             if (dto.DiscountId.HasValue)
             {
-                var discount = await _db.Discounts.FindAsync(dto.DiscountId.Value);
-                if (discount != null && discount.AppliesTo == DiscountAppliesTo.Order)
+                if (dto.DiscountId.Value == 0)
                 {
-                    order.Discount = discount;
-                    order.DiscountId = discount.Id;
+                    order.Discount = null;
+                    order.DiscountId = null;
+                }
+                else
+                {
+                    var discount = await _db.Discounts.FindAsync(dto.DiscountId.Value);
+                    if (discount != null && discount.AppliesTo == DiscountAppliesTo.Order)
+                    {
+                        order.Discount = discount;
+                        order.DiscountId = discount.Id;
+                    }
                 }
             }
 

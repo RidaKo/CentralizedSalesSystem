@@ -15,6 +15,7 @@ public class ItemResponseDto
     public ItemType Type { get; set; }
     public int Stock { get; set; }
     public long BusinessId { get; set; }
+    public long? TaxId { get; set; }
 
     public List<ItemVariationResponseDto> Variations { get; set; } = new();
     public List<Role> AssociatedRoles { get; set; } = new();

@@ -134,6 +134,9 @@
                 <MudTabPanel Text="Tips" Icon="@Icons.Material.Filled.MonetizationOn">
                     @TipsTab()
                 </MudTabPanel>
+                <MudTabPanel Text="Tables" Icon="@Icons.Material.Filled.TableRestaurant">
+                    @TablesTab()
+                </MudTabPanel>
             </MudTabs>
         }
     </MudStack>
@@ -151,17 +154,20 @@
     private readonly List<Discount> _discounts = new();
     private readonly List<Tax> _taxes = new();
     private readonly List<ItemDto> _items = new();
+    private readonly List<TableDto> _tables = new();
     private readonly List<OrderDto> _orders = new();
 
     private EmployeeFormModel _employeeForm = new();
     private DiscountEditModel _discountForm = new();
     private TaxEditModel _taxForm = new();
     private ItemEditModel _itemForm = new();
+    private TableEditModel _tableForm = new();
 
     private string _employeeSearch = string.Empty;
     private string _discountSearch = string.Empty;
     private string _taxSearch = string.Empty;
     private string _itemSearch = string.Empty;
+    private string _tableSearch = string.Empty;
     private string _tipSearch = string.Empty;
 
     private bool _isSavingBusiness;
@@ -169,6 +175,7 @@
     private bool _isSavingDiscount;
     private bool _isSavingTax;
     private bool _isSavingItem;
+    private bool _isSavingTable;
 
     private bool _isBusinessEditing;
     private bool IsEditingBusiness => _business?.Id == _businessForm.Id && _businessForm.Id != 0;
@@ -176,6 +183,7 @@
     private bool IsEditingDiscount => _discountForm.Id != 0;
     private bool IsEditingTax => _taxForm.Id != 0;
     private bool IsEditingItem => _itemForm.Id != 0;
+    private bool IsEditingTable => _tableForm.Id != 0;
 
     protected override async Task OnInitializedAsync()
     {
@@ -201,13 +209,14 @@
             }
 
             await LoadBusinessAsync();
-            await Task.WhenAll(LoadEmployeesAsync(), LoadDiscountsAsync(), LoadTaxesAsync(), LoadItemsAsync(), LoadOrdersAsync());
+            await Task.WhenAll(LoadEmployeesAsync(), LoadDiscountsAsync(), LoadTaxesAsync(), LoadItemsAsync(), LoadTablesAsync(), LoadOrdersAsync());
 
             InitializeBusinessForm();
             BeginCreateEmployee();
             BeginCreateDiscount();
             BeginCreateTax();
             BeginCreateItem();
+            BeginCreateTable();
         }
         catch (Exception ex)
         {
@@ -245,6 +254,9 @@
 
     private Task LoadItemsAsync() =>
         LoadCollectionAsync($"items?filterByBusinessId={BusinessId}&limit=200", _items, "items");
+
+    private Task LoadTablesAsync() =>
+        LoadCollectionAsync($"tables?filterByBusinessId={BusinessId}&limit=200", _tables, "tables");
 
     private async Task LoadOrdersAsync()
     {
@@ -1101,6 +1113,251 @@
         </MudItem>
     </MudGrid>;
 
+    private RenderFragment TablesTab() => @<MudGrid GutterSpacing="3">
+        <MudItem xs="12" md="4">
+            <MudPaper Class="pa-4" Elevation="1">
+                <MudStack Spacing="2">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                        <MudText Typo="Typo.subtitle1">@((IsEditingTable ? "Edit" : "New") + " Table")</MudText>
+                        <MudChip T="string"
+                                 Color="@(IsEditingTable ? Color.Warning : Color.Success)"
+                                 Variant="Variant.Filled"
+                                 Size="Size.Small">
+                            @(IsEditingTable ? "Editing" : "Create")
+                        </MudChip>
+                    </MudStack>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        Manage dining tables and seating capacity.
+                    </MudText>
+
+                    <MudTextField @bind-Value="_tableForm.Name" Label="Name" Required="true" />
+                    <MudNumericField T="int"
+                                     @bind-Value="_tableForm.Capacity"
+                                     Label="Capacity"
+                                     Min="1" />
+                    <MudSelect T="TableStatus" @bind-Value="_tableForm.Status" Label="Status">
+                        <MudSelectItem Value="@TableStatus.Free">Free</MudSelectItem>
+                        <MudSelectItem Value="@TableStatus.Reserved">Reserved</MudSelectItem>
+                        <MudSelectItem Value="@TableStatus.Occupied">Occupied</MudSelectItem>
+                    </MudSelect>
+
+                    <MudStack Row="true" Spacing="1">
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Save"
+                                   Disabled="_isSavingTable"
+                                   OnClick="SaveTableAsync">
+                            @(_isSavingTable
+                                ? "Saving..."
+                                : IsEditingTable
+                                    ? "Update Table"
+                                    : "Save Table")
+                        </MudButton>
+                        <MudButton Variant="Variant.Text"
+                                   Color="Color.Default"
+                                   StartIcon="@Icons.Material.Filled.Refresh"
+                                   Disabled="_isSavingTable"
+                                   OnClick="BeginCreateTable">
+                            Clear
+                        </MudButton>
+                    </MudStack>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="8">
+            <MudPaper Class="pa-3 pb-1" Elevation="1">
+                <MudTable Items="_tables" Hover="true" Dense="true" Striped="true" Filter="TableFilter">
+                    <ToolBarContent>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                            <MudText Typo="Typo.h6">Tables</MudText>
+                            <MudChip T="string" Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small">
+                                @_tables.Count
+                            </MudChip>
+                        </MudStack>
+                        <MudSpacer />
+                        <MudTextField @bind-Value="_tableSearch"
+                                      Placeholder="Search name, status, or capacity"
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.Search"
+                                      Class="mt-0" />
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Add"
+                                   Size="Size.Small"
+                                   Class="ma-0 px-3"
+                                   OnClick="BeginCreateTable">
+                            New
+                        </MudButton>
+                    </ToolBarContent>
+                    <HeaderContent>
+                        <MudTh>Name</MudTh>
+                        <MudTh>Capacity</MudTh>
+                        <MudTh>Status</MudTh>
+                        <MudTh Style="text-align:right">Actions</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Name">@context.Name</MudTd>
+                        <MudTd DataLabel="Capacity">@context.Capacity</MudTd>
+                        <MudTd DataLabel="Status">
+                            <MudChip T="string" Color="@GetTableStatusColor(context.Status)" Size="Size.Small">
+                                @context.Status
+                            </MudChip>
+                        </MudTd>
+                        <MudTd DataLabel="Actions" Style="text-align:right">
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary" OnClick="@(() => BeginEditTable(context))" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(async () => await DeleteTableAsync(context))" />
+                        </MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent>
+                        <MudText Typo="Typo.body2" Class="pa-4">No tables configured yet.</MudText>
+                    </NoRecordsContent>
+                    <PagerContent>
+                        <MudTablePager />
+                    </PagerContent>
+                </MudTable>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>;
+
+    // Tables
+    private void BeginCreateTable()
+    {
+        _tableForm = new TableEditModel
+        {
+            Id = 0,
+            BusinessId = BusinessId,
+            Name = string.Empty,
+            Capacity = 2,
+            Status = TableStatus.Free
+        };
+    }
+
+    private void BeginEditTable(TableDto table)
+    {
+        _tabIndex = 5;
+        _tableForm = new TableEditModel
+        {
+            Id = table.Id,
+            BusinessId = table.BusinessId,
+            Name = table.Name,
+            Capacity = table.Capacity,
+            Status = table.Status
+        };
+    }
+
+    private async Task SaveTableAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_tableForm.Name))
+        {
+            Snackbar.Add("Name is required.", Severity.Warning);
+            return;
+        }
+
+        if (_tableForm.Capacity <= 0)
+        {
+            Snackbar.Add("Capacity must be greater than zero.", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            _isSavingTable = true;
+            HttpResponseMessage response;
+
+            if (_tableForm.Id == 0)
+            {
+                var payload = new TableCreateRequest
+                {
+                    BusinessId = BusinessId,
+                    Name = _tableForm.Name,
+                    Capacity = _tableForm.Capacity,
+                    Status = _tableForm.Status
+                };
+
+                response = await HttpJsonDefaultsExtensions.PostAsJsonAsync(Http, "tables", payload);
+            }
+            else
+            {
+                var payload = new TableUpdateRequest
+                {
+                    Name = _tableForm.Name,
+                    Capacity = _tableForm.Capacity,
+                    Status = _tableForm.Status
+                };
+
+                var request = new HttpRequestMessage(HttpMethod.Patch, $"tables/{_tableForm.Id}")
+                {
+                    Content = System.Net.Http.Json.JsonContent.Create(payload)
+                };
+                response = await Http.SendAsync(request);
+            }
+
+            if (response.IsSuccessStatusCode)
+            {
+                var record = await HttpJsonDefaultsExtensions.ReadFromJsonAsync<TableDto>(response.Content);
+                if (record != null)
+                {
+                    Upsert(_tables, record, t => t.Id == record.Id);
+                    Snackbar.Add(_tableForm.Id == 0 ? "Table created." : "Table updated.", Severity.Success);
+                    BeginCreateTable();
+                }
+            }
+            else
+            {
+                Snackbar.Add($"Unable to save table: {(int)response.StatusCode} {response.ReasonPhrase}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Unable to save table: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSavingTable = false;
+        }
+    }
+
+    private async Task DeleteTableAsync(TableDto table)
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"tables/{table.Id}");
+            if (response.IsSuccessStatusCode)
+            {
+                _tables.Remove(table);
+                Snackbar.Add($"Deleted {table.Name}", Severity.Success);
+                if (_tableForm.Id == table.Id) BeginCreateTable();
+            }
+            else
+            {
+                Snackbar.Add($"Delete failed: {(int)response.StatusCode} {response.ReasonPhrase}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Unable to delete {table.Name}: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private bool TableFilter(TableDto table)
+    {
+        if (string.IsNullOrWhiteSpace(_tableSearch)) return true;
+
+        return table.Name.Contains(_tableSearch, StringComparison.OrdinalIgnoreCase)
+            || table.Status.ToString().Contains(_tableSearch, StringComparison.OrdinalIgnoreCase)
+            || table.Capacity.ToString().Contains(_tableSearch, StringComparison.OrdinalIgnoreCase)
+            || table.Id.ToString().Contains(_tableSearch, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static Color GetTableStatusColor(TableStatus status) => status switch
+    {
+        TableStatus.Free => Color.Success,
+        TableStatus.Reserved => Color.Warning,
+        TableStatus.Occupied => Color.Error,
+        _ => Color.Default
+    };
+
     // Items
     private void BeginCreateItem()
     {
@@ -1824,5 +2081,38 @@
         public int? Stock { get; set; }
         public ItemType? Type { get; set; }
         public long? TaxId { get; set; }
+    }
+
+    private sealed class TableDto
+    {
+        public long Id { get; set; }
+        public long BusinessId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public int Capacity { get; set; }
+        public TableStatus Status { get; set; } = TableStatus.Free;
+    }
+
+    private sealed class TableEditModel
+    {
+        public long Id { get; set; }
+        public long BusinessId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public int Capacity { get; set; }
+        public TableStatus Status { get; set; } = TableStatus.Free;
+    }
+
+    private sealed class TableCreateRequest
+    {
+        public long BusinessId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public int Capacity { get; set; }
+        public TableStatus Status { get; set; } = TableStatus.Free;
+    }
+
+    private sealed class TableUpdateRequest
+    {
+        public string? Name { get; set; }
+        public int? Capacity { get; set; }
+        public TableStatus? Status { get; set; }
     }
 }

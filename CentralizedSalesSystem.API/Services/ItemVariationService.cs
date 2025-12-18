@@ -17,7 +17,10 @@ namespace CentralizedSalesSystem.API.Services
 
         public async Task<object> GetItemVariationsAsync(int page, int limit, string? sortBy = null, string? sortDirection = null, long? filterByItemId = null, string? filterByName = null)
         {
-            var query = _db.ItemVariations.Include(v => v.Item).AsQueryable();
+            var query = _db.ItemVariations
+                .Include(v => v.Item)
+                .Include(v => v.Options)
+                .AsQueryable();
 
             if (filterByItemId.HasValue)
                 query = query.Where(v => v.ItemId == filterByItemId.Value);
@@ -52,7 +55,10 @@ namespace CentralizedSalesSystem.API.Services
 
         public async Task<ItemVariationResponseDto?> GetItemVariationByIdAsync(long id)
         {
-            var variation = await _db.ItemVariations.Include(v => v.Item).FirstOrDefaultAsync(v => v.Id == id);
+            var variation = await _db.ItemVariations
+                .Include(v => v.Item)
+                .Include(v => v.Options)
+                .FirstOrDefaultAsync(v => v.Id == id);
             return variation?.ToDto();
         }
 

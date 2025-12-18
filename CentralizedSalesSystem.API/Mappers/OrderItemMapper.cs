@@ -1,6 +1,7 @@
 using CentralizedSalesSystem.API.Models.Orders.DTOs.OrderItemDTOs;
 using CentralizedSalesSystem.API.Models.Orders.DTOs.ItemDTOs;
 using CentralizedSalesSystem.API.Models.Orders.DTOs.ItemVariationDTOs;
+using CentralizedSalesSystem.API.Models.Orders.DTOs.ItemVariationOptionDTOs;
 using CentralizedSalesSystem.API.Models.Orders.DTOs.DiscountDTOs;
 using CentralizedSalesSystem.API.Models.Orders.DTOs.TaxDTOs;
 using CentralizedSalesSystem.API.Models.Orders.DTOs.ServiceChargeDTOs;
@@ -18,6 +19,7 @@ namespace CentralizedSalesSystem.API.Mappers
                 Quantity = oi.Quantity,
                 Notes = oi.Notes,
                 ItemId = oi.ItemId,
+                ItemVariationOptionId = oi.ItemVariationOptionId,
                 OrderId = oi.OrderId,
                 DiscountId = oi.DiscountId,
                 TaxId = oi.TaxId,
@@ -30,15 +32,31 @@ namespace CentralizedSalesSystem.API.Mappers
                     Price = oi.Item.Price,
                     Type = oi.Item.Type,
                     Stock = oi.Item.Stock,
-                    BusinessId = oi.Item.BusinessId,
-                    Variations = oi.Item.Variations?.Select(v => new ItemVariationResponseDto
-                    {
-                        Id = v.Id,
-                        Name = v.Name,
-                        ItemId = v.ItemId,
-                        Selection = v.Selection
-                    }).ToList() ?? new List<ItemVariationResponseDto>()
+                        BusinessId = oi.Item.BusinessId,
+                        Variations = oi.Item.Variations?.Select(v => new ItemVariationResponseDto
+                        {
+                            Id = v.Id,
+                            Name = v.Name,
+                            ItemId = v.ItemId,
+                            Selection = v.Selection,
+                            Options = v.Options?.Select(o => new ItemVariationOptionResponseDto
+                            {
+                                Id = o.Id,
+                                Name = o.Name,
+                                PriceAdjustment = o.PriceAdjustment,
+                                ItemVariationId = o.ItemVariationId
+                            }).ToList() ?? new List<ItemVariationOptionResponseDto>()
+                        }).ToList() ?? new List<ItemVariationResponseDto>()
                 } : null!,
+                ItemVariationOption = oi.ItemVariationOption != null
+                    ? new ItemVariationOptionResponseDto
+                    {
+                        Id = oi.ItemVariationOption.Id,
+                        Name = oi.ItemVariationOption.Name,
+                        PriceAdjustment = oi.ItemVariationOption.PriceAdjustment,
+                        ItemVariationId = oi.ItemVariationOption.ItemVariationId
+                    }
+                    : null,
                 Discount = oi.Discount != null ? new DiscountResponseDto
                 {
                     Id = oi.Discount.Id,

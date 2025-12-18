@@ -30,6 +30,7 @@ namespace CentralizedSalesSystem.API.Services
         {
             var query = _db.Items
                 .Include(i => i.Variations)
+                    .ThenInclude(v => v.Options)
                 .Include(i => i.AssociatedRoles)
                 .AsQueryable();
 
@@ -80,6 +81,7 @@ namespace CentralizedSalesSystem.API.Services
         {
             var item = await _db.Items
                 .Include(i => i.Variations)
+                    .ThenInclude(v => v.Options)
                 .FirstOrDefaultAsync(i => i.Id == id);
 
             return item?.ToDto();

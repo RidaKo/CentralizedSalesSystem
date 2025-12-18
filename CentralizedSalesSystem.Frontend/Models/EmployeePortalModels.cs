@@ -23,6 +23,7 @@ namespace CentralizedSalesSystem.Frontend.Models
         public int? Stock { get; set; }
         public int? Duration { get; set; }
         public long? TaxId { get; set; }
+        public List<ItemVariationDto> Variations { get; set; } = new();
     }
 
     public class OrderItemDto
@@ -35,6 +36,8 @@ namespace CentralizedSalesSystem.Frontend.Models
         public Discount? Discount { get; set; }
         public long? TaxId { get; set; }
         public Tax? Tax { get; set; }
+        public long? ItemVariationOptionId { get; set; }
+        public ItemVariationOptionDto? ItemVariationOption { get; set; }
     }
 
     public class OrderDto
@@ -119,5 +122,29 @@ namespace CentralizedSalesSystem.Frontend.Models
     {
         Product,
         Service,
+    }
+
+    public enum ItemVariationSelection
+    {
+        Required,
+        Optional,
+        MultiSelection,
+    }
+
+    public class ItemVariationOptionDto
+    {
+        public long Id { get; set; }
+        public long ItemVariationId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public decimal PriceAdjustment { get; set; }
+    }
+
+    public class ItemVariationDto
+    {
+        public long Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public long ItemId { get; set; }
+        public ItemVariationSelection Selection { get; set; }
+        public List<ItemVariationOptionDto> Options { get; set; } = new();
     }
 }

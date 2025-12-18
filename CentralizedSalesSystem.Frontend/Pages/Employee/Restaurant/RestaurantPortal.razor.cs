@@ -70,8 +70,7 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
             ? 0
             : ActiveOrder.Items.Sum(line =>
             {
-                var item = Items.FirstOrDefault(i => i.Id == line.ItemId);
-                return (item?.Price ?? 0) * line.Quantity;
+                return GetLineUnitPriceForLine(line);
             });
 
         private decimal DiscountAmount => ActiveOrder is null ? 0 : GetDiscountAmount(ActiveOrder);

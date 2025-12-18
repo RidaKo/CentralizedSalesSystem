@@ -15,7 +15,7 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
 
         private string FormatPrice(OrderItemDto line, MenuItemDto? menuItem)
         {
-            var price = menuItem?.Price ?? 0;
+            var price = GetLineUnitPrice(line);
             return (price * line.Quantity).ToString("C");
         }
 
@@ -27,13 +27,55 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
             return 0;
         }
 
-        private decimal GetSubtotal(OrderDto order)
+        private decimal GetLineUnitPrice(OrderItemDto line)
         {
-            return order.Items.Sum(line =>
+            var item = Items.FirstOrDefault(i => i.Id == line.ItemId);
+            var basePrice = item?.Price ?? 0m;
+
+            if (line.ItemVariationOption is not null)
+            {
+                return basePrice + line.ItemVariationOption.PriceAdjustment;
+            }
+
+            if (line.ItemVariationOptionId.HasValue && item?.Variations is not null)
+            {
+                var option = item.Variations
+                    .SelectMany(v => v.Options)
+                    .FirstOrDefault(o => o.Id == line.ItemVariationOptionId.Value);
+
+                if (option != null)
+                {
+                    return basePrice + option.PriceAdjustment;
+                }
+            }
+
+            return basePrice;
+        }
+
+        private decimal GetSubtotal(OrderDto order) =>
+            order.Items.Sum(GetLineUnitPriceForLine);
+
+        private decimal GetLineUnitPriceForLine(OrderItemDto line) =>
+            GetLineUnitPrice(line) * line.Quantity;
+
+        private string? GetVariationOptionLabel(OrderItemDto line)
+        {
+            if (line.ItemVariationOption is not null)
+            {
+                return line.ItemVariationOption.Name;
+            }
+
+            if (line.ItemVariationOptionId.HasValue)
             {
                 var item = Items.FirstOrDefault(i => i.Id == line.ItemId);
-                return (item?.Price ?? 0) * line.Quantity;
-            });
+                var option = item?.Variations?
+                    .SelectMany(v => v.Options ?? new List<ItemVariationOptionDto>())
+                    .FirstOrDefault(o => o.Id == line.ItemVariationOptionId.Value);
+
+                return option?.Name;
+            }
+
+            return null;
         }
 
         private decimal GetDiscountAmount(OrderDto order)
@@ -52,7 +94,7 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
                 if (!IsDiscountActive(discount)) return 0m;
                 if (!IsDiscountApplicableToItem(discount, item)) return 0m;
 
-                var lineTotal = item.Price * line.Quantity;
+                var lineTotal = GetLineUnitPriceForLine(line);
                 return CalculateDiscountAmount(discount, lineTotal, line.Quantity);
             });
 
@@ -161,7 +203,7 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
                 if (tax.EffectiveFrom > now) return 0m;
                 if (tax.EffectiveTo.HasValue && tax.EffectiveTo.Value < now) return 0m;
 
-                var lineSubtotal = item.Price * line.Quantity;
+                var lineSubtotal = GetLineUnitPriceForLine(line);
                 return lineSubtotal * (tax.Rate / 100m);
             });
         }

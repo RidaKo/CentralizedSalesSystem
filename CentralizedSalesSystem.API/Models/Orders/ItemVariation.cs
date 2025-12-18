@@ -14,5 +14,7 @@ namespace CentralizedSalesSystem.API.Models.Orders
 
         public Item Item { get; set; } = null!;
 
+        public ICollection<ItemVariationOption> Options { get; set; } = new List<ItemVariationOption>();
+
     }
 }

@@ -2,6 +2,7 @@ using CentralizedSalesSystem.API.Models.Orders.DTOs.ItemDTOs;
 using CentralizedSalesSystem.API.Models.Orders.DTOs.DiscountDTOs;
 using CentralizedSalesSystem.API.Models.Orders.DTOs.TaxDTOs;
 using CentralizedSalesSystem.API.Models.Orders.DTOs.ServiceChargeDTOs;
+using CentralizedSalesSystem.API.Models.Orders.DTOs.ItemVariationOptionDTOs;
 namespace CentralizedSalesSystem.API.Models.Orders.DTOs.OrderItemDTOs;
 
 public class OrderItemResponseDto
@@ -13,6 +14,8 @@ public class OrderItemResponseDto
 
     public long ItemId { get; set; }
     public ItemResponseDto Item { get; set; } = null!;
+    public long? ItemVariationOptionId { get; set; }
+    public ItemVariationOptionResponseDto? ItemVariationOption { get; set; }
 
     public long OrderId { get; set; }
     public DiscountResponseDto? Discount { get; set; }

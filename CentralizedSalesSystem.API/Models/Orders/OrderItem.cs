@@ -24,6 +24,9 @@ namespace CentralizedSalesSystem.API.Models.Orders
         public Item? Item { get; set; }
         public long ItemId { get; set; }
 
+        public ItemVariationOption? ItemVariationOption { get; set; }
+        public long? ItemVariationOptionId { get; set; }
+
         public Reservation? Reservation { get; set; }
         public long? ReservationId { get; set; }
 

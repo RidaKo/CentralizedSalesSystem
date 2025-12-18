@@ -1,4 +1,5 @@
 using CentralizedSalesSystem.API.Models.Orders.enums;
+using CentralizedSalesSystem.API.Models.Orders.DTOs.ItemVariationOptionDTOs;
 namespace CentralizedSalesSystem.API.Models.Orders.DTOs.ItemVariationDTOs;
 
 public class ItemVariationResponseDto
@@ -7,5 +8,5 @@ public class ItemVariationResponseDto
     public string Name { get; set; } = string.Empty;
     public long ItemId { get; set; }
     public ItemVariationSelection Selection { get; set; }
+    public List<ItemVariationOptionResponseDto> Options { get; set; } = new();
 }
-

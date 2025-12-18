@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using CentralizedSalesSystem.Frontend.Json;
 using CentralizedSalesSystem.Frontend.Models;
+using CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant.Components;
 using MudBlazor;
 
 namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
@@ -66,6 +67,35 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
 
         private Task CreateOrderFromSelection() => CreateOrderFromSelectionAsync();
 
+        private async Task<(bool cancelled, long? optionId)> PromptVariationOptionAsync(MenuItemDto menuItem)
+        {
+            if (menuItem.Variations is null || !menuItem.Variations.Any(v => v.Options.Any()))
+            {
+                return (false, null);
+            }
+
+            var parameters = new DialogParameters
+            {
+                { nameof(VariationSelectionDialog.Item), menuItem }
+            };
+            var options = new DialogOptions
+            {
+                CloseOnEscapeKey = true,
+                MaxWidth = MaxWidth.Small,
+                FullWidth = true
+            };
+
+            var dialog = DialogService.Show<VariationSelectionDialog>("Select option", parameters, options);
+            var result = await dialog.Result;
+
+            if (result.Canceled)
+            {
+                return (true, null);
+            }
+
+            return (false, result.Data as long?);
+        }
+
         private async Task AddItemToOrderAsync(MenuItemDto menuItem)
         {
             if (!CanModifyActiveOrder)
@@ -80,7 +110,24 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
                 return;
             }
 
-            var existingLine = ActiveOrder.Items.FirstOrDefault(i => i.ItemId == menuItem.Id);
+            var selection = await PromptVariationOptionAsync(menuItem);
+            if (selection.cancelled)
+            {
+                return;
+            }
+
+            var selectedOptionId = selection.optionId;
+
+            if (selectedOptionId is null &&
+                menuItem.Variations?.Any(v => v.Selection == ItemVariationSelection.Required && v.Options.Any()) == true)
+            {
+                Snackbar.Add("Select a variation option to add this item.", Severity.Warning);
+                return;
+            }
+
+            var existingLine = ActiveOrder.Items.FirstOrDefault(i =>
+                i.ItemId == menuItem.Id &&
+                i.ItemVariationOptionId == selectedOptionId);
             if (existingLine is null)
             {
                 // Create new order item
@@ -90,6 +137,7 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
                     {
                         OrderId = ActiveOrder.Id,
                         ItemId = menuItem.Id,
+                        ItemVariationOptionId = selectedOptionId,
                         Quantity = 1,
                         Notes = (string?)null,
                         DiscountId = (long?)null,
@@ -109,7 +157,8 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
                     }
                     else
                     {
-                        Snackbar.Add("Failed to add item to order", Severity.Error);
+                        var errorContent = await response.Content.ReadAsStringAsync();
+                        Snackbar.Add($"Failed to add item to order: {errorContent}", Severity.Error);
                     }
                 }
                 catch (Exception ex)
@@ -271,6 +320,7 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
         private async Task CancelOrderAsync()
         {
             if (ActiveOrder is null || !CanModifyActiveOrder) return;
+            var tableId = ActiveOrder.TableId;
             
             try
             {
@@ -287,6 +337,11 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
                     UpdateTableStatus(ActiveOrder.TableId, TableStatus.Free);
                     SyncTableStatuses();
                     IsEditMode = false;
+                    // Clear selection so a new order button can appear.
+                    ActiveOrder = null;
+                    SelectedTableId = tableId;
+                    SelectedTableForNewOrder = tableId;
+                    SelectedOrderDiscountId = null;
                     Snackbar.Add("Order cancelled.", Severity.Warning);
                 }
                 else
@@ -524,8 +579,9 @@ namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant
             var lines = target.Items.Select(line =>
             {
                 var item = Items.FirstOrDefault(i => i.Id == line.ItemId);
-                var name = item?.Name ?? "Item";
-                var price = (item?.Price ?? 0) * line.Quantity;
+                var option = GetVariationOptionLabel(line);
+                var name = option is null ? item?.Name ?? "Item" : $"{item?.Name ?? "Item"} ({option})";
+                var price = GetLineUnitPrice(line) * line.Quantity;
                 return $"{name} x{line.Quantity} - {price:C}";
             });
 

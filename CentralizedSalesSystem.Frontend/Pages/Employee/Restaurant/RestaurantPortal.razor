@@ -88,10 +88,15 @@
                                 @foreach (var line in ActiveOrder.Items)
                                 {
                                     var menuItem = Items.FirstOrDefault(i => i.Id == line.ItemId);
+                                    var variationLabel = GetVariationOptionLabel(line);
                                     <MudListItem T="OrderItemDto" Class="order-line">
                                         <MudIcon Icon="@Icons.Material.Filled.Fastfood" Color="Color.Primary" Class="mr-2" />
                                         <div class="d-flex flex-column mr-3">
                                             <MudText Typo="Typo.body2">@((menuItem?.Name) ?? "Item")</MudText>
+                                            @if (!string.IsNullOrWhiteSpace(variationLabel))
+                                            {
+                                                <MudText Typo="Typo.caption" Color="Color.Secondary">@variationLabel</MudText>
+                                            }
                                             @if (!string.IsNullOrWhiteSpace(line.Notes))
                                             {
                                                 <MudText Typo="Typo.caption" Color="Color.Secondary">@line.Notes</MudText>
@@ -118,6 +123,10 @@
                                                                    Color="Color.Error"
                                                                    Size="Size.Small"
                                                                    OnClick="@(() => RemoveItem(line))" />
+                                                    <MudSpacer />
+                                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                        @($"{GetLineUnitPrice(line):C} each")
+                                                    </MudText>
                                                 </MudStack>
                                                 <MudSelect T="long?"
                                                            Dense="true"
@@ -136,7 +145,7 @@
                                         else
                                         {
                                             <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center" Class="w-100">
-                                                <MudText Typo="Typo.body2">@($"{line.Quantity} x {(menuItem?.Price ?? 0):C}")</MudText>
+                                                <MudText Typo="Typo.body2">@($"{line.Quantity} x {GetLineUnitPrice(line):C}")</MudText>
                                                 <MudSpacer />
                                                 <MudText Typo="Typo.body2">@FormatPrice(line, menuItem)</MudText>
                                             </MudStack>

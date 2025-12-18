@@ -18,13 +18,7 @@ namespace CentralizedSalesSystem.API.Mappers
                 Type = item.Type,
                 BusinessId = item.BusinessId,
                 TaxId = item.TaxId,
-                Variations = item.Variations?.Select(v => new ItemVariationResponseDto
-                {
-                    Id = v.Id,
-                    Name = v.Name,
-                    ItemId = v.ItemId,
-                    Selection = v.Selection
-                }).ToList() ?? new List<ItemVariationResponseDto>(),
+                Variations = item.Variations?.Select(v => v.ToDto()).ToList() ?? new List<ItemVariationResponseDto>(),
                 AssociatedRoles = item.Type == Models.Orders.enums.ItemType.Service && item.AssociatedRoles != null
                     ? item.AssociatedRoles.ToList()
                     : new List<Role>()//This has to be changed to RoleResponse

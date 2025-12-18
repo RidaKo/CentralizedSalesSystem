@@ -3,6 +3,7 @@ using CentralizedSalesSystem.API.Mappers;
 using CentralizedSalesSystem.API.Models;
 using CentralizedSalesSystem.API.Models.Orders;
 using CentralizedSalesSystem.API.Models.Orders.DTOs.OrderItemDTOs;
+using CentralizedSalesSystem.API.Models.Orders.enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace CentralizedSalesSystem.API.Services
@@ -21,9 +22,13 @@ namespace CentralizedSalesSystem.API.Services
         {
             var query = _db.OrderItems
                 .Include(oi => oi.Item)
+                    .ThenInclude(i => i.Variations)
+                        .ThenInclude(v => v.Options)
                 .Include(oi => oi.Discount)
                 .Include(oi => oi.Tax)
                 .Include(oi => oi.ServiceCharge)
+                .Include(oi => oi.ItemVariationOption)
+                    .ThenInclude(o => o.ItemVariation)
                 .AsQueryable();
 
             if (filterByOrderId.HasValue) query = query.Where(oi => oi.OrderId == filterByOrderId.Value);
@@ -49,9 +54,13 @@ namespace CentralizedSalesSystem.API.Services
         {
             var item = await _db.OrderItems
                 .Include(oi => oi.Item)
+                    .ThenInclude(i => i.Variations)
+                        .ThenInclude(v => v.Options)
                 .Include(oi => oi.Discount)
                 .Include(oi => oi.Tax)
                 .Include(oi => oi.ServiceCharge)
+                .Include(oi => oi.ItemVariationOption)
+                    .ThenInclude(o => o.ItemVariation)
                 .FirstOrDefaultAsync(oi => oi.Id == id);
 
             return item?.ToDto();
@@ -67,6 +76,25 @@ namespace CentralizedSalesSystem.API.Services
             if (item == null)
                 throw new Exception($"Item {dto.ItemId} not found");
 
+            ItemVariationOption? variationOption = null;
+            if (dto.ItemVariationOptionId.HasValue && dto.ItemVariationOptionId.Value > 0)
+            {
+                variationOption = await _db.ItemVariationOptions
+                    .Include(o => o.ItemVariation)
+                    .FirstOrDefaultAsync(o => o.Id == dto.ItemVariationOptionId.Value);
+
+                if (variationOption == null || variationOption.ItemVariation.ItemId != dto.ItemId)
+                    throw new Exception("Invalid variation option for this item");
+            }
+            else
+            {
+                var hasRequiredVariation = await _db.ItemVariations
+                    .AnyAsync(v => v.ItemId == dto.ItemId && v.Selection == ItemVariationSelection.Required);
+
+                if (hasRequiredVariation)
+                    throw new Exception($"A variation selection is required for {item.Name}");
+            }
+
             if (item.Stock < dto.Quantity)
                 throw new Exception($"Insufficient stock for item {item.Name}");
 
@@ -78,6 +106,8 @@ namespace CentralizedSalesSystem.API.Services
                 ItemId = dto.ItemId,
                 Quantity = dto.Quantity,
                 Notes = dto.Notes,
+                ItemVariationOptionId = variationOption?.Id,
+                ItemVariationOption = variationOption,
                 DiscountId = dto.DiscountId,
                 TaxId = dto.TaxId ?? item.TaxId,
                 ServiceChargeId = dto.ServiceChargeId
@@ -108,6 +138,32 @@ namespace CentralizedSalesSystem.API.Services
             }
 
             if (!string.IsNullOrEmpty(dto.Notes)) orderItem.Notes = dto.Notes;
+            if (dto.ItemVariationOptionId.HasValue)
+            {
+                if (dto.ItemVariationOptionId.Value == 0)
+                {
+                    var hasRequiredVariation = await _db.ItemVariations
+                        .AnyAsync(v => v.ItemId == orderItem.ItemId && v.Selection == ItemVariationSelection.Required);
+
+                    if (hasRequiredVariation)
+                        throw new Exception("A variation selection is required for this item");
+
+                    orderItem.ItemVariationOptionId = null;
+                    orderItem.ItemVariationOption = null;
+                }
+                else
+                {
+                    var variationOption = await _db.ItemVariationOptions
+                        .Include(o => o.ItemVariation)
+                        .FirstOrDefaultAsync(o => o.Id == dto.ItemVariationOptionId.Value);
+
+                    if (variationOption == null || variationOption.ItemVariation.ItemId != orderItem.ItemId)
+                        throw new Exception("Invalid variation option for this item");
+
+                    orderItem.ItemVariationOptionId = variationOption.Id;
+                    orderItem.ItemVariationOption = variationOption;
+                }
+            }
             if (dto.DiscountId.HasValue)
             {
                 orderItem.DiscountId = dto.DiscountId.Value == 0 ? null : dto.DiscountId;

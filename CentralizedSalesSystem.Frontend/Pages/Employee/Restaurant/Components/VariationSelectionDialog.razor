@@ -1,0 +1,87 @@
+@namespace CentralizedSalesSystem.Frontend.Pages.Employee.Restaurant.Components
+@using System.Linq
+@using CentralizedSalesSystem.Frontend.Models
+@using MudBlazor
+
+<MudDialog MaxWidth="MaxWidth.Small" FullWidth="true">
+    <DialogContent>
+        @if (Variation is null)
+        {
+            <MudText>No variations available for this item.</MudText>
+        }
+        else
+        {
+            <MudStack Spacing="1">
+                <MudText Typo="Typo.h6">@Item.Name</MudText>
+                <MudText Typo="Typo.subtitle2">@Variation.Name</MudText>
+
+                <MudRadioGroup T="long?"
+                               Id="@($"variation-{Item?.Id}-{Variation?.Id}")"
+                               Value="@SelectedOptionId"
+                               ValueChanged="OnOptionChanged"
+                               Dense="true">
+                    @if (Variation.Selection == ItemVariationSelection.Optional)
+                    {
+                        <MudRadio T="long?" Value="@((long?)null)" Color="Color.Default">
+                            No selection (@Item.Price.ToString("C"))
+                        </MudRadio>
+                    }
+                    @foreach (var option in Variation.Options)
+                    {
+                        <MudRadio T="long?" Value="@option.Id" Color="Color.Primary">
+                            @option.Name
+                            (@(option.PriceAdjustment == 0
+                                ? "no extra"
+                                : option.PriceAdjustment.ToString("+#.##;-#.##")))
+                            → @((Item.Price + option.PriceAdjustment).ToString("C"))
+                        </MudRadio>
+                    }
+                </MudRadioGroup>
+                @if (!string.IsNullOrWhiteSpace(Error))
+                {
+                    <MudText Color="Color.Error" Typo="Typo.caption">@Error</MudText>
+                }
+            </MudStack>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="Cancel">Cancel</MudButton>
+        <MudButton Disabled="@(Variation is null)" Variant="Variant.Filled" Color="Color.Primary" OnClick="Confirm">Add</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public MenuItemDto Item { get; set; } = default!;
+
+    private ItemVariationDto? Variation => Item?.Variations?.FirstOrDefault(v => v.Options.Any());
+    private long? SelectedOptionId { get; set; }
+    private string? Error { get; set; }
+
+    protected override void OnInitialized()
+    {
+        if (Variation?.Selection == ItemVariationSelection.Required)
+        {
+            SelectedOptionId = Variation.Options.FirstOrDefault()?.Id;
+        }
+    }
+
+    private void Confirm()
+    {
+        if (Variation?.Selection == ItemVariationSelection.Required && SelectedOptionId is null)
+        {
+            Error = "Please choose an option.";
+            return;
+        }
+
+        MudDialog.Close(DialogResult.Ok(SelectedOptionId));
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void OnOptionChanged(long? value)
+    {
+        Error = null;
+        SelectedOptionId = value;
+    }
+}

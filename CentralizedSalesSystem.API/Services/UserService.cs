@@ -64,6 +64,8 @@ public class UserService : IUserService
 
     public async Task<UserResponseDto> CreateAsync(UserCreateDto dto)
     {
+        var now = DateTimeOffset.UtcNow;
+
         var user = new User
         {
             BusinessId = dto.BusinessId,
@@ -77,6 +79,10 @@ public class UserService : IUserService
 
         _db.Users.Add(user);
         await _db.SaveChangesAsync();
+
+        var defaultRoles = await DefaultRoleProvisioning.EnsureDefaultRolesAsync(_db, user.BusinessId, now);
+        await DefaultRoleProvisioning.EnsureUserRoleAsync(_db, user, defaultRoles.StaffRole, now);
+
         return MapToDto(user);
     }
 

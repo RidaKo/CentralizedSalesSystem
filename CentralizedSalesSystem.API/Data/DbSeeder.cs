@@ -229,7 +229,8 @@ namespace CentralizedSalesSystem.API.Data
                     PermissionCode.ORDER_VIEW, PermissionCode.ORDER_CREATE, PermissionCode.ORDER_UPDATE, PermissionCode.ORDER_DELETE,
                     PermissionCode.ORDER_ITEM_ADD, PermissionCode.ORDER_ITEM_UPDATE, PermissionCode.ORDER_ITEM_REMOVE, PermissionCode.ORDER_CLOSE,
                     PermissionCode.RESERVATION_VIEW, PermissionCode.RESERVATION_CREATE, PermissionCode.RESERVATION_UPDATE, PermissionCode.RESERVATION_CANCEL,
-                    PermissionCode.ITEM_VIEW, PermissionCode.DISCOUNT_APPLY, PermissionCode.TABLE_VIEW
+                    PermissionCode.ITEM_VIEW, PermissionCode.TAX_VIEW, PermissionCode.DISCOUNT_VIEW, PermissionCode.DISCOUNT_APPLY,
+                    PermissionCode.PAYMENT_VIEW, PermissionCode.PAYMENT_CREATE, PermissionCode.TABLE_VIEW
                 });
 
             var sunriseUserRoles = new List<UserRole>
@@ -470,7 +471,8 @@ namespace CentralizedSalesSystem.API.Data
                     PermissionCode.ORDER_VIEW, PermissionCode.ORDER_CREATE, PermissionCode.ORDER_UPDATE, PermissionCode.ORDER_DELETE,
                     PermissionCode.ORDER_ITEM_ADD, PermissionCode.ORDER_ITEM_UPDATE, PermissionCode.ORDER_ITEM_REMOVE, PermissionCode.ORDER_CLOSE,
                     PermissionCode.RESERVATION_VIEW, PermissionCode.RESERVATION_CREATE, PermissionCode.RESERVATION_UPDATE, PermissionCode.RESERVATION_CANCEL,
-                    PermissionCode.ITEM_VIEW, PermissionCode.DISCOUNT_APPLY, PermissionCode.TABLE_VIEW
+                    PermissionCode.ITEM_VIEW, PermissionCode.TAX_VIEW, PermissionCode.DISCOUNT_VIEW, PermissionCode.DISCOUNT_APPLY,
+                    PermissionCode.PAYMENT_VIEW, PermissionCode.PAYMENT_CREATE, PermissionCode.TABLE_VIEW
                 });
 
             var lunaUserRoles = new List<UserRole>

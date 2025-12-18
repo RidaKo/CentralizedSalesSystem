@@ -23,6 +23,7 @@ public class OwnerSignupService : IOwnerSignupService
     {
         // Wrap entire flow in a transaction to keep it atomic.
         await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken);
+        var now = DateTimeOffset.UtcNow;
 
         var business = new Business
         {
@@ -53,6 +54,9 @@ public class OwnerSignupService : IOwnerSignupService
         business.OwnerId = owner.Id;
         _db.Businesses.Update(business);
         await _db.SaveChangesAsync(cancellationToken);
+
+        var defaultRoles = await DefaultRoleProvisioning.EnsureDefaultRolesAsync(_db, business.Id, now, cancellationToken);
+        await DefaultRoleProvisioning.EnsureUserRoleAsync(_db, owner, defaultRoles.OwnerRole, now, cancellationToken);
 
         await tx.CommitAsync(cancellationToken);
 
